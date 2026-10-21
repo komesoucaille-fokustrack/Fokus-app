@@ -520,9 +520,9 @@ function spawn(tasks, rec, k) {
   return { tasks: out, rec: rec2 };
 }
 /* tags = noms d'étiquettes (créées si besoin) */
-export function addRec({ text, rule, weight, tags = [], prio }) {
+export function addRec({ text, rule, weight, tags = [], prio, est = 0 }) {
   const t = resolveTags(tags, S.tags);
-  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, last: '' };
+  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, est: est | 0, last: '' };
   set({ tags: t.tags, ...spawn(S.tasks, [...S.rec, r], todayKey()) });
   toast(`Récurrence ajoutée : ${describeRule(r.rule).toLowerCase()}.`);
 }

@@ -449,3 +449,8 @@
 @layer components {
   .grip[data-auto] { opacity: 0.35; border-style: dashed; cursor: not-allowed; }
 }
+@layer components {
+  .hl-est { background: rgba(252, 165, 165, 0.2); box-shadow: 0 0 0 2px rgba(252, 165, 165, 0.2); color: #fecaca; }
+  .hl-off { background: transparent; box-shadow: none; text-decoration: underline dotted rgba(255, 255, 255, 0.35); text-underline-offset: 4px; }
+  button.chip { cursor: pointer; min-height: 30px; }
+}

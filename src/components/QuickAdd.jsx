@@ -1,10 +1,10 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { parseQuick } from '../lib/quickAdd';
 import { JOURS_COURTS, dayLabel } from '../lib/dates';
 import { TagChip } from './TaskList';
 import { addRec, addTask, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
 
-const KIND = { date: 'hl-date', tag: 'hl-tag', weight: 'hl-w', prio: 'hl-p' };
+const KIND = { date: 'hl-date', tag: 'hl-tag', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
 const TYPES = [['daily', 'Tous les jours'], ['interval', 'Tous les X jours'], ['weekdays', 'Certains jours'], ['monthday', 'Un jour du mois']];
 const ORDER = [1, 2, 3, 4, 5, 6, 0]; // lundi → dimanche
 
@@ -65,13 +65,16 @@ function RecPanel({ rule, setRule }) {
 const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowRec }, ref) {
   const { S } = useStore();
   const [text, setText] = useState('');
+  const [ignore, setIgnore] = useState(() => new Set());
   const [scroll, setScroll] = useState(0);
+  const inp = useRef(null), wasFocused = useRef(false);
+  useImperativeHandle(ref, () => inp.current);
   const [weight, setWeight] = useState(null);
   const [prio, setPrio] = useState(false);
   const [rec, setRec] = useState(false);
   const [rule, setRule] = useState({ type: 'daily', days: [1, 2, 3, 4, 5], every: 2, day: 1 });
   const today = todayKey();
-  const q = parseQuick(text, today);
+  const q = parseQuick(text, today, ignore);
   const w = q.weight ?? weight ?? S.set.defWeight;
   const pr = q.prio || prio;
 
@@ -85,19 +88,29 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
   parts.push(text.slice(i));
 
   const sync = (e) => setScroll(e.currentTarget.scrollLeft);
+  // comme Todoist : un tap sur un mot surligné annule sa détection (et un 2e tap la rétablit)
+  const toggle = (key) => setIgnore((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const onTap = (e) => {
+    sync(e);
+    const el = e.currentTarget;
+    if (!wasFocused.current || el.selectionStart !== el.selectionEnd) return;
+    const pos = el.selectionStart, t = q.tokens.find((x) => pos > x.start && pos < x.end);
+    if (t) toggle(t.key);
+  };
   const submit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
     if (!q.title) { toast('Ajoute un titre à la tâche.'); return; }
     if (rec) {
       if (rule.type === 'weekdays' && !rule.days.length) { toast('Choisis au moins un jour.'); return; }
-      addRec({ text: q.title, rule, weight: w, tags: q.tags, prio: pr });
+      addRec({ text: q.title, rule, weight: w, tags: q.tags, prio: pr, est: q.est });
     } else {
       const date = q.date === undefined ? defaultDate : q.date;
-      addTask({ text: q.title, date, weight: w, prio: pr, tags: q.tags });
+      addTask({ text: q.title, date, weight: w, prio: pr, tags: q.tags, est: q.est, time: q.time });
       if (date !== defaultDate) toast(`Ajoutée : ${dayLabel(date, today)}`);
     }
     setText('');
+    setIgnore(new Set());
     setScroll(0);
     setPrio(false);
     setWeight(null);
@@ -109,10 +122,11 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
         <div className="field qa min-w-[200px]">
           <div className="qa-mirror" aria-hidden="true"><span style={{ transform: `translateX(${-scroll}px)` }}>{parts}{'​'}</span></div>
           <input
-            ref={ref} value={text} maxLength={200} autoComplete="off" enterKeyHint="done" aria-label={rec ? 'Nouvelle tâche récurrente' : 'Nouvelle tâche'}
+            ref={inp} value={text} maxLength={200} autoComplete="off" enterKeyHint="done" aria-label={rec ? 'Nouvelle tâche récurrente' : 'Nouvelle tâche'}
             placeholder={rec ? 'Tâche récurrente… (ex. « Lire 20 min #lecture »)' : placeholder}
             onChange={(e) => { setText(e.target.value); sync(e); }}
-            onScroll={sync} onKeyUp={sync} onClick={sync} onSelect={sync}
+            onScroll={sync} onKeyUp={sync} onSelect={sync} onClick={onTap}
+            onPointerDown={(e) => { wasFocused.current = document.activeElement === e.currentTarget; }}
           />
         </div>
         <span className="flex gap-2">
@@ -127,8 +141,11 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
           <button type="button" key={n} className={'seg pts ' + (w === n ? 'on' : '')} onClick={() => setWeight(n)} aria-pressed={w === n}>{n} pt{n > 1 ? 's' : ''}</button>
         ))}
         <button type="button" className={'seg gold ' + (pr ? 'on' : '')} onClick={() => setPrio((p) => !p)} aria-pressed={pr}>★ Priorité</button>
-        {q.date !== undefined && !rec && <span className="chip hl-date">📅 {dayLabel(q.date, today)}</span>}
-        {q.tags.map((t) => <span key={t} className="chip hl-tag">#{t}</span>)}
+        {q.tokens.filter((t) => t.kind !== 'off' && t.kind !== 'weight' && t.kind !== 'prio' && !(rec && t.kind === 'date')).map((t) => {
+          const w0 = text.slice(t.start, t.end);
+          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '🍅 ' + w0.slice(1) : w0;
+          return <button type="button" key={t.key} className={'chip ' + KIND[t.kind]} onClick={() => toggle(t.key)} title="Annuler la détection">{label} ✕</button>;
+        })}
       </div>
       {rec && <RecPanel rule={rule} setRule={setRule} />}
     </form>
