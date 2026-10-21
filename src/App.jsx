@@ -6,6 +6,7 @@ import TaskList from './components/TaskList';
 import ValidateButton from './components/ValidateButton';
 import RecurringModal from './components/RecurringModal';
 import { race, canAnimate, skip } from './cinematic/engine';
+import { celebrate } from './lib/celebrate';
 import { addTask, checkDay, generateTestData, setBusy, simulateMidnight, stats, useStore, validateSelection } from './store';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
@@ -73,14 +74,17 @@ export default function App() {
     const c = card.current, s2 = stats();
     const pl = (n, w) => w + (n > 1 ? 's' : '');
     const subText = `${s2.c} / ${s2.n} ${pl(s2.n, 'tâche')} ${pl(s2.c, 'terminée')}`;
+    // les deux animations sont indépendantes (réglables via le rouage) : barre 3D et/ou confettis à 100 %
+    const confettiAt100 = S.confetti && nw >= 100 && old < 100;
     if (S.anim && canAnimate() && old !== nw) {
       setBusy(true);
       race(
         { ...c, subText, bg: [document.getElementById('hdr'), form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
-        old, nw, () => setBusy(false),
+        old, nw, () => setBusy(false), { confetti: confettiAt100 },
       );
     } else {
       requestAnimationFrame(() => c.paintBar(nw, true));
+      if (confettiAt100) setTimeout(celebrate, 350);
     }
   };
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FokusLogo from './FokusLogo';
-import { exportJSON, importJSON, setAnim, setPage, toast, useStore } from '../store';
+import Settings from './Settings';
+import { exportJSON, importJSON, setPage, toast, useStore } from '../store';
 
 /* Plein écran (Safari iPad : API préfixée webkit) */
 const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -27,7 +28,7 @@ function useFullscreen() {
 }
 
 export default function Header({ onRecurring }) {
-  const { S, UI } = useStore();
+  const { UI } = useStore();
   const file = useRef(null);
   const full = useFullscreen();
   const [canFull] = useState(fsSupported);
@@ -56,14 +57,11 @@ export default function Header({ onRecurring }) {
         <button className="b" onClick={onRecurring}>Tâches Récurrentes</button>
       </nav>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="sw">
-          <input type="checkbox" checked={S.anim} onChange={(e) => setAnim(e.target.checked)} />
-          <i />Animation
-        </label>
         <button className="b" onClick={exportJSON}>Exporter (JSON)</button>
         <button className="b" onClick={() => file.current.click()}>Importer (JSON)</button>
         {canFull && <button className={'b ' + (full ? 'on' : '')} onClick={toggleFullscreen}>{full ? 'Quitter le plein écran' : '⛶ Plein écran'}</button>}
         <input ref={file} type="file" accept=".json,application/json" hidden onChange={onFile} />
+        <Settings />
       </div>
     </header>
   );

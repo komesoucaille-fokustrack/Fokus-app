@@ -4,7 +4,7 @@ import { clamp } from './lib/colors';
 
 /* ---------- État persistant (compatible avec l'ancien index.html) ---------- */
 const KEY = 'focus_state';
-const DEF = { tasks: [], rec: [], hist: {}, last: '', off: 0, anim: true };
+const DEF = { tasks: [], rec: [], hist: {}, last: '', off: 0, anim: true, confetti: true };
 
 function load() {
   try { return { ...DEF, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEF }; }
@@ -76,6 +76,7 @@ export function validateSelection() {
 export const setBusy = (busy) => setUI({ busy });
 export const setPage = (page) => setUI({ page });
 export const setAnim = (anim) => set({ anim });
+export const setConfetti = (confetti) => set({ confetti });
 
 let toastTimer;
 export function toast(msg) {

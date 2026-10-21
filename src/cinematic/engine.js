@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import confetti from 'canvas-confetti';
+import { celebrate } from '../lib/celebrate';
 import { fx } from './shared';
 import { clamp, gradFor, getColorForPercentage } from '../lib/colors';
 
@@ -64,7 +64,7 @@ function measureFace(c, r) {
 /**
  * @param {object} c refs : card, label, pct, sub, pwrap, pbar, fill, blue, glow, bg (éléments qui s'enfoncent), list, dim, skip, canvas
  */
-export function race(c, from, to, onDone) {
+export function race(c, from, to, onDone, opts = {}) {
   const vw = innerWidth, vh = innerHeight, mob = vw < 640;
   const O = { x: vw / 2, y: vh / 2 };
   const r = c.card.getBoundingClientRect(), b = c.pbar.getBoundingClientRect();
@@ -150,11 +150,7 @@ export function race(c, from, to, onDone) {
     fx.burst++;
     gsap.fromTo(fx, { flash: 1 }, { flash: 0, duration: 1.3, ease: 'power2.out' });
     gsap.fromTo(fx, { ring: 0 }, { ring: 1, duration: 1.1, ease: 'power2.out', onComplete: () => { fx.ring = -1; } });
-    const e = c.pbar.getBoundingClientRect();
-    const o = fx.k > 0.3 && fx.archScreen ? fx.archScreen : { x: e.right, y: e.top + e.height / 2 };
-    const origin = { x: clamp(o.x / vw, 0, 1), y: clamp(o.y / vh, 0, 1) };
-    confetti({ particleCount: 170, spread: 100, startVelocity: 42, origin, zIndex: 300, colors: ['#ffffff', '#93c5fd', '#3b82f6', '#86efac'] });
-    setTimeout(() => confetti({ particleCount: 120, spread: 150, startVelocity: 30, origin, zIndex: 300, colors: ['#ffffff', '#bfdbfe', '#60a5fa'] }), 280);
+    if (opts.confetti) celebrate();   // pluie de confettis multicolores plein écran (désactivable dans les paramètres)
   }
 
   function finish() {
@@ -209,15 +205,15 @@ export function race(c, from, to, onDone) {
     .call(() => { fx.moving = true; }, null, 'run')
     .to(fx, { p: to, duration: run, ease: 'power2.inOut' }, 'run')
     .call(() => { fx.moving = false; }, null, `run+=${run}`)
-    .to(fx, { lay0: 1, duration: 0.8, ease: 'sine.inOut' }, `run+=${run}`)   // à l'arrivée : bien à plat, carte entière avec l'arche
+    .to(fx, { lay0: 1, duration: 0.45, ease: 'sine.inOut' }, `run+=${run}`)   // à l'arrivée : bien à plat, carte entière avec l'arche
   /* 5 — Fin en 2D sans coupure, la barre reprend son pastel */
-    .addLabel('ret', `run+=${run + (to >= 100 ? 1.0 : 0.7)}`)
-    .to(fx, { intro: 0, duration: 1.4, ease: 'expo.inOut' }, 'ret')
-    .to(fx, { lift: 0, duration: 1.3, ease: 'power3.inOut' }, 'ret+=.1')
-    .to(fx, { arch: 0, duration: 0.6, ease: 'power3.in' }, 'ret')
-    .to(fx, { as: 0, duration: 0.4, ease: 'power2.in' }, 'ret+=.35')
-    .to(hold, { sink: 0, duration: 1.3, ease: 'power2.inOut' }, 'ret+=.1')
-    .call(() => { c.card.style.visibility = ''; c.canvas.classList.remove('on'); }, null, 'ret+=1.4')   // relais carte 3D → carte DOM
-    .to(c.blue, { opacity: 0, duration: 1.1, ease: 'power2.inOut' }, 'ret+=1.4')
-    .to(c.glow, { backgroundColor: getColorForPercentage(to), opacity: to ? 0.4 : 0, duration: 1.1, ease: 'power2.inOut' }, 'ret+=1.4');
+    .addLabel('ret', `run+=${run + (to >= 100 ? 0.5 : 0.3)}`)
+    .to(fx, { arch: 0, duration: 0.4, ease: 'power3.in' }, 'ret')
+    .to(fx, { as: 0, duration: 0.3, ease: 'power2.in' }, 'ret+=.2')
+    .to(fx, { intro: 0, duration: 0.95, ease: 'power3.inOut' }, 'ret+=.1')
+    .to(fx, { lift: 0, duration: 0.85, ease: 'power3.inOut' }, 'ret+=.15')
+    .to(hold, { sink: 0, duration: 0.85, ease: 'power2.inOut' }, 'ret+=.15')
+    .call(() => { c.card.style.visibility = ''; c.canvas.classList.remove('on'); }, null, 'ret+=1.05')   // relais carte 3D → carte DOM
+    .to(c.blue, { opacity: 0, duration: 0.8, ease: 'power2.inOut' }, 'ret+=1.05')
+    .to(c.glow, { backgroundColor: getColorForPercentage(to), opacity: to ? 0.4 : 0, duration: 0.8, ease: 'power2.inOut' }, 'ret+=1.05');
 }

@@ -51,8 +51,12 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
      (+10 % ≈ 3 s, +25 % ≈ 4 s, +50 % ≈ 5 s, +100 % ≈ 6,5 s) ; effet de vitesse très faible à +10 %, un peu à +25 %,
      légèrement plus à +50 %, plus marqué (sans excès) à +100 % ; étincelles très rares (un peu plus seulement à +100 %).
      **Effets volontairement très discrets** : ne jamais surcharger (pas de tremblement ni de recul caméra).
-  5. À 100 % : passage sous l'arche, flash, gerbe et confettis. Puis retour en 2D **sans coupure** : la carte 3D se repose
-     exactement sur la carte DOM et la barre reprend sa couleur pastel.
+  5. À 100 % : passage sous l'arche, flash, petite gerbe. Puis retour en 2D **rapide (~1 s) et sans coupure** : l'arche se range,
+     la carte 3D se repose exactement sur la carte DOM et la barre reprend sa couleur pastel.
+- **Confettis à 100 %** (`src/lib/celebrate.js`) : pluie de confettis multicolores sur **tout l'écran** (gerbe centrale,
+  canons latéraux, pluie depuis le haut), déclenchée au passage de l'arche ou directement si l'animation de la barre est coupée.
+- **Paramètres** (`src/components/Settings.jsx`, icône rouage dans l'en-tête) : deux interrupteurs indépendants et persistés —
+  « Animation de la barre » (`S.anim`) et « Confettis à 100 % » (`S.confetti`) : les deux, un seul ou aucun.
 - **Légèreté** : peu de particules (max 260 étincelles, 14 traînées), `dpr` ≤ 1,5, multisampling 2 — l'animation doit rester ultra fluide sur iPad.
 - La scène WebGL (`src/cinematic/Scene3D.jsx`) est une surcouche transparente : la caméra Three reproduit `perspective(1100px)`
   (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que la carte. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
@@ -63,7 +67,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   cordes d'ancrage ; elle se gonfle avec un rebond élastique. `Bloom` (postprocessing) réservé au gel bleu et aux étincelles.
 - **Étincelles 3D** (`Sparks.jsx`) jaillissant du front de la barre. À 100 % : flash, onde de choc, gerbe d'étincelles et confettis.
 - Éléments additifs : toujours le mélange `additive` de `textures.js` (n'écrit pas d'alpha → pas de traînées noires sur le canevas transparent).
-- Respecter `prefers-reduced-motion` et l'interrupteur « Animation » (sinon simple flash bleu de la barre). Bouton « Passer l'animation ».
+- Respecter `prefers-reduced-motion` et les paramètres (barre coupée → simple flash bleu de la barre). Bouton « Passer l'animation ».
 - Test visuel : `?slow=0.3` ralentit toute l'animation.
 
 ## Logique métier (à préserver)
