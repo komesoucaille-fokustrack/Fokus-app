@@ -2,11 +2,9 @@ import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 import gsap from 'gsap';
 import { gradFor, getColorForPercentage } from '../lib/colors';
 
-const plural = (n, w) => w + (n > 1 ? 's' : '');
-
 /* Carte « Aujourd'hui » — rendu de la barre géré impérativement
    (la chorégraphie 3D en prend le contrôle pendant l'animation). */
-const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
+const ProgressCard = forwardRef(function ProgressCard({ s, text, busy }, ref) {
   const r = {
     card: useRef(null), label: useRef(null), sub: useRef(null), pct: useRef(null), pwrap: useRef(null), pbar: useRef(null), fill: useRef(null),
     blue: useRef(null), glow: useRef(null),
@@ -33,14 +31,11 @@ const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
 
   return (
     <div className="card" id="pcard" ref={r.card}>
+      {/* textes partagés avec la face 3D (cardText du store) : un seul nœud texte par élément */}
+      <div className="truncate text-[13px] text-mut tabular-nums" ref={r.label}>{text.label}</div>
       <div className="flex items-end justify-between gap-2">
-        <div>
-          <div className="text-[13px] text-mut" ref={r.label}>Aujourd’hui</div>
-          <div className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular-nums" ref={r.pct}>0%</div>
-        </div>
-        <div className="text-right text-[13px] text-mut tabular-nums" ref={r.sub}>
-          {s.n ? `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}` : 'Aucune tâche aujourd’hui'}
-        </div>
+        <div className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular-nums" ref={r.pct}>0%</div>
+        <div className="text-right text-[13px] text-mut tabular-nums" ref={r.sub}>{text.sub}</div>
       </div>
       <div id="pwrap" ref={r.pwrap}>
         <div id="glow" ref={r.glow} />

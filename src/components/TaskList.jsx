@@ -1,13 +1,17 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { deleteTask, editTask, moveTask, toggleSel } from '../store';
+import {
+  addSub, addTag, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
+  todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore,
+} from '../store';
+import { addDays, dayLabel } from '../lib/dates';
 
 /* Transitions fluides de liste (FLIP) : compare les positions avant/après chaque rendu.
    Après un glisser-déposer, seule la tâche lâchée glisse jusqu'à sa place (les autres y sont déjà). */
 function useFlip(listRef, tasks, dropRef) {
   const prev = useRef(null);
   useLayoutEffect(() => {
-    const items = [...listRef.current.querySelectorAll('li[data-id]')];
+    const items = [...listRef.current.querySelectorAll(':scope > li[data-id]')];
     const pos = Object.fromEntries(items.map((li) => [li.dataset.id, li.offsetTop]));
     const drop = dropRef.current;
     dropRef.current = null;
@@ -43,12 +47,120 @@ function Pen() {
   );
 }
 
-function Task({ t, selected, busy, onGrab }) {
+export const fmtMin = (m) => {
+  const v = Math.round(m);
+  return v >= 60 ? `${Math.floor(v / 60)} h${v % 60 ? ' ' + String(v % 60).padStart(2, '0') : ''}` : `${v} min`;
+};
+
+export function TagChip({ tag, on, onClick, small }) {
+  const style = { '--tc': tag.color };
+  const cls = 'tag ' + (on === false ? 'off ' : '') + (small ? 'sm' : '');
+  return onClick
+    ? <button type="button" className={cls} style={style} onClick={onClick} aria-pressed={!!on}>{tag.name}</button>
+    : <span className={cls} style={style}>{tag.name}</span>;
+}
+
+/* Panneau d'options avancées (s'ouvre au tap sur la tâche) */
+function Details({ t, today }) {
+  const { S } = useStore();
+  const [sub, setSub] = useState('');
+  const [tag, setTag] = useState('');
+  const wrap = useRef(null);
+  useLayoutEffect(() => {
+    gsap.from(wrap.current, { height: 0, opacity: 0, duration: 0.45, ease: 'expo.out', clearProps: 'height,opacity' });
+  }, []);
+  const tomorrow = addDays(today, 1);
+  const picked = t.date && t.date > tomorrow;
+  const addS = (e) => { e.preventDefault(); const v = sub.trim(); if (v) { addSub(t.id, v); setSub(''); } };
+  const addT = (e) => { e.preventDefault(); const v = tag.trim(); if (!v) return; const id = addTag(v); if (id && !t.tags.includes(id)) toggleTaskTag(t.id, id); setTag(''); };
+  return (
+    <div ref={wrap} className="details" onClick={(e) => e.stopPropagation()}>
+      {!t.done && (
+        <div className="drow">
+          <span className="dlab">Date</span>
+          <div className="segs">
+            <button type="button" className={'seg ' + (t.date && t.date <= today ? 'on' : '')} onClick={() => setDate(t.id, today)}>Aujourd’hui</button>
+            <button type="button" className={'seg ' + (t.date === tomorrow ? 'on' : '')} onClick={() => setDate(t.id, tomorrow)}>Demain</button>
+            <label className={'seg relative ' + (picked ? 'on' : '')}>
+              📅 {picked ? dayLabel(t.date, today) : 'Choisir une date'}
+              <input
+                type="date" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" min={today} value={t.date || ''}
+                onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* non supporté */ } }}
+                onChange={(e) => e.target.value && setDate(t.id, e.target.value)}
+              />
+            </label>
+            <button type="button" className={'seg ' + (t.date === null ? 'on' : '')} onClick={() => setDate(t.id, null)}>Plus tard</button>
+          </div>
+        </div>
+      )}
+      <div className="drow">
+        <span className="dlab">Poids</span>
+        <div className="segs">
+          {[[1, 'Petite'], [2, 'Moyenne'], [3, 'Grosse']].map(([w, l]) => (
+            <button type="button" key={w} className={'seg ' + (t.weight === w ? 'on' : '')} onClick={() => setWeight(t.id, w)}>{w} · {l}</button>
+          ))}
+        </div>
+      </div>
+      <div className="drow">
+        <span className="dlab">Priorité</span>
+        <div className="segs">
+          <button type="button" className={'seg ' + (t.prio ? 'on' : '')} onClick={() => togglePrio(t.id)}>★ Priorité du jour</button>
+        </div>
+      </div>
+      <div className="drow">
+        <span className="dlab">Étiquettes</span>
+        <div className="segs">
+          {S.tags.map((g) => <TagChip key={g.id} tag={g} on={t.tags.includes(g.id)} onClick={() => toggleTaskTag(t.id, g.id)} />)}
+          <form className="flex gap-1" onSubmit={addT}>
+            <input className="field mini" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Nouvelle…" maxLength={24} />
+            <button className="seg" aria-label="Créer l’étiquette">+</button>
+          </form>
+        </div>
+      </div>
+      <div className="drow items-start!">
+        <span className="dlab pt-2.5">Sous-tâches</span>
+        <div className="min-w-0 flex-1">
+          {t.subs.map((s) => (
+            <div key={s.id} className="subrow">
+              <button type="button" className={'sck ' + (s.done ? 'on' : '')} onClick={() => toggleSub(t.id, s.id)} aria-label={s.done ? 'Décocher' : 'Cocher'} />
+              <input
+                className={'subt ' + (s.done ? 'line-through text-mut' : '')} defaultValue={s.text} maxLength={160}
+                onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== s.text) editSub(t.id, s.id, v); else e.target.value = s.text; }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              />
+              <button type="button" className="ic" onClick={() => deleteSub(t.id, s.id)} aria-label="Supprimer la sous-tâche">✕</button>
+            </div>
+          ))}
+          <form className="mt-1 flex gap-1.5" onSubmit={addS}>
+            <input className="field mini flex-1" value={sub} onChange={(e) => setSub(e.target.value)} placeholder="Ajouter une sous-tâche…" maxLength={160} />
+            <button className="seg">Ajouter</button>
+          </form>
+        </div>
+      </div>
+      <div className="drow">
+        <span className="dlab">Concentration</span>
+        <div className="segs items-center">
+          {!t.done && <button type="button" className="seg on" onClick={() => startFocus(t.id)}>▶ Lancer le minuteur</button>}
+          <span className="text-[13px] text-mut">Temps cumulé : {fmtMin(t.focus)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
+  const { S } = useStore();
   const [editing, setEditing] = useState(false);
   const li = useRef(null);
   const input = useRef(null);
 
   useLayoutEffect(() => { if (editing) { input.current.focus(); input.current.select(); } }, [editing]);
+  useEffect(() => {
+    if (!flash) return;
+    li.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    gsap.fromTo(li.current, { boxShadow: '0 0 0 2px rgba(255,255,255,.9), 0 0 40px rgba(255,255,255,.25)' }, { boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,.14), 0 10px 30px -10px rgba(0,0,0,.6)', duration: 1.8, delay: 0.3, ease: 'power2.out', clearProps: 'boxShadow' });
+    clearFlash();
+  }, [flash]);
 
   const commit = () => {
     const v = input.current.value.trim();
@@ -56,10 +168,13 @@ function Task({ t, selected, busy, onGrab }) {
     setEditing(false);
   };
   const del = () => gsap.to(li.current, { opacity: 0, x: 40, duration: 0.25, ease: 'power2.in', onComplete: () => deleteTask(t.id) });
+  const tags = t.tags.map((id) => S.tags.find((g) => g.id === id)).filter(Boolean);
+  const subsDone = t.subs.filter((s) => s.done).length;
+  const canSel = mode === 'today';
 
   return (
-    <li ref={li} data-id={t.id} className={'task ' + (t.done ? 'done' : selected ? 'sel' : '')}>
-      <button className="ck" aria-label="Sélectionner" onClick={() => toggleSel(t.id)} />
+    <li ref={li} data-id={t.id} className={'task ' + (t.done ? 'done ' : selected ? 'sel ' : '') + (t.prio ? 'prio ' : '') + (open ? 'open' : '')}>
+      {canSel && <button className="ck" aria-label={t.done ? 'Terminée' : 'Sélectionner'} disabled={t.done} onClick={() => toggleSel(t.id)} />}
       {editing ? (
         <input
           ref={input}
@@ -70,10 +185,27 @@ function Task({ t, selected, busy, onGrab }) {
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditing(false); }}
         />
       ) : (
-        <span className="t" onDoubleClick={() => !t.done && setEditing(true)}>{t.text}</span>
+        <button type="button" className="t tbtn" onClick={() => setOpen(t.id)} aria-expanded={open} title="Options de la tâche">
+          <span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
+          <span className="meta">
+            {t.weight > 1 && <span className="chip">{t.weight} pts</span>}
+            {t.carried >= 2 && <span className="chip warn">reportée {t.carried}×</span>}
+            {tags.map((g) => <TagChip key={g.id} tag={g} small />)}
+            {t.subs.length > 0 && (
+              <span className="chip flex items-center gap-1.5">
+                <span className="mini-bar"><i style={{ width: (subsDone / t.subs.length) * 100 + '%' }} /></span>
+                {subsDone}/{t.subs.length}
+              </span>
+            )}
+            {t.focus >= 1 && <span className="chip">⏱ {fmtMin(t.focus)}</span>}
+            {t.rid && <span className="chip">↻</span>}
+          </span>
+        </button>
       )}
       <span className="flex items-center gap-1">
-        {!t.done && <button className="ic pen" onClick={() => setEditing(true)} title="Modifier" aria-label="Modifier"><Pen /></button>}
+        {t.done
+          ? <button className="ic undo" onClick={() => uncheck(t.id)} title="Décocher (remettre à faire)" aria-label="Décocher" disabled={busy}>↺</button>
+          : <button className="ic pen" onClick={() => setEditing(true)} title="Modifier" aria-label="Modifier"><Pen /></button>}
         <button className="ic" onClick={del} title="Supprimer" aria-label="Supprimer">🗑</button>
         <button
           className="grip"
@@ -83,14 +215,17 @@ function Task({ t, selected, busy, onGrab }) {
           onPointerDown={(e) => onGrab(e, li.current, t.id)}
         ><Grip /></button>
       </span>
+      {open && !editing && <Details t={t} today={today} />}
     </li>
   );
 }
 
-export default function TaskList({ tasks, sel, busy }) {
+export default function TaskList({ tasks, sel, busy, mode = 'today', empty }) {
+  const { UI } = useStore();
   const list = useRef(null);
   const dropRef = useRef(null);
   useFlip(list, tasks, dropRef);
+  const today = todayKey();
 
   /* Glisser-déposer tactile (iPad) et souris : la tâche suit le doigt, les autres s'écartent */
   const onGrab = (e, el, id) => {
@@ -98,7 +233,7 @@ export default function TaskList({ tasks, sel, busy }) {
     e.preventDefault();
     const handle = e.currentTarget;
     handle.setPointerCapture?.(e.pointerId);
-    const items = [...list.current.querySelectorAll('li[data-id]')];
+    const items = [...list.current.querySelectorAll(':scope > li[data-id]')];
     const from = items.indexOf(el);
     const tops = items.map((x) => x.offsetTop), hs = items.map((x) => x.offsetHeight);
     const gap = parseFloat(getComputedStyle(el).marginBottom) || 8, shift = hs[from] + gap;
@@ -133,7 +268,7 @@ export default function TaskList({ tasks, sel, busy }) {
       items.forEach((x) => { x.style.transition = ''; x.style.transform = ''; });
       if (to !== from) {
         dropRef.current = { id, top: visualTop };
-        moveTask(id, to);
+        moveTask(id, items[to].dataset.id, to > from); // relatif à la tâche visée : l'ordre choisi est conservé partout
       } else {
         gsap.fromTo(el, { y: visualTop - el.offsetTop }, { y: 0, duration: 0.3, ease: 'power3.out', clearProps: 'transform' });
       }
@@ -144,11 +279,16 @@ export default function TaskList({ tasks, sel, busy }) {
   };
 
   return (
-    <ul id="list" ref={list} className="relative p-0">
+    <ul ref={list} className="relative p-0">
       {tasks.length ? (
-        tasks.map((t) => <Task key={t.id} t={t} selected={sel.has(t.id)} busy={busy} onGrab={onGrab} />)
+        tasks.map((t) => (
+          <Task
+            key={t.id} t={t} selected={sel.has(t.id)} busy={busy} onGrab={onGrab} mode={mode}
+            open={UI.open === t.id} flash={UI.flash === t.id} today={today}
+          />
+        ))
       ) : (
-        <div className="py-6 text-center text-mut">Aucune tâche. Ajoutez-en une ci-dessus.</div>
+        <div className="py-6 text-center text-mut">{empty ?? 'Aucune tâche. Ajoutez-en une ci-dessus.'}</div>
       )}
     </ul>
   );

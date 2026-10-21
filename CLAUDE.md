@@ -72,23 +72,43 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Respecter `prefers-reduced-motion` et les paramètres (barre coupée → simple flash bleu de la barre). Bouton « Passer l'animation ».
 - Test visuel : `?slow=0.3` ralentit toute l'animation.
 
-## Logique métier (à préserver)
+## Logique métier v2 (à préserver)
 
-- Tâches : ajout, modification (gros stylo ✎), suppression, sélection multiple + validation via le gros bouton flottant
-  (Dynamic Island, gain affiché en **vert pastel** `#86efac`), tâches récurrentes.
-- Réorganisation : **poignée « 6 points »** (rectangle arrondi) à droite, à côté de la poubelle — rester appuyé et glisser
-  (événements pointer, `touch-action: none`, fonctionne au doigt sur iPad) ; la tâche suit le doigt, les autres s'écartent.
-- Minuit (00:00) : score du jour → historique ; tâches `done: true` retirées ; tâches `done: false` reportées au lendemain ;
-  tâches récurrentes ajoutées. Boutons de test « Simuler minuit » et « Générer données test » conservés.
-- Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points,
-  toute la courbe prend la couleur de la moyenne de la période (Semaine / Mois / Année).
-- Persistance `localStorage` clé `focus_state` ; Export/Import JSON compatible avec l'ancien `index.html`.
+- **Modèle de données** (`src/store.js`, `version: 2`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
+  les sauvegardes de l'ancien `index.html` restent compatibles) :
+  - tâche `{ id, text, done, date ('YYYY-MM-DD' | null = Plus tard), weight 1|2|3, prio, tags[], subs[{id,text,done}], carried, focus (min), rid? }` ;
+  - récurrence `{ id, text, rule {type: daily|weekdays(days)|interval(every)|monthday(day)}, start, weight, tags, prio, last }` —
+    `last` + « pas de nouvelle occurrence tant que la précédente n'est pas faite » = jamais de doublon ;
+  - historique `hist[jour] = { p, d, t, pd, pt, pr, prt, fm, tg, jk? }` ; réglages `S.set` (`DEF_SET`) ; `badges`, `doneTotal`, `fmDay`,
+    `lastExport`, `since`, `seen` (tri du matin, bilan, rappels), `pomo` (minuteur en cours, calculé par horodatages).
+- **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). La Page 1 n'affiche que ces tâches :
+  priorités ★ (3 max par jour) en tête avec liseré blanc, puis l'ordre choisi (ordre du tableau, respecté partout ; le glisser-déposer
+  déplace relativement à la tâche visée). Filtre par étiquette au-dessus de la liste.
+- Validation : gros bouton flottant (gain par points en vert pastel `#86efac`), puis toast « X tâche(s) validée(s) — Annuler » (6 s, après
+  l'animation) ; ↺ décoche une tâche terminée ; « Annuler » après suppression. Textes de la carte : `cardText()` (partagé avec la face 3D :
+  `subText` + mise à jour du nœud texte du libellé avant `race`). Si la carte est hors écran, la page remonte avant l'animation.
+- Panneau d'options au tap sur une tâche : date (Aujourd'hui / Demain / Choisir / Plus tard), poids, priorité, étiquettes, sous-tâches,
+  minuteur ▶. Saisie rapide (`src/lib/quickAdd.js`) : demain, lundi…, 25/10, #tag, !/!!/!!!, * — surlignés pendant la frappe.
+- Minuit (00:00) : entrée d'historique complète ; tâches faites retirées ; non faites reportées (`carried` + 1, badge « reportée N× » dès 2) ;
+  tâches datées du jour affichées ; récurrences du jour ; jokers (2/mois, réglable) ; badges. Tri du matin à la 1re ouverture s'il y a des
+  reports ; bilan de la semaine à la 1re ouverture de la semaine. Jours sans tâche = neutres pour la série ; série hebdo = ≥ 5 jours réussis.
+- Fiabilité : `navigator.storage.persist()`, copie IndexedDB restaurée si le localStorage est vide (`src/lib/backup.js`, démarrage
+  asynchrone dans `main.jsx`), rappel d'export tous les 7 jours. Notifications locales / pastille / vibration : `src/lib/notify.js`.
+- Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points, couleur de la moyenne
+  de la période (Semaine / Mois / Année) ; concentration et série ; répartition par étiquette ; calendrier de chaleur 12 mois ; vitrine de badges.
+- PWA : `pwa/sw.js` → `dist/sw.js` généré au build (liste des fichiers + version) par le plugin de `vite.config.js` ; bandeau « Nouvelle version ».
+- Mode test : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
+  + tâches d'exemple).
+- Raccourcis : N, /, Entrée, Échap. Interface en français, mobile d'abord (cibles ≥ 44 px, pas de défilement horizontal).
 
 ## Arborescence
 
-- `src/store.js` — état, persistance, changement de jour, actions.
-- `src/components/` — UI (en-tête, carte de progression, liste, bouton flottant, modale, statistiques).
-- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Outline.jsx`, `Arch.jsx`, `Sparks.jsx`, `SpeedLines.jsx` — scène 3D.
+- `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
+- `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
+  `RecurringModal`, `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `FocusMode`, `StatsPage`, `Sheet` (modale).
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`.
+- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Outline.jsx`, `Arch.jsx`, `Sparks.jsx`,
+  `SpeedLines.jsx` — scène 3D (**l'utilisateur a validé l'animation : ne plus la modifier**).
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
 - `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
 

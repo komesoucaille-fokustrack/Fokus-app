@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import FokusLogo from './FokusLogo';
-import Settings from './Settings';
-import { exportJSON, importJSON, setPage, toast, useStore } from '../store';
+import { Gear } from './Settings';
+import { setModal, setPage, useStore } from '../store';
 
 /* Plein écran (Safari iPad : API préfixée webkit) */
 const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -27,23 +27,20 @@ function useFullscreen() {
   return on;
 }
 
-export default function Header({ onRecurring }) {
-  const { UI } = useStore();
-  const file = useRef(null);
+function Loupe() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+export default function Header() {
+  const { S, UI } = useStore();
   const full = useFullscreen();
   const [canFull] = useState(fsSupported);
-  const go = (p) => { if (!UI.busy) setPage(p); };
-  const onFile = (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try { importJSON(r.result); toast('Données importées.'); }
-      catch { toast('Fichier invalide : ce n’est pas une sauvegarde Fokus.'); }
-    };
-    r.readAsText(f);
-    e.target.value = '';
-  };
+  const upcoming = S.tasks.filter((t) => !t.done && (t.date === null || t.date > S.last)).length;
+  const open = (m) => { if (!UI.busy) setModal(m); };
   return (
     <header
       id="hdr"
@@ -52,16 +49,17 @@ export default function Header({ onRecurring }) {
     >
       <FokusLogo />
       <nav className="flex flex-wrap items-center gap-2">
-        <button className={'b ' + (UI.page === 1 ? 'on' : '')} onClick={() => go(1)}>Mes Tâches</button>
-        <button className={'b ' + (UI.page === 2 ? 'on' : '')} onClick={() => go(2)}>Ma Progression</button>
-        <button className="b" onClick={onRecurring}>Tâches Récurrentes</button>
+        <button className={'b ' + (UI.page === 1 ? 'on' : '')} onClick={() => setPage(1)}>Mes Tâches</button>
+        <button className={'b ' + (UI.page === 3 ? 'on' : '')} onClick={() => setPage(3)}>
+          À venir{upcoming > 0 && <span className="ml-1.5 text-[12px] opacity-60 tabular-nums">{upcoming}</span>}
+        </button>
+        <button className={'b ' + (UI.page === 2 ? 'on' : '')} onClick={() => setPage(2)}>Ma Progression</button>
+        <button className="b" onClick={() => open('rec')}>Récurrentes</button>
       </nav>
       <div className="flex flex-wrap items-center gap-2">
-        <button className="b" onClick={exportJSON}>Exporter (JSON)</button>
-        <button className="b" onClick={() => file.current.click()}>Importer (JSON)</button>
-        {canFull && <button className={'b ' + (full ? 'on' : '')} onClick={toggleFullscreen}>{full ? 'Quitter le plein écran' : '⛶ Plein écran'}</button>}
-        <input ref={file} type="file" accept=".json,application/json" hidden onChange={onFile} />
-        <Settings />
+        <button className="b icon-b" onClick={() => open('search')} aria-label="Rechercher" title="Rechercher (/)"><Loupe /></button>
+        {canFull && <button className={'b icon-b ' + (full ? 'on' : '')} onClick={toggleFullscreen} aria-label="Plein écran">{full ? '✕' : '⛶'}<span className="hidden sm:inline">{full ? ' Quitter le plein écran' : ' Plein écran'}</span></button>}
+        <button className={'b icon-b ' + (UI.modal === 'settings' ? 'on' : '')} onClick={() => open('settings')} aria-label="Réglages" title="Réglages"><Gear /></button>
       </div>
     </header>
   );
