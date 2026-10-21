@@ -15,6 +15,7 @@ import { clamp } from '../lib/colors';
 const PHI = -Math.PI / 2;    // l'arche fait face à la barre qui arrive (et à la caméra de poursuite)
 const SPAN = 140, PH = 170;  // entraxe des piliers, hauteur des piliers
 const BAN_Y = PH + 34;       // centre du fronton
+const ARCH_SCALE = 0.42;     // l'arche est posée sur la carte, au bout de la barre
 const TEXT = { height: 7, curveSegments: 8, bevelEnabled: true, bevelThickness: 1.2, bevelSize: 0.55, bevelSegments: 3 };
 
 function useMaterials() {
@@ -73,12 +74,13 @@ export default function Arch() {
   useFrame(({ camera, size }) => {
     const b = barGeo(), k = fx.k, fl = fx.flash;
     base.current.position.set(b.x1 - 6, b.y, 0);
+    base.current.scale.setScalar(ARCH_SCALE * (fx.G.mob ? 0.8 : 1));
     base.current.rotation.z = PHI;
     // l'arche se couche et rétrécit quand le bloc redescend à plat
     const down = clamp((k - 0.3) / 0.45, 0, 1);
     base.current.visible = fx.as * down > 0.002 || fx.ring >= 0;
     stand.current.rotation.x = (Math.PI / 2) * fx.arch * down;
-    stand.current.scale.setScalar(Math.max(0.001, fx.as * down) * (fx.G.mob ? 0.72 : 1));
+    stand.current.scale.setScalar(Math.max(0.001, fx.as * down));
     stand.current.visible = fx.as * down > 0.002;
     finish.current.visible = stand.current.visible;
 

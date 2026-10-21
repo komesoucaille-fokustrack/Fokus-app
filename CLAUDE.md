@@ -35,25 +35,25 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 ## Animation 3D cinématographique « In-Place » (au clic sur « Valider »)
 
 - **Interdit** : écran noir séparé, page dédiée, ou animation en Canvas 2D plat. L'interface de la Page 1 reste exactement la même.
-- **Caméra de poursuite à la 3e personne** (`src/cinematic/engine.js`, constantes `CHASE`) :
-  1. **Découpe laser** (`Laser.jsx`) : deux faisceaux blancs tombent d'en haut et découpent le contour du bloc de progression
-     (contour incandescent + gerbes d'étincelles blanches), puis le bloc **se décroche** de la carte (relais instantané
-     barre DOM → piste 3D alignée au pixel près).
-  2. La caméra plonge et **zoome sur le 0 %** : vue rasante derrière la barre, inclinée pour voir la **ligne d'arrivée au fond** ;
-     la page s'enfonce (translateZ négatif + flou de profondeur de champ).
-  3. La piste s'illumine (rails néon, repères 10 %…90 %), puis la barre **bleu électrique** avance jusqu'au **pourcentage exact** ;
-     le bloc glisse en sens inverse pour que la caméra **suive le front de près**. Compteur (HUD) qui accompagne le front.
-  4. **Plus la barre avance, plus le bloc redescend** : `k = intro × inclinaison restante`, à plat à `FLAT_AT` (62 %),
-     même perspective ; on retrouve alors simplement la page et la barre finit sa course en place (étincelles, flash à 100 %).
-  5. Fin en 2D **sans coupure** : la piste 3D se repose exactement sur la barre DOM, qui reprend sa couleur pastel.
+- **Référence visuelle** : la carte « Aujourd'hui » devient une dalle 3D épaisse et flottante (tranche biseautée brillante, ombre portée),
+  la barre est un **gel lumineux en relief** ; plan large incliné puis gros plan sur le début de la barre (cf. visuels fournis).
+- Séquence (`src/cinematic/engine.js`, constantes `CAM`, `FLAT_AT`) :
+  1. **Découpe laser** (`Laser.jsx`) : deux faisceaux blancs découpent le contour de la carte, puis elle **se décolle** de la page
+     (relais instantané carte DOM → carte 3D identique au pixel près, la face est redessinée depuis les mesures du DOM).
+  2. **Plan large** : la carte flotte, inclinée (monte vers la droite) ; la page s'enfonce et se floute ; l'arche se dresse au bout de la barre.
+  3. **Zoom progressif sur le début de la barre** (gros plan, compteur bien visible).
+  4. Le gel s'illumine en **bleu électrique** et avance jusqu'au **pourcentage exact** ; la caméra suit le front de près
+     (la carte glisse en sens inverse). Plus la barre avance, plus la carte **redescend** : à plat à `FLAT_AT` (62 %),
+     même perspective, puis on retrouve simplement la page et la barre finit sa course en place (étincelles, flash à 100 %).
+  5. Fin en 2D **sans coupure** : la carte 3D se repose exactement sur la carte DOM, la barre reprend sa couleur pastel.
 - La scène WebGL (`src/cinematic/Scene3D.jsx`) est une surcouche transparente : la caméra Three reproduit `perspective(1100px)`
-  (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que le bloc. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
-- **Piste** (`Track.jsx`) : piste extrudée, sol à grille avec fondu vers le noir, reflet bleu sous la tête, rails et repères qui s'allument.
-- **Arche d'arrivée « FOKUS 100% »** (`Arch.jsx`) en vrai volume 3D au bout de la piste, face à la caméra : `RoundedBox` biseautés,
+  (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que la carte. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
+  Pas d'effet de profondeur de champ WebGL (il rend le canevas opaque) : le flou d'arrière-plan est fait en CSS sur la page.
+- **Carte** (`Card3D.jsx`) : dalle extrudée biseautée, face en texture haute définition, gels pastel puis bleu, halo et ombre.
+- **Arche d'arrivée « FOKUS 100% »** (`Arch.jsx`) en vrai volume 3D posée au bout de la barre : `RoundedBox` biseautés,
   matériaux physiques (`meshPhysicalMaterial`, clearcoat, reflets d'environnement), texte « 100% » extrudé (`Text3D`), logo `.fokus-logo`,
   néons via `Bloom` (postprocessing, flou mipmap = équivalent `UnrealBloomPass`).
-- **Étincelles 3D** (`Sparks.jsx`) jaillissant du front de la barre (rebond sur la piste). À 100 % : passage sous l'arche,
-  flash, onde de choc, gerbe d'étincelles et confettis.
+- **Étincelles 3D** (`Sparks.jsx`) jaillissant du front de la barre. À 100 % : flash, onde de choc, gerbe d'étincelles et confettis.
 - Éléments additifs : toujours le mélange `additive` de `textures.js` (n'écrit pas d'alpha → pas de traînées noires sur le canevas transparent).
 - Respecter `prefers-reduced-motion` et l'interrupteur « Animation » (sinon simple flash bleu de la barre). Bouton « Passer l'animation ».
 - Test visuel : `?slow=0.3` ralentit toute l'animation.
@@ -72,7 +72,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - `src/store.js` — état, persistance, changement de jour, actions.
 - `src/components/` — UI (en-tête, carte de progression, liste, bouton flottant, modale, statistiques).
-- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Track.jsx`, `Laser.jsx`, `Arch.jsx`, `Sparks.jsx` — scène 3D.
+- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Laser.jsx`, `Arch.jsx`, `Sparks.jsx` — scène 3D.
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
 - `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
 

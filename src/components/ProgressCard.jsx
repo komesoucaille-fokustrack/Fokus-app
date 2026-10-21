@@ -8,7 +8,7 @@ const plural = (n, w) => w + (n > 1 ? 's' : '');
    (la chorégraphie 3D en prend le contrôle pendant l'animation). */
 const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
   const r = {
-    card: useRef(null), pct: useRef(null), pwrap: useRef(null), pbar: useRef(null), fill: useRef(null),
+    card: useRef(null), label: useRef(null), sub: useRef(null), pct: useRef(null), pwrap: useRef(null), pbar: useRef(null), fill: useRef(null),
     blue: useRef(null), glow: useRef(null),
   };
 
@@ -35,10 +35,10 @@ const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
     <div className="card" id="pcard" ref={r.card}>
       <div className="flex items-end justify-between gap-2">
         <div>
-          <div className="text-[13px] text-mut">Aujourd’hui</div>
+          <div className="text-[13px] text-mut" ref={r.label}>Aujourd’hui</div>
           <div className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular-nums" ref={r.pct}>0%</div>
         </div>
-        <div className="text-right text-[13px] text-mut tabular-nums">
+        <div className="text-right text-[13px] text-mut tabular-nums" ref={r.sub}>
           {s.n ? `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}` : 'Aucune tâche aujourd’hui'}
         </div>
       </div>

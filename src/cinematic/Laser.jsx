@@ -1,46 +1,43 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { TRACK_Z, barGeo, fx } from './shared';
+import { TRACK_Z, fx } from './shared';
 import { additive, glowTexture } from './textures';
 
 /* =====================================================================
    DÉCOUPE LASER — deux faisceaux blancs tombent du ciel et découpent
-   le contour du bloc de progression (de la pointe gauche à la pointe droite,
-   par le haut et par le bas) avant qu'il ne se décroche de la carte.
+   le contour de la carte de progression (du milieu gauche au milieu droit,
+   par le haut et par le bas) avant qu'elle ne se décroche de la page.
    ===================================================================== */
-const N = 160;                                 // points par demi-contour
+const N = 220;                                 // points par demi-contour
 const BEAM = new THREE.Vector3(-0.32, 0.92, 0.22).normalize(); // direction du faisceau (vers la source, hors écran en haut)
 const BEAM_LEN = 1400;
 
-/* Demi-contour d'une pilule (largeur w, hauteur h) : pointe gauche → pointe droite, côté haut (s = 1) ou bas (s = -1) */
-function halfOutline(w, h, s) {
-  const r = h / 2, pts = [], nrm = [];
-  const arcL = (Math.PI / 2) * r, straight = Math.max(0, w - h), total = 2 * arcL + straight;
+/* Demi-contour de la carte (rectangle arrondi w × h, rayon r) : milieu gauche → milieu droit, par le haut (s = 1) ou le bas (s = -1) */
+function halfOutline(w, h, r, s) {
+  const path = new THREE.Path();
+  path.moveTo(0, h / 2);
+  path.lineTo(0, h - r);
+  path.absarc(r, h - r, r, Math.PI, Math.PI / 2, true);
+  path.lineTo(w - r, h);
+  path.absarc(w - r, h - r, r, Math.PI / 2, 0, true);
+  path.lineTo(w, h / 2);
+  const P = path.getSpacedPoints(N - 1), pts = [], nrm = [];
   for (let i = 0; i < N; i++) {
-    const d = (i / (N - 1)) * total;
-    let x, y, nx, ny;
-    if (d < arcL) {                                   // arc gauche
-      const a = Math.PI - d / r;
-      nx = Math.cos(a); ny = Math.sin(a) * s;
-      x = r + r * nx; y = r + r * ny;
-    } else if (d < arcL + straight) {                 // bord droit
-      nx = 0; ny = s;
-      x = r + (d - arcL); y = r + r * s;
-    } else {                                          // arc droit
-      const a = Math.PI / 2 - (d - arcL - straight) / r;
-      nx = Math.cos(a); ny = Math.sin(a) * s;
-      x = w - r + r * nx; y = r + r * ny;
-    }
-    pts.push(x, y);
-    nrm.push(nx, ny);
+    const a = P[Math.max(0, i - 1)], c = P[Math.min(N - 1, i + 1)];
+    let tx = c.x - a.x, ty = c.y - a.y;
+    const l = Math.hypot(tx, ty) || 1;
+    tx /= l; ty /= l;
+    const y = s > 0 ? P[i].y : h - P[i].y;
+    pts.push(P[i].x, y);
+    nrm.push(-ty, s > 0 ? tx : -tx); // normale extérieure
   }
   return { pts, nrm };
 }
 
 /* Ruban incandescent le long du contour (révélé progressivement via drawRange) */
-function stripGeometry(w, h, s, width) {
-  const { pts, nrm } = halfOutline(w, h, s), pos = [], idx = [];
+function stripGeometry(w, h, r, s, width) {
+  const { pts, nrm } = halfOutline(w, h, r, s), pos = [], idx = [];
   for (let i = 0; i < N; i++) {
     const x = pts[2 * i], y = pts[2 * i + 1], nx = nrm[2 * i], ny = nrm[2 * i + 1];
     pos.push(x - nx * 0.6, y - ny * 0.6, 0, x + nx * width, y + ny * width, 0);
@@ -96,16 +93,17 @@ export default function Laser() {
   const S = useMemo(() => ({ key: '', mat: new THREE.MeshBasicMaterial({ ...additive, side: THREE.DoubleSide }) }), []);
 
   useFrame(() => {
-    const b = barGeo(), G = fx.G;
-    const key = `${Math.round(G.barW)}x${Math.round(G.bh)}`;
+    const C = fx.C;
+    const key = `${Math.round(C.w)}x${Math.round(C.h)}`;
     if (key !== S.key) {
       S.key = key;
       top.current.geometry.dispose();
       bot.current.geometry.dispose();
-      top.current.geometry = stripGeometry(G.barW, G.bh, 1, 2.6);
-      bot.current.geometry = stripGeometry(G.barW, G.bh, -1, 2.6);
+      top.current.geometry = stripGeometry(C.w, C.h, C.r, 1, 3);
+      bot.current.geometry = stripGeometry(C.w, C.h, C.r, -1, 3);
     }
-    root.current.position.set(b.x0, b.y - G.bh / 2, TRACK_Z + 0.8);
+    const ox = C.x0, oy = -(C.y0 + C.h);
+    root.current.position.set(ox, oy, TRACK_Z + 0.8);
 
     const u = Math.min(1, Math.max(0, fx.cut)), seg = Math.floor(u * (N - 1));
     for (const m of [top.current, bot.current]) {
@@ -127,7 +125,7 @@ export default function Laser() {
       const x = pts[2 * j] + (pts[2 * j + 2] - pts[2 * j]) * t, y = pts[2 * j + 1] + (pts[2 * j + 3] - pts[2 * j + 1]) * t;
       h.group.current.position.set(x, y, 0);
       h.halo.current.scale.setScalar(60 + 18 * Math.sin(performance.now() / 23 + i));
-      fx.emit.push({ x: b.x0 + x, y: b.y - G.bh / 2 + y, z: TRACK_Z + 1 });
+      fx.emit.push({ x: ox + x, y: oy + y, z: TRACK_Z + 1 });
     });
   });
 

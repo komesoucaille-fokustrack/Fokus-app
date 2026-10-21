@@ -127,12 +127,6 @@
   #dim.on { pointer-events: auto; }
   #scene3d { position: fixed; inset: 0; z-index: 110; pointer-events: none; visibility: hidden; }
   #scene3d.on { visibility: visible; }
-  /* Compteur qui accompagne le front de la barre pendant la poursuite */
-  #hud { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; opacity: 0; text-align: center; will-change: transform; }
-  #hud > * { opacity: var(--fade, 1); }
-  #hud b { display: block; font-size: 64px; line-height: 1; font-weight: 900; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: #fff;
-    text-shadow: 0 0 18px rgba(96, 165, 250, 0.9), 0 0 42px rgba(59, 130, 246, 0.7); }
-  #hud span { display: block; margin-top: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: #93c5fd; }
   #skip { position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 16px; z-index: 120; display: none; }
   #skip.on { display: block; }
 }
