@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
+  --color-ink: #050505;
+  --color-cont: #0c0c0e;
+  --color-card: #121215;
+  --color-hov: #1a1a1f;
+  --color-mut: #a0a0a0;
+  --color-line: rgba(255, 255, 255, 0.1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --spec: inset 0 1px 0 0 rgba(255, 255, 255, 0.14), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+@layer base {
+  html { background: var(--color-ink); -webkit-tap-highlight-color: transparent; }
+  body {
+    background: radial-gradient(ellipse 90% 50% at 50% 0, rgba(255, 255, 255, 0.03), transparent 70%), var(--color-ink);
+    background-attachment: fixed;
+    color: #fff;
+    font: 15px/1.5 var(--font-sans);
+    min-height: 100vh;
+    padding-bottom: calc(130px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; touch-action: manipulation; }
+}
+
+@layer components {
+  /* Bouton premium */
+  .b {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 7px 13px;
+    transition: background 0.2s var(--ease-spring), border-color 0.2s, transform 0.3s var(--ease-spring);
+  }
+  .b:hover { background: var(--color-hov); border-color: rgba(255, 255, 255, 0.2); }
+  .b:active { transform: scale(0.97); }
+  .b.on { background: #fff; color: #000; border-color: #fff; font-weight: 600; box-shadow: none; }
+
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--spec);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  /* Interrupteur */
+  .sw { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--color-mut); font-size: 13px; }
+  .sw input { display: none; }
+  .sw i { width: 38px; height: 22px; border-radius: 99px; background: #2a2a2f; position: relative; transition: background 0.3s var(--ease-spring); }
+  .sw i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.4s var(--ease-spring), background 0.3s; }
+  .sw input:checked + i { background: #fff; }
+  .sw input:checked + i::after { left: 19px; background: #000; }
+
+  .fokus-logo { display: flex; align-items: center; height: 32px; }
+  .fokus-logo svg, .fokus-logo img { height: 100%; width: auto; display: block; }
+
+  .field {
+    flex: 1;
+    min-width: 0;
+    background: var(--color-cont);
+    border: 1px solid var(--color-line);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field:focus { border-color: rgba(255, 255, 255, 0.5); }
+
+  /* ---------- Carte de progression ---------- */
+  #pcard { position: relative; }
+  #pcard.live { z-index: 60; transform-style: preserve-3d; will-change: transform; }
+  #pwrap { position: relative; margin-top: 14px; transform-style: preserve-3d; }
+  #glow { position: absolute; left: 0; top: 30%; height: 70%; width: 0; border-radius: 99px; filter: blur(14px); opacity: 0.4; pointer-events: none; transition: width 0.9s var(--ease-spring), background-color 1.2s ease; }
+  #pbar { position: relative; height: 26px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.05); overflow: hidden; }
+  #pfill { position: relative; height: 100%; width: 0; border-radius: 99px; transition: width 0.9s var(--ease-spring); box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.22); }
+  #pfill::after { content: ''; position: absolute; left: 6px; right: 6px; top: 3px; height: 36%; border-radius: 99px; background: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)); z-index: 2; pointer-events: none; }
+  #pblue { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, #1e40af, #2563eb 35%, #3b82f6 70%, #93c5fd 94%, #ffffff); box-shadow: 0 0 35px #3b82f6, 0 0 70px rgba(59, 130, 246, 0.6); opacity: 0; z-index: 1; }
+  .mark { position: absolute; top: 50%; width: 2px; height: 2px; pointer-events: none; }
+
+  /* Épaisseur de la carte (visible uniquement pendant la bascule 3D) */
+  .fx { opacity: 0; pointer-events: none; }
+  .slab { position: absolute; background: linear-gradient(180deg, #1d1d23, #060607); }
+  .slab.sb { left: 0; top: 100%; width: 100%; height: 14px; transform-origin: top; transform: rotateX(-90deg); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+  .slab.st { left: 0; bottom: 100%; width: 100%; height: 14px; transform-origin: bottom; transform: rotateX(90deg); }
+  .slab.sl { left: 0; top: 0; width: 14px; height: 100%; transform-origin: left; transform: rotateY(90deg); }
+  .slab.sr { left: 100%; top: 0; width: 14px; height: 100%; transform-origin: left; transform: rotateY(90deg); box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.2); }
+  #rail { position: absolute; left: 0; top: 100%; width: 100%; height: 8px; transform-origin: top; transform: translateZ(8px) rotateX(-90deg); border-radius: 0 0 8px 8px; background: linear-gradient(90deg, #1e3a8a 0, #3b82f6 var(--p, 0%), #0b0b0e var(--p, 0%)); }
+
+  /* ---------- Tâches ---------- */
+  .task {
+    list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 11px 12px; background: var(--color-card); border: 1px solid var(--color-line); box-shadow: var(--spec);
+    border-radius: 12px; margin-bottom: 8px; cursor: grab; transition: border-color 0.2s, background 0.2s;
+  }
+  .task:hover { background: var(--color-hov); }
+  .task.sel { border-color: rgba(255, 255, 255, 0.55); background: var(--color-hov); }
+  .task.drag { opacity: 0.35; }
+  .task.done .t { text-decoration: line-through; color: var(--color-mut); }
+  .ck { flex: none; width: 26px; height: 26px; border: 2px solid #fff; border-radius: 8px; background: transparent; display: grid; place-items: center; transition: background 0.25s var(--ease-spring), transform 0.3s var(--ease-spring); }
+  .ck:active { transform: scale(0.85); }
+  .ck::after { content: '✓'; color: #000; font-weight: 900; font-size: 15px; line-height: 1; transform: scale(0) rotate(-25deg); transition: transform 0.45s var(--ease-spring); }
+  .task.sel .ck, .task.done .ck { background: #fff; }
+  .task.sel .ck::after, .task.done .ck::after { transform: scale(1) rotate(0); }
+  .task.done .ck { opacity: 0.4; cursor: default; }
+  .t { flex: 1 1 140px; word-break: break-word; }
+  .ic { background: none; border: 0; color: var(--color-mut); font-size: 14px; padding: 5px 7px; border-radius: 7px; transition: background 0.2s, color 0.2s; }
+  .ic:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+  .ic:disabled { opacity: 0.25; pointer-events: none; }
+  .mv .ic { font-size: 12px; padding: 4px 6px; }
+
+  /* Dynamic Island */
+  #vbtn {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 30;
+    background: #000; color: #fff; font-weight: 700; font-size: 16px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 99px; padding: 15px 28px; white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px #000, 0 18px 50px rgba(0, 0, 0, 0.8);
+    transform: translate(-50%, 160%) scale(0.7); opacity: 0; pointer-events: none; transition: transform 0.6s var(--ease-spring), opacity 0.3s;
+  }
+  #vbtn.show { transform: translate(-50%, 0) scale(1); opacity: 1; pointer-events: auto; }
+  #vbtn.show:active { transform: translate(-50%, 0) scale(0.96); }
+  #vbtn em { font-style: normal; color: #93c5fd; margin-left: 8px; }
+
+  /* Surcouches de l'animation */
+  #dim { position: fixed; inset: 0; z-index: 50; background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.82)); opacity: 0; pointer-events: none; }
+  #dim.on { pointer-events: auto; }
+  #scene3d { position: fixed; inset: 0; z-index: 110; pointer-events: none; visibility: hidden; }
+  #scene3d.on { visibility: visible; }
+  #skip { position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 16px; z-index: 120; display: none; }
+  #skip.on { display: block; }
+}
+
+#grain { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.02; z-index: 400; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
