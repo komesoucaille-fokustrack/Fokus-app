@@ -5,9 +5,11 @@ import { fmtMin } from './TaskList';
 import Concept from './Concepts';
 import { BGS, BG_GROUPS, bgOf, thumbOf } from '../lib/backgrounds';
 import { unlockAudio } from '../lib/sound';
+import { CREDITS, SOUNDS } from '../lib/ambient';
+import { parseQuick } from '../lib/quickAdd';
 import {
-  PHASES, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
-  setSetting, sortTasks, todayTasks, useStore,
+  PHASES, addIdea, flowStop, removeIdea, setPomoMode, toast, addTask, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
+  setSetting, sortTasks, todayKey, todayTasks, useStore,
 } from '../store';
 
 const two = (n) => String(n).padStart(2, '0');
@@ -43,6 +45,7 @@ const I = {
   skip: 'M5 5l10 7-10 7z M19 5v14',
   full: 'M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5',
   exit: 'M9 4v5H4 M15 4v5h5 M9 20v-5H4 M15 20v-5h5',
+  idea: 'M9 18h6 M10 22h4 M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z',
 };
 
 /* Scène : fond choisi + chrono + commandes (dans la page ou en plein écran) */
@@ -68,11 +71,17 @@ function Stage({ full, onFull, onExit }) {
     return () => { clearTimeout(tm); removeEventListener('pointermove', wake); removeEventListener('pointerdown', wake); };
   }, [full]);
 
+  const flow = p.phase === 'work' && p.flow;
   const el = pomoElapsed(p), left = Math.max(0, Math.ceil(p.dur - el));
-  const mm = Math.floor(left / 60), ss = left % 60;
+  const up = Math.floor(el); // chrono libre : le temps monte
   const [a, b, frac] = hour
     ? [two(now.getHours()), two(now.getMinutes()), now.getSeconds() / 60]
-    : [two(mm), two(ss), Math.min(1, el / p.dur)];
+    : flow
+      ? (up >= 3600 ? [two(Math.floor(up / 3600)), two(Math.floor(up / 60) % 60), (up % 3600) / 3600] : [two(Math.floor(up / 60)), two(up % 60), (up % 3600) / 3600])
+      : [two(Math.floor(left / 60)), two(left % 60), Math.min(1, el / p.dur)];
+  const [note, setNote] = useState(false);
+  const [idea, setIdea] = useState('');
+  const saveIdea = (e) => { e.preventDefault(); if (idea.trim()) { addIdea(idea); toast('💡 Idée notée — on la reverra à la pause.'); } setIdea(''); setNote(false); };
   const ready = p.paused === 0;
   const scrim = bg.scrim ? (bg.scrim[0] === 'dark' ? `rgba(0,0,0,${bg.scrim[1]})` : `rgba(255,255,255,${bg.scrim[1]})`) : null;
   const toggle = () => { unlockAudio(); pomoToggle(); };
@@ -90,8 +99,8 @@ function Stage({ full, onFull, onExit }) {
       {scrim && <div className="stage-scrim" style={{ background: `radial-gradient(ellipse at 50% 50%, ${scrim}, ${scrim.replace(/[\d.]+\)$/, (m) => Math.min(0.85, parseFloat(m) + 0.2) + ')')})` }} />}
       <div className="stage-in">
         <div className="stage-top">
-          <span className="stage-phase">{hour ? 'Heure' : PHASES[p.phase]}</span>
-          {!hour && (
+          <span className="stage-phase">{hour ? 'Heure' : flow ? (up >= 3600 ? 'Libre · h : min' : 'Concentration libre') : p.phase !== 'work' && S.set.pomoMode === 'flow' ? `Pause · ${Math.round(p.dur / 60)} min` : PHASES[p.phase]}</span>
+          {!hour && S.set.pomoMode !== 'flow' && (
             <span className="dots" aria-label={`${p.done % S.set.cycle} / ${S.set.cycle} sessions`}>
               {[...Array(S.set.cycle)].map((_, i) => <i key={i} className={i < p.done % S.set.cycle || (p.phase === 'long' && p.done) ? 'on' : ''} />)}
             </span>
@@ -100,11 +109,21 @@ function Stage({ full, onFull, onExit }) {
         <div className={'stage-clock ' + (running || hour ? '' : 'paused')}>
           {!bg.concept && <Clock style={S.set.clock} a={a} b={b} frac={frac} ink={bg.ink} theme={bg.flip} />}
         </div>
+        {note && (
+          <form className="stage-note" onSubmit={saveIdea}>
+            <input autoFocus value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="Une idée, un truc à ne pas oublier…" maxLength={200} />
+            <button className="sbtn main min-w-0!">Noter</button>
+            <button type="button" className="sbtn" onClick={() => setNote(false)} aria-label="Fermer">✕</button>
+          </form>
+        )}
         <div className="stage-task">{t ? t.text : ' '}</div>
         <div className="stage-ctl">
           <button className="sbtn" onClick={pomoReset} aria-label="Réinitialiser" title="Réinitialiser"><Icon d={I.reset} /></button>
           <button className="sbtn main" onClick={toggle}>{running ? 'Pause' : ready ? 'Démarrer' : 'Reprendre'}</button>
-          <button className="sbtn" onClick={pomoSkip} aria-label="Phase suivante" title="Phase suivante"><Icon d={I.skip} /></button>
+          {flow
+            ? <button className="sbtn" onClick={flowStop} disabled={up < 5}>Terminer la session</button>
+            : <button className="sbtn" onClick={pomoSkip} aria-label="Phase suivante" title="Phase suivante"><Icon d={I.skip} /></button>}
+          {p.phase === 'work' && <button className={'sbtn ' + (note ? 'on' : '')} onClick={() => setNote((n) => !n)} aria-label="Noter une idée" title="Noter une idée (sans arrêter le temps)"><Icon d={I.idea} /></button>}
           {full
             ? <button className={'sbtn ' + (hour ? 'on' : '')} onClick={() => setHour((h) => !h)} title="Afficher l’heure">Heure</button>
             : null}
@@ -162,9 +181,13 @@ export default function Pomodoro() {
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="segs">
-          {Object.entries(PHASES).map(([k, l]) => (
-            <button key={k} className={'seg ' + (p.phase === k ? 'on' : '')} onClick={() => pomoPhase(k)}>{l}</button>
-          ))}
+          <span className="modeseg" role="group" aria-label="Mode du minuteur">
+            <button className={S.set.pomoMode !== 'flow' ? 'on' : ''} onClick={() => S.set.pomoMode === 'flow' && setPomoMode('classic')}>Pomodoro</button>
+            <button className={S.set.pomoMode === 'flow' ? 'on' : ''} onClick={() => S.set.pomoMode !== 'flow' && setPomoMode('flow')} title="Le chrono monte, tu t'arrêtes quand tu veux">Libre</button>
+          </span>
+          {S.set.pomoMode !== 'flow'
+            ? Object.entries(PHASES).map(([k, l]) => <button key={k} className={'seg ' + (p.phase === k ? 'on' : '')} onClick={() => pomoPhase(k)}>{l}</button>)
+            : <span className="text-[12.5px] text-mut">Pause proposée : 1/{S.set.flowRatio} du temps fait</span>}
         </div>
         <div className="text-[13px] text-mut tabular-nums">
           Aujourd’hui : <b className="text-white">{pomoToday(S)}</b> session{pomoToday(S) > 1 ? 's' : ''} · <b className="text-white">{fmtMin(focusToday(S))}</b>
@@ -172,6 +195,8 @@ export default function Pomodoro() {
       </div>
 
       <Stage onFull={enter} />
+      {S.ideas.length > 0 && (p.phase !== 'work' || p.paused != null) && <Ideas />}
+      <SoundCard />
 
       <div className="card mt-4">
         <div className="drow">
@@ -211,6 +236,60 @@ export default function Pomodoro() {
 
       {full && <div ref={fullRef} className="fixed inset-0 z-[150]"><Stage full onExit={exit} /></div>}
     </section>
+  );
+}
+
+/* Idées notées pendant la session : à revoir à la pause ou en fin de session */
+function Ideas() {
+  const { S } = useStore();
+  const box = useRef(null);
+  useLayoutEffect(() => { gsap.from(box.current, { y: 10, opacity: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity' }); }, []);
+  const toTask = (x, later) => {
+    const q = parseQuick(x.text, todayKey());
+    addTask({ text: q.title || x.text, date: later ? null : q.date ?? todayKey(), weight: q.weight, prio: q.prio, tags: q.tags, est: q.est, time: q.time });
+    removeIdea(x.id);
+    toast(later ? 'Rangée dans « Plus tard ».' : 'Tâche ajoutée.');
+  };
+  return (
+    <div ref={box} className="card mt-4">
+      <div className="mb-2 flex items-baseline justify-between"><b className="text-[15px]">💡 Idées notées pendant la session</b><span className="text-[12px] text-mut tabular-nums">{S.ideas.length}</span></div>
+      {S.ideas.map((x) => (
+        <div key={x.id} className="idea">
+          <span className="min-w-0 flex-1 break-words">{x.text}</span>
+          <span className="segs">
+            <button className="seg on" onClick={() => toTask(x)}>Transformer en tâche</button>
+            <button className="seg" onClick={() => toTask(x, true)}>Plus tard</button>
+            <button className="seg" onClick={() => removeIdea(x.id)} aria-label="Supprimer l’idée">Supprimer</button>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Sons d'ambiance */
+function SoundCard() {
+  const { S } = useStore();
+  const st = S.set;
+  return (
+    <div className="card mt-4">
+      <div className="drow">
+        <span className="dlab">Ambiance sonore</span>
+        <div className="segs">
+          {SOUNDS.map(([k, l]) => <button key={k} className={'seg ' + (st.ambient === k ? 'on' : '')} onClick={() => { unlockAudio(); setSetting('ambient', k); }}>{l}</button>)}
+        </div>
+      </div>
+      {st.ambient !== 'none' && (
+        <>
+          <div className="drow mt-3">
+            <span className="dlab">Volume</span>
+            <input type="range" className="vol" min="0" max="1" step="0.01" value={st.ambVol} onChange={(e) => setSetting('ambVol', +e.target.value)} aria-label="Volume de l’ambiance" />
+            <label className="flex items-center gap-2 text-[13px] text-mut"><span className="sw"><input type="checkbox" checked={st.ambMute} onChange={(e) => setSetting('ambMute', e.target.checked)} /><i /></span>Couper pendant les pauses</label>
+          </div>
+          <p className="mt-2 text-[12px] text-mut">{pomoState().paused == null ? 'Le son joue pendant la concentration.' : 'Le son démarre avec le minuteur.'} {CREDITS[st.ambient] || 'Généré en direct, sans fichier.'}</p>
+        </>
+      )}
+    </div>
   );
 }
 

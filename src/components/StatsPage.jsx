@@ -5,6 +5,7 @@ import { K, dayLabel, parseK } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
 import { BADGES, clearNewBadge, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
 import { fmtMin } from './TaskList';
+import FocusStats from './FocusStats';
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const VIEWS = [['w', 'Semaine'], ['m', 'Mois'], ['y', 'Année']];
@@ -227,6 +228,7 @@ export default function StatsPage({ S }) {
           </div>
         ) : <p className="mt-2 text-[13px] text-mut">Aucune tâche étiquetée validée sur la période. Ajoute « #nom » en saisissant une tâche.</p>}
       </div>
+      <FocusStats S={S} />
       <Heatmap S={S} />
       {S.set.showBadges && <Badges S={S} />}
     </section>

@@ -13,12 +13,15 @@ import Pomodoro from './components/Pomodoro';
 import Upcoming from './components/Upcoming';
 import Hello from './components/Hello';
 import Ambiance from './components/Ambiance';
+import DayStrip from './components/DayStrip';
+import Overload from './components/Overload';
 import { getColorForPercentage } from './lib/colors';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
 import { buzz, notify, setBadge } from './lib/notify';
-import { chime } from './lib/sound';
+import { chime, unlockAudio } from './lib/sound';
+import { playAmbient, stopAmbient } from './lib/ambient';
 import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
@@ -82,6 +85,21 @@ function usePomodoro() {
   }, []);
 }
 
+/* Sons d'ambiance : pendant la concentration (et la pause si réglé), où que l'on soit dans l'app */
+function useAmbient(S) {
+  const p = S.pomo, st = S.set;
+  const on = st.ambient !== 'none' && p && p.paused == null && (p.phase === 'work' || !st.ambMute);
+  useEffect(() => {
+    if (on) playAmbient(st.ambient, st.ambVol); else stopAmbient();
+  }, [on, st.ambient, st.ambVol]);
+  // iPad : l'audio se débloque au premier tap
+  useEffect(() => {
+    const once = () => { unlockAudio(); removeEventListener('pointerdown', once); };
+    addEventListener('pointerdown', once);
+    return () => removeEventListener('pointerdown', once);
+  }, []);
+}
+
 /* Changement de jour automatique à minuit (+ contrôle régulier et au retour sur l'app) */
 function useMidnight() {
   useEffect(() => {
@@ -128,10 +146,11 @@ export default function App() {
   const s = stats(S.tasks);
   const text = cardText(S);
   const [load3D, setLoad3D] = useState(false);
-  const hello = useRef(null), card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
+  const hello = useRef(null), strip = useRef(null), card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
   useMidnight();
   usePomodoro();
   usePushSync();
+  useAmbient(S);
   const fmt = scoreFmt(S);
 
   // Charge la scène 3D en arrière-plan (shaders précompilés avant le premier « Valider »)
@@ -191,7 +210,7 @@ export default function App() {
       if (r.top < 0 || r.bottom > innerHeight) scrollTo({ top: 0, behavior: 'instant' });
       setBusy(true);
       race(
-        { ...c, subText, bg: [document.getElementById('hdr'), hello.current, form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
+        { ...c, subText, bg: [document.getElementById('hdr'), hello.current, strip.current, form.current, tools.current].filter(Boolean), list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
         old, nw, () => { setBusy(false); afterValidate(ids); }, { confetti: confettiAt100, fmt: scoreFmt(getState()) },
       );
     } else {
@@ -249,6 +268,7 @@ export default function App() {
             <Hello ref={hello} S={S} />
             <div className={'aura ' + (UI.busy ? 'off' : '')} style={{ '--aura': getColorForPercentage(s.p) }} aria-hidden="true" />
             <ProgressCard ref={card} s={s} text={text} busy={UI.busy} fmt={fmt} />
+            <DayStrip ref={strip} S={S} />
             <div ref={form}>
               <QuickAdd ref={input} allowRec placeholder="Ajouter une tâche… (ex. « Sport demain #santé »)" />
             </div>
@@ -286,6 +306,7 @@ export default function App() {
       {UI.modal === 'search' && <Search onClose={closeModal} />}
       {UI.modal === 'morning' && <MorningTriage onClose={closeModal} />}
       {UI.modal === 'weekly' && <WeeklyReview onClose={closeModal} />}
+      {UI.modal === 'overload' && <Overload onClose={closeModal} />}
 
       <div id="dim" ref={dim} />
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}

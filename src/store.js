@@ -9,7 +9,8 @@ import { buzz } from './lib/notify';
    Tâche      { id, text, done, date: 'YYYY-MM-DD' | null (= Plus tard), weight: 1|2|3, prio, tags: [tagId],
                 subs: [{ id, text, done }], carried (nombre de reports), focus (minutes), rid? (récurrence d'origine),
                 est (estimation en pomodoros, 0 = aucune), time ('HH:MM' | null, heure de début), dur (minutes | null, durée ajustée) }
-   Journal    sessions = [[début (s), durée (s), tâche | null, 'c' (classique) | 'f' (libre)]] — purgé au-delà de 2 ans
+   Journal    sessions = [[début (s), durée (s), tâche | null, 'c' (classique) | 'f' (libre), terminée 0|1, [étiquettes], titre]] — purgé au-delà de 2 ans
+   Historique (v3) hist[jour].ea = [minutes estimées, minutes réelles] des tâches estimées terminées (précision des estimations)
    Idées      ideas = [{ id, text, at }] — bloc-notes de distractions du minuteur
    Récurrence { id, text, rule: { type: 'daily' | 'weekdays' (days: [0-6]) | 'interval' (every) | 'monthday' (day) },
                 start, weight, tags, prio, last (dernier jour généré → jamais de doublon) }
@@ -122,12 +123,12 @@ export function migrate(raw) {
     since: isKey(o.since) ? o.since : keys[0] || last || today,
     seen: o.seen && typeof o.seen === 'object' ? o.seen : {},
     pomo: o.pomo && typeof o.pomo === 'object' && Number.isFinite(o.pomo.start)
-      ? { tid: o.pomo.tid || null, phase: ['work', 'short', 'long'].includes(o.pomo.phase) ? o.pomo.phase : 'short', start: o.pomo.start, dur: +o.pomo.dur || 1500,
+      ? { tid: o.pomo.tid || null, phase: ['work', 'short', 'long'].includes(o.pomo.phase) ? o.pomo.phase : 'short', start: o.pomo.start, dur: Number.isFinite(+o.pomo.dur) ? +o.pomo.dur : 1500, flow: !!o.pomo.flow,
           paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0 }
       : null,
     pomoDay: o.pomoDay && typeof o.pomoDay.d === 'string' ? { d: o.pomoDay.d, n: o.pomoDay.n | 0 } : { d: '', n: 0 },
     sessions: purgeSessions(arr(o.sessions).filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]))
-      .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c'])),
+      .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c', x[4] ? 1 : 0, arr(x[5]).map(String), String(x[6] || '').slice(0, 40)])),
     ideas: arr(o.ideas).filter((x) => x && x.text).map((x) => ({ id: String(x.id || uid()), text: String(x.text), at: +x.at || Date.now() })),
     pushId: typeof o.pushId === 'string' ? o.pushId : '',
   };
@@ -590,31 +591,39 @@ export function checkBadges() {
 }
 
 /* ---------- Pomodoro — calcul par horodatages (juste même écran verrouillé) ----------
-   pomo = { tid (tâche liée ou null), phase: 'work' | 'short' | 'long', start (ms), dur (s), paused (s écoulées si en pause, 0 = prêt),
-            done (sessions terminées dans le cycle), cr (secondes déjà créditées sur cette phase) } */
+   pomo = { tid (tâche liée ou null), phase: 'work' | 'short' | 'long', start (ms), dur (s ; 0 = chrono libre), paused (s écoulées si en pause, 0 = prêt),
+            done (sessions terminées dans le cycle), cr (secondes déjà créditées sur cette phase), flow (mode Libre) }
+   Aucune punition : pause, réinitialisation ou fermeture de l'app ne font jamais rien perdre (le temps fait est toujours crédité). */
 export const PHASES = { work: 'Concentration', short: 'Pause courte', long: 'Pause longue' };
-const durOf = (phase) => (phase === 'work' ? S.set.pomo : phase === 'short' ? S.set.pause : S.set.longPause) * 60;
+const flowOn = () => S.set.pomoMode === 'flow';
+const durOf = (phase) => (phase === 'work' ? (flowOn() ? 0 : S.set.pomo) : phase === 'short' ? S.set.pause : S.set.longPause) * 60;
 export const pomoElapsed = (p = S.pomo, t = Date.now()) => (p.paused != null ? p.paused : (t - p.start) / 1000);
-export const pomoState = () => S.pomo || { tid: null, phase: 'work', start: 0, dur: durOf('work'), paused: 0, done: 0, cr: 0 };
+export const pomoState = () => S.pomo || { tid: null, phase: 'work', start: 0, dur: durOf('work'), paused: 0, done: 0, cr: 0, flow: flowOn() };
 export const pomoRunning = () => !!S.pomo && S.pomo.paused == null;
 export const pomoToday = (St = S) => (St.pomoDay.d === K(new Date(Date.now() + St.off * 864e5)) ? St.pomoDay.n : 0);
 
-function credit(tid, sec) {
+function credit(tid, sec, done, flow) {
   if (sec < 5) return;
-  const m = sec / 60, k = todayKey();
+  const m = sec / 60, k = todayKey(), now = Math.round(Date.now() / 1000);
+  // journal compact : [début (s), durée (s), tâche, mode, terminée, étiquettes, titre] (titre et étiquettes gardés pour les stats)
+  const tk = tid && S.tasks.find((t) => t.id === tid);
+  const log = sec >= 60 ? [...S.sessions, [now - Math.round(sec), Math.round(sec), tid || null, flow ? 'f' : 'c', done ? 1 : 0, tk ? tk.tags : [], tk ? tk.text.slice(0, 40) : '']] : S.sessions;
   set({
     tasks: tid ? S.tasks.map((t) => (t.id === tid ? { ...t, focus: r1(t.focus + m) } : t)) : S.tasks,
     fmDay: { d: k, m: r1((S.fmDay.d === k ? S.fmDay.m : 0) + m) },
+    sessions: log.length > 20000 ? log.slice(-20000) : log,
   });
 }
-/* Crédite le temps de concentration pas encore compté (tâche liée + journée) */
-function creditWork(p) {
+/* Crédite le temps de concentration pas encore compté (tâche liée + journée + journal) */
+function creditWork(p, done) {
   if (p.phase !== 'work') return p;
-  const el = Math.min(pomoElapsed(p), p.dur), add = el - (p.cr || 0);
-  if (add >= 5) { credit(p.tid, add); return { ...p, cr: el }; }
+  const el = p.flow ? pomoElapsed(p) : Math.min(pomoElapsed(p), p.dur), add = el - (p.cr || 0);
+  if (add >= 5) { credit(p.tid, add, done, p.flow); return { ...p, cr: el }; }
   return p;
 }
-const fresh = (p, phase, run, start = Date.now()) => ({ ...p, phase, start, dur: durOf(phase), paused: run ? null : 0, cr: 0 });
+const fresh = (p, phase, run, start = Date.now(), dur) => ({
+  ...p, phase, start, dur: dur ?? durOf(phase), paused: run ? null : 0, cr: 0, flow: phase === 'work' && flowOn(),
+});
 
 /* Démarrer / mettre en pause */
 export function pomoToggle() {
@@ -631,10 +640,21 @@ export function pomoReset() {
   const p = creditWork(pomoState());
   set({ pomo: fresh(p, p.phase, false) });
 }
-/* Phase suivante : après une concentration, pause courte (ou longue tous les N cycles) ; après une pause, concentration */
+/* Pomodoro classique ou chrono Libre (méthode Flowtime) — mémorisé */
+export function setPomoMode(mode) {
+  const p = creditWork(pomoState());
+  S = { ...S, set: { ...S.set, pomoMode: mode } };
+  set({ pomo: { ...fresh(p, 'work', false), done: 0 } });
+}
+/* Phase suivante : après une concentration, pause courte (ou longue tous les N cycles) ; après une pause, concentration.
+   En mode Libre, la pause proposée vaut 1/N du temps fait (réglable). */
 function nextPhase(p, natural, at) {
   if (p.phase === 'work') {
     const done = p.done + (natural ? 1 : 0);
+    if (p.flow) {
+      const br = Math.max(60, Math.round(pomoElapsed(p) / Math.max(2, S.set.flowRatio) / 60) * 60);
+      return { ...fresh(p, 'short', S.set.autoBreak, at, br), done };
+    }
     const phase = done > 0 && done % S.set.cycle === 0 ? 'long' : 'short';
     return { ...fresh(p, phase, S.set.autoBreak, at), done };
   }
@@ -643,6 +663,15 @@ function nextPhase(p, natural, at) {
 export function pomoSkip() {
   const p = creditWork(pomoState());
   set({ pomo: nextPhase(p, false) });
+}
+/* Mode Libre : « Terminer la session » → temps crédité, session comptée, pause proportionnelle proposée */
+export function flowStop() {
+  const p0 = pomoState();
+  if (!p0.flow || pomoElapsed(p0) < 5) return;
+  const p = creditWork(p0, true);
+  const k = todayKey();
+  set({ pomoDay: { d: k, n: (S.pomoDay.d === k ? S.pomoDay.n : 0) + 1 }, pomo: nextPhase(p, true) });
+  checkBadges();
 }
 /* Lier une tâche au minuteur (le temps déjà fait reste à l'ancienne tâche) */
 export function pomoTask(tid) {
@@ -653,10 +682,10 @@ export function pomoTask(tid) {
 export function pomoTick() {
   let p = S.pomo, ended = null;
   for (let i = 0; p && i < 6; i++) {
-    if (p.paused != null || pomoElapsed(p) < p.dur) break;
+    if (p.paused != null || !p.dur || pomoElapsed(p) < p.dur) break;
     const end = p.start + p.dur * 1000;
     if (p.phase === 'work') {
-      p = creditWork(p);
+      p = creditWork(p, true);
       const k = todayKey();
       set({ pomoDay: { d: k, n: (S.pomoDay.d === k ? S.pomoDay.n : 0) + 1 } });
     }
@@ -670,14 +699,14 @@ export function pomoTick() {
 export function startFocus(tid) {
   let p = creditWork(pomoState());
   p = { ...p, tid };
-  if (p.phase !== 'work' || p.paused == null) p = { ...fresh(p, 'work', true), done: p.done };
+  if (p.phase !== 'work' || p.paused != null) p = { ...fresh(p, 'work', true), done: p.done };
   set({ pomo: p });
   setUI({ page: 4, open: null, modal: null });
 }
 /* « Terminer la tâche » : met le minuteur en pause et sélectionne la tâche pour validation */
 export function finishFocusTask() {
   const p0 = pomoState(), tid = p0.tid;
-  const p = creditWork(p0);
+  const p = creditWork(p0, true);
   set({ pomo: { ...p, paused: p.paused ?? pomoElapsed(p), tid: null } });
   const t = S.tasks.find((x) => x.id === tid);
   if (!t || t.done) return;
@@ -686,15 +715,25 @@ export function finishFocusTask() {
   select(tid);
 }
 
+/* ---------- Bloc-notes de distractions ---------- */
+export const addIdea = (text) => text.trim() && set({ ideas: [...S.ideas, { id: uid(), text: text.trim().slice(0, 200), at: Date.now() }] });
+export const removeIdea = (id) => set({ ideas: S.ideas.filter((x) => x.id !== id) });
+
 /* ---------- Changement de jour (minuit) ----------
    Score du jour → historique (points, priorités, concentration, étiquettes) ; tâches terminées retirées ;
    tâches non terminées reportées (compteur « carried ») ; tâches datées du nouveau jour affichées ;
    récurrences du jour ajoutées ; jokers appliqués ; badges vérifiés.
    Les jours sans ouverture de l'app sont enregistrés avec les tâches restantes (0 %). */
 function entry(tasks, k, St) {
-  const s = stats(tasks, k), tg = {};
-  for (const t of tasks) if (t.done && isToday(t, k)) for (const g of t.tags) tg[g] = (tg[g] || 0) + 1;
-  return { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
+  const s = stats(tasks, k), tg = {}, ea = [0, 0];
+  for (const t of tasks) {
+    if (!t.done || !isToday(t, k)) continue;
+    for (const g of t.tags) tg[g] = (tg[g] || 0) + 1;
+    if (t.est) { ea[0] += t.est * St.set.pomo; ea[1] += r1(t.focus || 0); }
+  }
+  const e = { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
+  if (ea[0]) e.ea = ea;
+  return e;
 }
 export function checkDay() {
   if (UI.busy) return false;
@@ -728,7 +767,7 @@ export function generateTestData() {
   const tk = todayKey(), hist = { ...S.hist };
   let tags = S.tags;
   if (tags.length < 3) tags = resolveTags(['Sport', 'Travail', 'Lecture', 'Maison'], tags).tags;
-  const keys = [];
+  const keys = [], sess = [];
   let added = 0;
   for (let i = 365; i >= 1; i--) {
     const k = addDays(tk, -i);
@@ -749,27 +788,41 @@ export function generateTestData() {
     const prt = Math.min(3, t, Math.floor(Math.random() * 4));
     const pr = Math.min(prt, Math.round(prt * target + (Math.random() - 0.5)));
     const fm = Math.random() < 0.7 ? Math.round(15 + Math.random() * 110) : 0;
-    hist[k] = { p: Math.round((pd / pt) * 100), d, t, pd, pt, pr: Math.max(0, pr), prt, fm, tg };
+    hist[k] = { p: Math.round((pd / pt) * 100), d, t, pd, pt, pr: Math.max(0, pr), prt, fm, tg, ps: Math.round(fm / 25) };
+    if (fm && Math.random() < 0.5) hist[k].ea = [Math.round(fm * (0.75 + Math.random() * 0.4)), fm];
+    // journal de sessions cohérent avec les minutes du jour (pics le matin et en début d'après-midi)
+    const day0 = parseK(k).getTime() / 1000 - S.off * 864e2;
+    for (let left = fm; left > 0;) {
+      const len = Math.min(left, Math.random() < 0.8 ? 25 : 40 + Math.round(Math.random() * 30));
+      const h = [8, 9, 9, 10, 10, 11, 14, 14, 15, 16, 17, 20, 21][Math.floor(Math.random() * 13)];
+      const gids = Object.keys(tg), g1 = gids.length ? [gids[Math.floor(Math.random() * gids.length)]] : [];
+      const title = ['Rapport trimestriel', 'Réviser l’anglais', 'Lecture', 'Préparer la présentation', 'Code du projet', 'Mails'][Math.floor(Math.random() * 6)];
+      sess.push([Math.round(day0 + h * 3600 + Math.random() * 1800), len * 60, null, len > 25 ? 'f' : 'c', 1, g1, title]);
+      left -= len;
+    }
     keys.push(k);
     added += d;
   }
   applyJokers(hist, keys, S.set);
   const g = (n) => tags.find((x) => x.name === n)?.id;
-  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, ...more });
+  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, est: 0, time: null, dur: null, ...more });
   const pc = prioCount(S.tasks, tk);
   const samples = [
     ex('Séance de sport', tk, 2, pc < 3, [g('Sport')], {
-      subs: [{ id: uid(), text: 'Échauffement', done: true }, { id: uid(), text: 'Course 5 km', done: false }, { id: uid(), text: 'Étirements', done: false }], focus: 25,
+      subs: [{ id: uid(), text: 'Échauffement', done: true }, { id: uid(), text: 'Course 5 km', done: false }, { id: uid(), text: 'Étirements', done: false }], focus: 25, est: 2, time: '18:30',
     }),
-    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { carried: 3 }),
-    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { carried: 1 }),
-    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')]),
+    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { carried: 3, est: 1, time: '09:00' }),
+    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { carried: 1, est: 1 }),
+    ex('Rapport trimestriel', tk, 3, false, [g('Travail')], { est: 4, focus: 40, time: '10:00' }),
+    ex('Appeler le plombier', tk, 1, false, [g('Maison')], { time: '10:30' }),
+    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')], { est: 3, time: '14:00' }),
     ex('Rendez-vous dentiste', addDays(tk, 3), 1, false, []),
     ex('Ranger le garage', null, 3, false, [g('Maison')]),
   ];
-  set({ hist, tags, tasks: [...S.tasks, ...samples], doneTotal: S.doneTotal + added });
+  const ideas = [...S.ideas, { id: uid(), text: 'Acheter des piles demain #maison', at: Date.now() }, { id: uid(), text: 'Idée d’article sur la concentration', at: Date.now() }];
+  set({ hist, tags, tasks: [...S.tasks, ...samples], doneTotal: S.doneTotal + added, sessions: purgeSessions([...S.sessions, ...sess].sort((a, b) => a[0] - b[0])), ideas });
   checkBadges();
-  toast('Données de test générées (365 jours + tâches d’exemple). Ouvrez « Ma Progression ».');
+  toast('Données de test générées : 365 jours, sessions, estimations, heures et idées. Ouvrez « Ma Progression ».');
 }
 
 /* ---------- Bilan de la semaine ---------- */

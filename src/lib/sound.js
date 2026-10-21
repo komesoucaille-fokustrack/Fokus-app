@@ -1,11 +1,20 @@
 /* Carillon doux de fin de phase (Web Audio, aucun fichier) — débloqué au premier tap (iOS) */
-let ctx;
+let ctx, unlocked = false;
 export function unlockAudio() {
   try {
+    // iPhone / iPad : jouer même si le bouton silencieux est activé (Safari 16.4+)
+    if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
     ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
+    if (!unlocked) {
+      // un son vide joué pendant le tap débloque définitivement l'audio sur iOS
+      const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+      s.buffer = b; s.connect(ctx.destination); s.start(0);
+      unlocked = true;
+    }
   } catch { /* audio indisponible */ }
 }
+export const audioCtx = () => ctx;
 export function chime(kind = 'work') {
   try {
     unlockAudio();

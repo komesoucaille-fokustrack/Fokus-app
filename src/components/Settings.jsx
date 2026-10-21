@@ -134,6 +134,9 @@ function Pomo({ S }) {
       <Group title="Durées" foot="Choisis tes minutes librement, ou pars d’un préréglage.">
         <div className="si col"><Durations /></div>
         <Item title="Sessions avant la pause longue"><Stepper value={st.cycle} min={2} max={8} onChange={(v) => setSetting('cycle', v)} /></Item>
+        <Item title="Mode Libre : pause proposée" desc={`1/${st.flowRatio} du temps fait (ex. 50 min → ${Math.round(50 / st.flowRatio)} min)`}>
+          <Stepper value={st.flowRatio} min={2} max={10} unit="" onChange={(v) => setSetting('flowRatio', v)} />
+        </Item>
       </Group>
       <Group title="Enchaînement">
         <Item title="Lancer les pauses automatiquement"><Switch label="Pauses automatiques" checked={st.autoBreak} onChange={(v) => setSetting('autoBreak', v)} /></Item>
