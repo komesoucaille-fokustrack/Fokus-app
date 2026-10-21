@@ -22,6 +22,7 @@ export const fx = {
   flash: 0,       // flash blanc de l'arche à 100 %
   ring: -1,       // onde de choc (0 → 1), -1 = inactive
   moving: false,  // la barre avance → étincelles
+  speed: 0,       // vitesse de la barre normalisée (0 → 1) → effet de vitesse
   burst: 0,       // compteur de gerbes d'étincelles
   cut: 0,         // découpe laser du contour de la carte (0 → 1)
   cutGlow: 0,     // incandescence de la découpe

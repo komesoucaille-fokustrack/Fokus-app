@@ -34,10 +34,10 @@ export default function Sparks() {
     const k = fx.k, flat = 1 - k; // en vue 2D, les étincelles montent à l'écran au lieu de jaillir vers la caméra
     /* Flux continu sur le front de progression */
     if (fx.moving) {
-      P.acc += dt * (fx.G.mob ? 260 : 380) * (0.3 + 0.7 * k);
+      P.acc += dt * (fx.G.mob ? 260 : 380) * (0.3 + 0.7 * k) * (0.35 + 1.4 * fx.speed);
       while (P.acc >= 1) {
         P.acc--;
-        spawn(b.head - 2, b.y + rand(-0.35, 0.35) * b.h, b.z + rand(2, 10), rand(-60, 560) * (0.5 + 0.5 * k), rand(-280, 280) * k + flat * rand(60, 320), rand(160, 640), rand(0.45, 1.05) * (0.55 + 0.45 * k), b.z);
+        spawn(b.head - 2, b.y + rand(-0.35, 0.35) * b.h, b.z + rand(2, 10), rand(-60, 560) * (0.5 + 0.5 * k) * (0.6 + 0.9 * fx.speed), rand(-280, 280) * k + flat * rand(60, 320), rand(160, 640), rand(0.45, 1.05) * (0.55 + 0.45 * k), b.z);
       }
     }
     /* Découpe laser : gerbes blanches aux points de coupe */

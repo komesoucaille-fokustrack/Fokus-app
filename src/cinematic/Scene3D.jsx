@@ -7,7 +7,8 @@ import { barGeo, fx } from './shared';
 import Arch from './Arch';
 import Sparks from './Sparks';
 import Card3D from './Card3D';
-import Laser from './Laser';
+import Outline from './Outline';
+import SpeedLines from './SpeedLines';
 import { additive, glowTexture } from './textures';
 
 const shown = () => fx.active || fx.warm;
@@ -89,12 +90,12 @@ function Driver() {
     fx.render = () => advance(performance.now() / 1000);
     // Préchauffage : compile shaders, géométries et carte d'environnement hors écran
     fx.warm = true;
-    Object.assign(fx, { k: 1, intro: 1, zoom: 1, p: 60, old: 30, arch: 1, as: 1, blue: 1, pastel: 1, cut: 0.5, cutGlow: 1, lift: 1, race: fx.race + 1,
+    Object.assign(fx, { k: 1, intro: 1, zoom: 1, p: 60, old: 30, arch: 1, as: 1, blue: 1, pastel: 1, cut: 0.5, cutGlow: 1, lift: 1, speed: 1, race: fx.race + 1,
       face: { w: fx.C.w, h: fx.C.h, track: { x: 20, y: 110, w: fx.C.w - 40, h: 26 }, texts: [] } });
     fx.render();
     gl.compile(scene, camera);
     fx.render();
-    Object.assign(fx, { k: 0, intro: 0, zoom: 0, p: 0, old: 0, arch: 0, as: 0, blue: 0, cut: 0, cutGlow: 0, lift: 0, emit: [], face: null });
+    Object.assign(fx, { k: 0, intro: 0, zoom: 0, p: 0, old: 0, arch: 0, as: 0, blue: 0, cut: 0, cutGlow: 0, lift: 0, speed: 0, emit: [], face: null });
     fx.warm = false;
     fx.ready = true;
     return () => { fx.ready = false; fx.render = null; };
@@ -122,7 +123,8 @@ export default function Scene3D() {
         <Rig>
           <Lights />
           <Card3D />
-          <Laser />
+          <Outline />
+          <SpeedLines />
           <EnergyHead />
           <Sparks />
           <Arch />

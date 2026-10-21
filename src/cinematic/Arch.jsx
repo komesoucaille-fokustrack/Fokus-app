@@ -1,82 +1,142 @@
-import { Suspense, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Center, RoundedBox, Text3D, useTexture } from '@react-three/drei';
-import font from '../assets/inter-black.typeface.json';
+import { RoundedBox } from '@react-three/drei';
 import { LOGO_URL } from '../brand';
+import { LOGO_SVG } from '../components/FokusLogo';
 import { TRACK_Z, barGeo, fx } from './shared';
 import { additive, checkerTexture, glowTexture } from './textures';
 import { clamp } from '../lib/colors';
 
 /* =====================================================================
-   ARCHE D'ARRIVÉE « FOKUS 100% » — vrais volumes 3D
-   Repère « debout » : X = portée, Y = hauteur, Z = face avant (vers la barre et la caméra)
+   ARCHE D'ARRIVÉE GONFLABLE — comme sur une vraie course
+   Boudin en toile gonflé (coussins entre les coutures), socles lestés,
+   bannière « FOKUS · 100% » imprimée, cordes d'ancrage.
+   Repère « debout » : X = portée, Y = hauteur, Z = face avant (vers la barre et la caméra).
    ===================================================================== */
-const PHI = -Math.PI / 2;    // l'arche fait face à la barre qui arrive (et à la caméra de poursuite)
-const SPAN = 140, PH = 170;  // entraxe des piliers, hauteur des piliers
-const BAN_Y = PH + 34;       // centre du fronton
-const ARCH_SCALE = 0.42;     // l'arche est posée sur la carte, au bout de la barre
-const TEXT = { height: 7, curveSegments: 8, bevelEnabled: true, bevelThickness: 1.2, bevelSize: 0.55, bevelSegments: 3 };
+const PHI = -Math.PI / 2;    // l'arche fait face à la barre qui arrive
+const HALF = 78;             // demi-portée (axe des jambes)
+const LEG = 118;             // hauteur des jambes droites
+const TUBE = 15;             // rayon du boudin
+const TOP = LEG + HALF;      // sommet de l'axe du boudin
+const ARCH_SCALE = 0.68;     // l'arche est posée sur la carte, au bout de la barre
 
-function useMaterials() {
-  return useMemo(() => ({
-    metal: new THREE.MeshPhysicalMaterial({ color: '#17171d', metalness: 0.92, roughness: 0.26, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.6 }),
-    banner: new THREE.MeshPhysicalMaterial({ color: '#0f0f13', metalness: 0.85, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.8 }),
-    chrome: new THREE.MeshPhysicalMaterial({ color: '#ffffff', metalness: 0.15, roughness: 0.14, clearcoat: 1, emissive: '#cfe0ff', emissiveIntensity: 0.12, toneMapped: false }),
-    ink: new THREE.MeshPhysicalMaterial({ color: '#050505', metalness: 0.5, roughness: 0.3, clearcoat: 1 }),
-    neon: new THREE.MeshBasicMaterial({ toneMapped: false }),
-    rim: new THREE.MeshBasicMaterial({ toneMapped: false }),
-    beam: new THREE.MeshBasicMaterial({ toneMapped: false }),
-  }), []);
+/* Axe du boudin : jambe gauche ↑, demi-cercle, jambe droite ↓ */
+class ArchCurve extends THREE.Curve {
+  getPoint(t, out = new THREE.Vector3()) {
+    const legLen = LEG, arcLen = Math.PI * HALF, total = 2 * legLen + arcLen, d = t * total;
+    if (d < legLen) return out.set(-HALF, d, 0);
+    if (d < legLen + arcLen) {
+      const a = Math.PI - ((d - legLen) / arcLen) * Math.PI;
+      return out.set(HALF * Math.cos(a), LEG + HALF * Math.sin(a), 0);
+    }
+    return out.set(HALF, LEG - (d - legLen - arcLen), 0);
+  }
 }
 
-function Pillar({ x, M }) {
-  return (
-    <group position={[x, 0, 0]}>
-      <RoundedBox args={[36, 10, 36]} radius={3} smoothness={3} position={[0, 5, 0]} material={M.metal} />
-      <RoundedBox args={[18, PH, 20]} radius={5} smoothness={4} position={[0, PH / 2 + 10, 0]} material={M.metal} />
-      {/* filets néon : face avant + face intérieure */}
-      <mesh position={[0, PH / 2 + 10, 10.6]} material={M.neon}><boxGeometry args={[3, PH - 24, 1.5]} /></mesh>
-      <mesh position={[-Math.sign(x) * 9.6, PH / 2 + 10, 0]} material={M.neon}><boxGeometry args={[1.5, PH - 24, 3]} /></mesh>
-    </group>
-  );
+/* Boudin gonflable : tube dont le rayon gonfle entre les coutures */
+function inflatableGeometry() {
+  const curve = new ArchCurve(), SEG = 260, RAD = 28, PILLOWS = 15;
+  const g = new THREE.TubeGeometry(curve, SEG, TUBE, RAD, false);
+  const pos = g.attributes.position, c = new THREE.Vector3(), p = new THREE.Vector3();
+  for (let i = 0; i <= SEG; i++) {
+    const u = i / SEG;
+    curve.getPointAt(u, c);
+    const f = (u * PILLOWS) % 1;
+    const s = 0.86 + 0.16 * Math.pow(Math.sin(Math.PI * f), 0.6);     // coussin bombé, couture pincée
+    const end = Math.min(1, Math.min(u, 1 - u) * 40);                   // fermeture aux extrémités
+    for (let j = 0; j <= RAD; j++) {
+      const k = i * (RAD + 1) + j;
+      p.fromBufferAttribute(pos, k).sub(c).multiplyScalar(s * (0.75 + 0.25 * end)).add(c);
+      pos.setXYZ(k, p.x, p.y, p.z);
+    }
+  }
+  g.computeVertexNormals();
+  return g;
 }
 
-function DefaultLogo({ M }) {
-  return (
-    <Center disableY disableZ position={[0, BAN_Y + 15, 13]}>
-      <group>
-        <RoundedBox args={[22, 22, 6]} radius={5} smoothness={4} position={[11, 0, 0]} material={M.chrome} />
-        <Text3D font={font} size={16} {...TEXT} height={2} bevelThickness={0.4} bevelSize={0.2} position={[5.2, -5.8, 2.4]} material={M.ink}>F</Text3D>
-        <Text3D font={font} size={17} {...TEXT} height={4} bevelThickness={0.6} bevelSize={0.25} letterSpacing={2.2} position={[30, -6.2, -2]} material={M.chrome}>FOKUS</Text3D>
-      </group>
-    </Center>
-  );
+/* Bannière imprimée : logo FOKUS + « 100% » */
+function bannerTexture(img) {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 300;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0d0d10';
+  x.fillRect(0, 0, 1024, 300);
+  // liseré blanc cousu
+  x.strokeStyle = 'rgba(255,255,255,.35)';
+  x.setLineDash([10, 8]);
+  x.lineWidth = 4;
+  x.strokeRect(18, 18, 988, 264);
+  x.setLineDash([]);
+  if (img) {
+    const h = 110, w = (h * img.width) / img.height;
+    x.drawImage(img, 512 - w / 2, 40, w, h);
+  } else {
+    // logo vectoriel (badge « F » + FOKUS), mêmes tracés que l'en-tête
+    x.save();
+    x.translate(512 - 66 * 3.4, 38);
+    x.scale(3.4, 3.4);
+    x.fillStyle = '#ffffff';
+    x.beginPath();
+    x.roundRect(1, 1, 30, 30, 8);
+    x.fill();
+    x.fillStyle = '#0d0d10';
+    x.fill(new Path2D(LOGO_SVG.badgeF));
+    x.fillStyle = '#ffffff';
+    x.fill(new Path2D(LOGO_SVG.word));
+    x.restore();
+  }
+  x.fillStyle = '#ffffff';
+  x.font = '900 92px "Inter Variable", Inter, sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'alphabetic';
+  if ('letterSpacing' in x) x.letterSpacing = '6px';
+  x.fillText('FINISH · 100%', 512, 262);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
 }
 
-function ImageLogo() {
-  const tex = useTexture(LOGO_URL);
-  const h = 22, w = (h * tex.image.width) / tex.image.height;
-  return (
-    <mesh position={[0, BAN_Y + 15, 13.2]}>
-      <planeGeometry args={[w, h]} />
-      <meshBasicMaterial map={tex} transparent toneMapped={false} color={[1.6, 1.6, 1.6]} />
-    </mesh>
-  );
+function Rope({ from, to }) {
+  const geo = useMemo(() => {
+    const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
+    const mid = a.clone().lerp(b, 0.5).add(new THREE.Vector3(0, -6, 0));    // légère chaînette
+    return new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 16, 0.7, 5, false);
+  }, [from, to]);
+  return <mesh geometry={geo}><meshStandardMaterial color="#c9c9cf" roughness={0.8} /></mesh>;
 }
 
 export default function Arch() {
-  const base = useRef(), stand = useRef(), ring = useRef(), pool = useRef(), banner = useRef(), finish = useRef();
-  const M = useMaterials();
+  const base = useRef(), stand = useRef(), ring = useRef(), pool = useRef(), banner = useRef(), finish = useRef(), light = useRef();
+  const M = useMemo(() => {
+    const tex = bannerTexture(null);
+    return {
+      tube: inflatableGeometry(),
+      fabric: new THREE.MeshPhysicalMaterial({ color: '#ececf0', roughness: 0.62, metalness: 0, sheen: 1, sheenColor: new THREE.Color('#ffffff'), sheenRoughness: 0.5, clearcoat: 0.15, clearcoatRoughness: 0.6, envMapIntensity: 0.9 }),
+      dark: new THREE.MeshPhysicalMaterial({ color: '#141418', roughness: 0.7, sheen: 0.6, sheenColor: new THREE.Color('#9aa3b8'), envMapIntensity: 0.7 }),
+      print: new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.55, sheen: 0.5, sheenColor: new THREE.Color('#ffffff'), emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.05 }),
+      tex,
+    };
+  }, []);
   const tex = useMemo(() => ({ checker: checkerTexture(), glow: glowTexture('#3b82f6') }), []);
   const v = useMemo(() => new THREE.Vector3(), []);
+
+  // logo personnalisé : réimprime la bannière
+  useEffect(() => {
+    if (!LOGO_URL) return;
+    const img = new Image();
+    img.onload = () => { const t = bannerTexture(img); M.print.map = M.print.emissiveMap = t; M.print.needsUpdate = true; };
+    img.src = LOGO_URL;
+  }, [M]);
 
   useFrame(({ camera, size }) => {
     const b = barGeo(), k = fx.k, fl = fx.flash;
     base.current.position.set(b.x1 - 6, b.y, 0);
-    base.current.scale.setScalar(ARCH_SCALE * (fx.G.mob ? 0.8 : 1));
     base.current.rotation.z = PHI;
-    // l'arche se couche et rétrécit quand le bloc redescend à plat
+    base.current.scale.setScalar(ARCH_SCALE * (fx.G.mob ? 0.8 : 1));
+    // l'arche se couche et rétrécit quand la carte redescend à plat
     const down = clamp((k - 0.3) / 0.45, 0, 1);
     base.current.visible = fx.as * down > 0.002 || fx.ring >= 0;
     stand.current.rotation.x = (Math.PI / 2) * fx.arch * down;
@@ -84,33 +144,31 @@ export default function Arch() {
     stand.current.visible = fx.as * down > 0.002;
     finish.current.visible = stand.current.visible;
 
-    // le flux bleu éclaire l'arche en approchant
+    // le flux bleu éclaire l'arche en approchant ; à 100 % flash de lumière blanche
     const lit = clamp((fx.p - 45) / 55, 0, 1) * k * fx.blue;
-    const n = 0.35 + 1.4 * lit + 1.6 * fl;
-    M.neon.color.setRGB(0.3 * n + 0.5 * fl, 0.6 * n + 0.5 * fl, 1.9 * n + 0.5 * fl);
-    M.rim.color.setRGB(0.15 + 0.7 * lit + 0.9 * fl, 0.35 + 1.3 * lit + 0.9 * fl, 1.1 + 2.6 * lit + 0.9 * fl);
-    M.beam.color.setRGB(1.5 + 2 * lit + 1.2 * fl, 1.8 + 2.2 * lit + 1.2 * fl, 3 + 3 * lit + 1.2 * fl);
-    M.chrome.emissiveIntensity = 0.12 + 0.4 * lit + 1.1 * fl;
+    light.current.intensity = (2500 * lit + 22000 * fl) * down;
+    M.print.emissiveIntensity = 0.05 + 0.9 * fl;
+    M.fabric.emissive.setRGB(0.25 * fl, 0.3 * fl, 0.4 * fl);
 
-    pool.current.material.opacity = (0.3 + 0.7 * lit + 0.4 * fl) * k;
+    pool.current.material.opacity = (0.25 + 0.6 * lit + 0.4 * fl) * k;
     const r = fx.ring;
     ring.current.visible = r >= 0;
     if (r >= 0) { ring.current.scale.setScalar(12 + r * (60 + 110 * k)); ring.current.material.opacity = (1 - r) * (1 - r); }
 
-    // position écran du fronton (origine des confettis)
+    // position écran de la bannière (origine des confettis)
     banner.current.getWorldPosition(v).project(camera);
     fx.archScreen = { x: ((v.x + 1) / 2) * size.width, y: ((1 - v.y) / 2) * size.height };
   });
 
   return (
     <group ref={base}>
-      {/* Au sol : ligne d'arrivée en damier, flaque de lumière, onde de choc */}
+      {/* Au sol : ligne d'arrivée en damier, lumière diffuse, onde de choc */}
       <mesh ref={finish} position={[0, 0, TRACK_Z + 1.4]}>
-        <planeGeometry args={[SPAN + 30, 7]} />
-        <meshBasicMaterial map={tex.checker} toneMapped={false} color={[1.3, 1.3, 1.4]} />
+        <planeGeometry args={[2 * HALF + 20, 8]} />
+        <meshBasicMaterial map={tex.checker} toneMapped={false} color={[1.15, 1.15, 1.2]} />
       </mesh>
       <mesh ref={pool} position={[0, 0, 0.4]}>
-        <planeGeometry args={[340, 220]} />
+        <planeGeometry args={[360, 220]} />
         <meshBasicMaterial map={tex.glow} {...additive} />
       </mesh>
       <mesh ref={ring} position={[0, 0, 1]}>
@@ -118,21 +176,28 @@ export default function Arch() {
         <meshBasicMaterial color={[1.6, 2.4, 6]} {...additive} />
       </mesh>
 
-      {/* L'arche se dresse hors de la piste */}
+      {/* L'arche se gonfle et se dresse hors de la piste */}
       <group ref={stand}>
-        <Pillar x={-SPAN / 2} M={M} />
-        <Pillar x={SPAN / 2} M={M} />
-        {/* traverse néon */}
-        <mesh position={[0, PH * 0.62, 0]} rotation={[0, 0, Math.PI / 2]} material={M.beam}>
-          <cylinderGeometry args={[2.4, 2.4, SPAN - 18, 16]} />
+        <mesh geometry={M.tube} material={M.fabric} />
+        {/* socles lestés */}
+        {[-HALF, HALF].map((x) => (
+          <group key={x} position={[x, 0, 0]}>
+            <mesh position={[0, 7, 0]} material={M.dark}><cylinderGeometry args={[TUBE * 1.45, TUBE * 1.6, 14, 28]} /></mesh>
+            <mesh position={[0, 14.5, 0]} material={M.dark}><torusGeometry args={[TUBE * 1.38, 2.2, 10, 28]} /></mesh>
+          </group>
+        ))}
+        {/* bannière gonflée imprimée, fixée sur le devant de l'arche */}
+        <RoundedBox ref={banner} args={[176, 54, 16]} radius={8} smoothness={5} position={[0, TOP - 6, TUBE + 2]} material={M.dark} />
+        <mesh position={[0, TOP - 6, TUBE + 10.2]}>
+          <planeGeometry args={[164, 48]} />
+          <primitive object={M.print} attach="material" />
         </mesh>
-        {/* fronton biseauté + liseré néon */}
-        <RoundedBox ref={banner} args={[220, 74, 26]} radius={11} smoothness={5} bevelSegments={5} position={[0, BAN_Y, 0]} material={M.banner} />
-        <RoundedBox args={[227, 81, 14]} radius={13} smoothness={5} position={[0, BAN_Y, -5]} material={M.rim} />
-        <Suspense fallback={null}>{LOGO_URL ? <ImageLogo /> : <DefaultLogo M={M} />}</Suspense>
-        <Center disableY disableZ position={[0, BAN_Y - 25, 12]}>
-          <Text3D font={font} size={30} {...TEXT} letterSpacing={0.5} material={M.chrome}>100%</Text3D>
-        </Center>
+        {/* cordes d'ancrage */}
+        <Rope from={[-HALF, LEG * 0.82, TUBE * 0.6]} to={[-HALF - 34, 0, 34]} />
+        <Rope from={[-HALF, LEG * 0.82, -TUBE * 0.6]} to={[-HALF - 34, 0, -34]} />
+        <Rope from={[HALF, LEG * 0.82, TUBE * 0.6]} to={[HALF + 34, 0, 34]} />
+        <Rope from={[HALF, LEG * 0.82, -TUBE * 0.6]} to={[HALF + 34, 0, -34]} />
+        <pointLight ref={light} position={[0, TOP * 0.55, 90]} color="#dbe7ff" distance={700} decay={2} />
       </group>
     </group>
   );
