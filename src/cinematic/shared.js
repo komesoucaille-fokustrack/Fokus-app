@@ -9,7 +9,9 @@ export const fx = {
   race: 0,        // identifiant de la course (reconstruit textures/géométries)
   intro: 0,       // entrée dans la vue 3D (0 → 1)
   zoom: 0,        // plan large de la carte (0) → gros plan sur la barre (1)
-  k: 0,           // inclinaison effective = intro × inclinaison restante (le bloc redescend avec la progression)
+  k: 0,           // entrée dans la vue 3D effective
+  lay: 0,         // pose A inclinée (0) → pose B posée à plat (1), suit l'avancement de la course
+  lay0: 0,        // plancher de lay (garantit la pose à plat à l'arrivée)
   lift: 0,        // décollement de la carte hors de la page
   p: 0,           // front de la barre bleue (%)
   old: 0,         // progression avant validation (%)
@@ -24,9 +26,9 @@ export const fx = {
   moving: false,  // la barre avance → étincelles
   speed: 0,       // vitesse de la barre normalisée (0 → 1) → effet de vitesse
   burst: 0,       // compteur de gerbes d'étincelles
-  cut: 0,         // découpe laser du contour de la carte (0 → 1)
-  cutGlow: 0,     // incandescence de la découpe
-  emit: [],       // points d'émission d'étincelles de la découpe
+  cut: 0,         // détourage lumineux du contour de la carte (0 → 1)
+  cutGlow: 0,     // intensité du détourage
+  emit: [],       // points d'émission d'étincelles additionnels
   P: 1100,        // perspective (distance œil → écran)
   O: { x: 600, y: 400 },                                        // œil de la caméra à l'écran
   C: { x0: -380, y0: -80, w: 760, h: 160, r: 16 },                // carte au repos (coin haut-gauche, CSS relatif à O)

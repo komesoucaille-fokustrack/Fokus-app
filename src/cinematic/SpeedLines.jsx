@@ -9,7 +9,7 @@ import { additive } from './textures';
    autour du front de la barre. Leur nombre, leur longueur et leur éclat
    dépendent de la vitesse de la barre (fx.speed) : un gros bond file à toute allure.
    ===================================================================== */
-const N = 56;
+const N = 32;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export default function SpeedLines() {
@@ -22,7 +22,7 @@ export default function SpeedLines() {
   }, []);
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 1 / 30), b = barGeo(), sp = fx.speed * Math.min(1, fx.k * 1.4 + 0.25);
+    const dt = Math.min(delta, 1 / 30), b = barGeo(), sp = (fx.moving ? fx.speed : 0) * Math.min(1, fx.k * 1.4 + 0.25) * (1 - 0.55 * fx.lay);
     mesh.current.visible = (fx.active || fx.warm) && sp > 0.02;
     if (!mesh.current.visible) return;
     const { m, p, q, s, c } = tmp;
@@ -37,7 +37,7 @@ export default function SpeedLines() {
       // plus intense près de la barre, fondu aux extrémités du trajet
       const edge = Math.min(1, (l.x + 800) / 250, (420 - l.x) / 150);
       const a = sp * edge * (1.2 - 0.7 * Math.abs(l.y)) * (1.1 - 0.5 * l.z);
-      c.setRGB(1.8 * a, 2.4 * a, 3.6 * a);
+      c.setRGB(1.1 * a, 1.5 * a, 2.4 * a);
       mesh.current.setColorAt(i, c);
     });
     mesh.current.instanceMatrix.needsUpdate = true;

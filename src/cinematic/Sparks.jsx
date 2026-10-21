@@ -34,7 +34,7 @@ export default function Sparks() {
     const k = fx.k, flat = 1 - k; // en vue 2D, les étincelles montent à l'écran au lieu de jaillir vers la caméra
     /* Flux continu sur le front de progression */
     if (fx.moving) {
-      P.acc += dt * (fx.G.mob ? 260 : 380) * (0.3 + 0.7 * k) * (0.35 + 1.4 * fx.speed);
+      P.acc += dt * (fx.G.mob ? 120 : 170) * (0.3 + 0.7 * k) * (0.35 + 1.1 * fx.speed);
       while (P.acc >= 1) {
         P.acc--;
         spawn(b.head - 2, b.y + rand(-0.35, 0.35) * b.h, b.z + rand(2, 10), rand(-60, 560) * (0.5 + 0.5 * k) * (0.6 + 0.9 * fx.speed), rand(-280, 280) * k + flat * rand(60, 320), rand(160, 640), rand(0.45, 1.05) * (0.55 + 0.45 * k), b.z);
@@ -54,7 +54,7 @@ export default function Sparks() {
     /* Gerbe à 100 % depuis l'arche */
     if (P.burst !== fx.burst) {
       P.burst = fx.burst;
-      for (let i = 0; i < (k > 0.3 ? 170 : 90); i++) {
+      for (let i = 0; i < (k > 0.3 ? 80 : 50); i++) {
         const a = Math.random() * Math.PI * 2, s = rand(180, 620) * (0.5 + 0.5 * k);
         spawn(b.x1 - 4, b.y, b.z + rand(20, 150), Math.cos(a) * s, Math.sin(a) * s, rand(150, 700), rand(0.5, 1.1), b.z);
       }

@@ -136,8 +136,8 @@ export default function Arch() {
     base.current.position.set(b.x1 - 6, b.y, 0);
     base.current.rotation.z = PHI;
     base.current.scale.setScalar(ARCH_SCALE * (fx.G.mob ? 0.8 : 1));
-    // l'arche se couche et rétrécit quand la carte redescend à plat
-    const down = clamp((k - 0.3) / 0.45, 0, 1);
+    // l'arche reste debout pendant toute la course ; elle ne se couche qu'au retour en 2D
+    const down = clamp(k * 1.6, 0, 1);
     base.current.visible = fx.as * down > 0.002 || fx.ring >= 0;
     stand.current.rotation.x = (Math.PI / 2) * fx.arch * down;
     stand.current.scale.setScalar(Math.max(0.001, fx.as * down));

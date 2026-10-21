@@ -53,6 +53,19 @@ function gradientTexture(css) {
   return t;
 }
 
+/* Sol mat qui apparaît quand la carte se pose (fondu radial vers le noir) */
+function floorTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const x = c.getContext('2d'), g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, '#fff');
+  g.addColorStop(0.45, '#999');
+  g.addColorStop(1, '#000');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+
 function shadowTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -106,7 +119,7 @@ function drawFace(ctx, face, sc, pct) {
 }
 
 export default function Card3D() {
-  const root = useRef(), slab = useRef(), shadow = useRef(), pastel = useRef(), blue = useRef(), glow = useRef(), pool = useRef();
+  const root = useRef(), slab = useRef(), shadow = useRef(), floor = useRef(), pastel = useRef(), blue = useRef(), glow = useRef(), pool = useRef();
   const S = useMemo(() => {
     const canvas = document.createElement('canvas');
     const faceTex = new THREE.CanvasTexture(canvas);
@@ -120,6 +133,7 @@ export default function Card3D() {
       pastelTex: null,
       glowTex: glowTexture('#ffffff'),
       shadowTex: shadowTexture(),
+      floorTex: floorTexture(),
       poolTex: glowTexture('#2f6bff'),
     };
   }, []);
@@ -171,9 +185,15 @@ export default function Card3D() {
     S.faceMat.roughness = 0.3;
 
     /* Ombre portée sous la carte décollée */
-    shadow.current.position.set(C.w / 2 + 14 * fx.lift, C.h / 2 - 24 * fx.lift, -(DEPTH + 2 * BEV) - 30 - 60 * fx.lift);
-    shadow.current.scale.set(C.w * 1.25, C.h * 1.7, 1);
+    // posée à plat (lay → 1), la carte descend sur le sol : l'ombre se resserre
+    const air = fx.lift * (1 - 0.9 * fx.lay), bottom = -(DEPTH + 2 * BEV);
+    shadow.current.position.set(C.w / 2 + 14 * air, C.h / 2 - 24 * air, bottom - 3 - 60 * air);
+    shadow.current.scale.set(C.w * (1.08 + 0.2 * air), C.h * (1.3 + 0.45 * air), 1);
     shadow.current.material.opacity = 0.9 * Math.max(fx.lift, k);
+    floor.current.position.set(C.w / 2, C.h / 2, bottom - 4 - 60 * air);
+    floor.current.scale.set(C.w * 3.2, C.h * 7, 1);
+    floor.current.material.opacity = 0.95 * fx.lay * k;
+    floor.current.visible = fx.lay * k > 0.01;
 
     /* Gels : pastel (progression d'avant) puis bleu électrique qui grandit avec p */
     const tx = G.x0 - C.x0, ty = -G.y - (-(C.y0 + C.h)) - G.bh / 2; // coin bas-gauche de la piste dans le repère carte
@@ -205,6 +225,10 @@ export default function Card3D() {
 
   return (
     <group ref={root}>
+      <mesh ref={floor} renderOrder={-2}>
+        <planeGeometry args={[1, 1]} />
+        <meshStandardMaterial color="#3a3a40" roughness={0.88} metalness={0} alphaMap={S.floorTex} transparent depthWrite={false} envMapIntensity={0.2} />
+      </mesh>
       <mesh ref={shadow} renderOrder={-1}>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial map={S.shadowTex} transparent depthWrite={false} toneMapped={false} />
