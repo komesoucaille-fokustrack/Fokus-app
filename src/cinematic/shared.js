@@ -27,6 +27,10 @@ export const fx = {
   m: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), // matrice CSS du bloc (hors perspective)
   archScreen: null, // position écran du fronton (pour les confettis)
   render: null,     // rend une image WebGL synchronisée (fourni par Scene3D)
+  intro: 0,         // entrée dans la vue de poursuite (k = intro × inclinaison restante)
+  cut: 0,           // découpe laser du contour du bloc (0 → 1)
+  cutGlow: 0,       // incandescence de la découpe
+  emit: [],         // points d'émission d'étincelles de la découpe (repère bloc)
 };
 
 export const TRACK_Z = 8; // épaisseur de la piste : la surface de roulement est à z = 8

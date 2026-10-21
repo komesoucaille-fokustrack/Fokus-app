@@ -122,8 +122,8 @@ export default function Track() {
     blue.current.visible = a > 0.01 && fx.p > 0.2;
 
     /* Sol réfléchissant + grille */
-    ground.current.material.opacity = 0.96 * fx.ground;
-    ground.current.visible = fx.ground > 0.01;
+    ground.current.material.opacity = 0.96 * fx.ground * fx.k;
+    ground.current.visible = fx.ground * fx.k > 0.01;
     ground.current.position.set(G.barW / 2, G.bh / 2, -0.5);
     // reflet bleu de la tête sur le sol
     pool.current.position.set(b.head - b.x0, G.bh / 2, 0);
@@ -141,7 +141,7 @@ export default function Track() {
 
     /* Repères 10 % … 90 % : s'illuminent au passage du front */
     MARKS.forEach((n, i) => {
-      const x = (n / 10) * G.barW, on = fx.p >= n * 10 ? 1 : 0, vis = clamp01((r * 10 - n) + 1) * fx.k;
+      const x = (n / 10) * G.barW, on = fx.p >= n * 10 ? 1 : 0, vis = clamp01((r * 10 - n) + 1) * clamp01((fx.k - 0.45) / 0.35);
       const lab = labels.current[i], mk = marks.current[i];
       lab.position.set(x, -40, 0);
       lab.visible = vis > 0.01;

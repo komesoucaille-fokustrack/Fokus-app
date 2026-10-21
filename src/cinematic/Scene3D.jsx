@@ -7,6 +7,7 @@ import { barGeo, fx } from './shared';
 import Arch from './Arch';
 import Sparks from './Sparks';
 import Track from './Track';
+import Laser from './Laser';
 import { additive, glowTexture } from './textures';
 
 const shown = () => fx.active || fx.warm;
@@ -88,11 +89,11 @@ function Driver() {
     fx.render = () => advance(performance.now() / 1000);
     // Préchauffage : compile shaders, géométries et carte d'environnement hors écran
     fx.warm = true;
-    Object.assign(fx, { k: 1, p: 60, old: 30, arch: 1, as: 1, blue: 1, rail: 1, ground: 1 });
+    Object.assign(fx, { k: 1, intro: 1, p: 60, old: 30, arch: 1, as: 1, blue: 1, rail: 1, ground: 1, cut: 0.5, cutGlow: 1 });
     fx.render();
     gl.compile(scene, camera);
     fx.render();
-    Object.assign(fx, { k: 0, p: 0, old: 0, arch: 0, as: 0, blue: 0, rail: 0, ground: 0 });
+    Object.assign(fx, { k: 0, intro: 0, p: 0, old: 0, arch: 0, as: 0, blue: 0, rail: 0, ground: 0, cut: 0, cutGlow: 0, emit: [] });
     fx.warm = false;
     fx.ready = true;
     return () => { fx.ready = false; fx.render = null; };
@@ -120,6 +121,7 @@ export default function Scene3D() {
         <Rig>
           <Lights />
           <Track />
+          <Laser />
           <EnergyHead />
           <Sparks />
           <Arch />

@@ -36,12 +36,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - **Interdit** : écran noir séparé, page dédiée, ou animation en Canvas 2D plat. L'interface de la Page 1 reste exactement la même.
 - **Caméra de poursuite à la 3e personne** (`src/cinematic/engine.js`, constantes `CHASE`) :
-  1. Le bloc de progression **se détache** de la carte (relais instantané barre DOM → piste 3D alignée au pixel près) ;
-     le reste de la page s'enfonce (translateZ négatif + flou de profondeur de champ).
-  2. La caméra plonge et **zoome sur le 0 %** : vue rasante derrière la barre, inclinée pour voir la **ligne d'arrivée au fond**.
+  1. **Découpe laser** (`Laser.jsx`) : deux faisceaux blancs tombent d'en haut et découpent le contour du bloc de progression
+     (contour incandescent + gerbes d'étincelles blanches), puis le bloc **se décroche** de la carte (relais instantané
+     barre DOM → piste 3D alignée au pixel près).
+  2. La caméra plonge et **zoome sur le 0 %** : vue rasante derrière la barre, inclinée pour voir la **ligne d'arrivée au fond** ;
+     la page s'enfonce (translateZ négatif + flou de profondeur de champ).
   3. La piste s'illumine (rails néon, repères 10 %…90 %), puis la barre **bleu électrique** avance jusqu'au **pourcentage exact** ;
-     le bloc glisse en sens inverse pour que la caméra **suive le front de près, zoom constant**. Compteur (HUD) qui accompagne le front.
-  4. Retour en 2D **sans coupure** : la piste 3D se repose exactement sur la barre DOM, qui reprend sa couleur pastel.
+     le bloc glisse en sens inverse pour que la caméra **suive le front de près**. Compteur (HUD) qui accompagne le front.
+  4. **Plus la barre avance, plus le bloc redescend** : `k = intro × inclinaison restante`, à plat à `FLAT_AT` (62 %),
+     même perspective ; on retrouve alors simplement la page et la barre finit sa course en place (étincelles, flash à 100 %).
+  5. Fin en 2D **sans coupure** : la piste 3D se repose exactement sur la barre DOM, qui reprend sa couleur pastel.
 - La scène WebGL (`src/cinematic/Scene3D.jsx`) est une surcouche transparente : la caméra Three reproduit `perspective(1100px)`
   (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que le bloc. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
 - **Piste** (`Track.jsx`) : piste extrudée, sol à grille avec fondu vers le noir, reflet bleu sous la tête, rails et repères qui s'allument.
@@ -68,7 +72,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - `src/store.js` — état, persistance, changement de jour, actions.
 - `src/components/` — UI (en-tête, carte de progression, liste, bouton flottant, modale, statistiques).
-- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Track.jsx`, `Arch.jsx`, `Sparks.jsx` — scène 3D.
+- `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Track.jsx`, `Laser.jsx`, `Arch.jsx`, `Sparks.jsx` — scène 3D.
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
 - `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
 

@@ -6,6 +6,7 @@ import { additive } from './textures';
 
 const MAX = 900;
 const PALETTE = [[5, 5, 5.5], [3.2, 3.8, 6], [1.8, 2.8, 6], [1, 2, 6], [0.6, 1.4, 5]];
+const LASER = [[6, 6, 6], [5, 5.2, 5.8], [4.5, 4.6, 5], [6, 5.6, 4.8]]; // étincelles blanches de la découpe
 const rand = (a, b) => a + Math.random() * (b - a);
 
 /* Vraies étincelles 3D : traînées incandescentes éjectées du bord avant de la barre,
@@ -21,49 +22,61 @@ export default function Sparks() {
     mesh.current.count = 0;
   }, []);
 
-  const spawn = (x, y, z, vx, vy, vz, life, floor) => {
+  const spawn = (x, y, z, vx, vy, vz, life, floor, pal = PALETTE) => {
     if (P.list.length >= MAX) P.list.shift();
-    const c = PALETTE[(Math.random() * PALETTE.length) | 0];
+    const c = pal[(Math.random() * pal.length) | 0];
     P.list.push({ x, y, z, vx, vy, vz, t: 0, life, floor, c, w: rand(0.9, 2.1) });
   };
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30), b = barGeo();
-    if (!fx.active) { P.list.length = 0; P.acc = 0; }
+    if (!fx.active) { P.list.length = 0; P.acc = 0; P.lacc = 0; }
+    const k = fx.k, flat = 1 - k; // en vue 2D, les étincelles montent à l'écran au lieu de jaillir vers la caméra
     /* Flux continu sur le front de progression */
     if (fx.moving) {
-      P.acc += dt * (fx.G.mob ? 260 : 380);
+      P.acc += dt * (fx.G.mob ? 260 : 380) * (0.3 + 0.7 * k);
       while (P.acc >= 1) {
         P.acc--;
-        spawn(b.head - 2, b.y + rand(-0.35, 0.35) * b.h, b.z + rand(2, 10), rand(-60, 560), rand(-280, 280), rand(160, 640), rand(0.45, 1.05), b.z);
+        spawn(b.head - 2, b.y + rand(-0.35, 0.35) * b.h, b.z + rand(2, 10), rand(-60, 560) * (0.5 + 0.5 * k), rand(-280, 280) * k + flat * rand(60, 320), rand(160, 640), rand(0.45, 1.05) * (0.55 + 0.45 * k), b.z);
+      }
+    }
+    /* Découpe laser : gerbes blanches aux points de coupe */
+    if (fx.emit.length) {
+      P.lacc = (P.lacc || 0) + dt * 420;
+      while (P.lacc >= 1) {
+        P.lacc--;
+        for (const e of fx.emit) {
+          const a = Math.random() * Math.PI * 2, s = rand(80, 420);
+          spawn(e.x, e.y, e.z, Math.cos(a) * s, Math.sin(a) * s + rand(40, 260), rand(0, 300), rand(0.25, 0.6), -1e9, LASER);
+        }
       }
     }
     /* Gerbe à 100 % depuis l'arche */
     if (P.burst !== fx.burst) {
       P.burst = fx.burst;
-      for (let i = 0; i < 170; i++) {
-        const a = Math.random() * Math.PI * 2, s = rand(180, 620);
+      for (let i = 0; i < (k > 0.3 ? 170 : 90); i++) {
+        const a = Math.random() * Math.PI * 2, s = rand(180, 620) * (0.5 + 0.5 * k);
         spawn(b.x1 - 4, b.y, b.z + rand(20, 150), Math.cos(a) * s, Math.sin(a) * s, rand(150, 700), rand(0.5, 1.1), b.z);
       }
     }
     const { m, q, v, s, p, x, c } = tmp;
-    const fade = Math.min(1, fx.k * 1.6); // les étincelles s'éteignent pendant le retour en 2D
     let n = 0;
-    P.list = P.list.filter((k) => (k.t += dt) < k.life);
-    for (const k of P.list) {
-      k.vz -= 1500 * dt;
+    P.list = P.list.filter((e) => (e.t += dt) < e.life);
+    for (const e of P.list) {
+      e.vz -= 1500 * k * dt;           // gravité vers la piste (vue 3D)…
+      e.vy -= 1300 * flat * dt;        // … ou vers le bas de l'écran (vue 2D)
       const drag = Math.pow(0.35, dt);
-      k.vx *= drag; k.vy *= drag;
-      k.x += k.vx * dt; k.y += k.vy * dt; k.z += k.vz * dt;
-      if (k.z < k.floor && k.vz < 0) { k.z = k.floor; k.vz *= -0.38; k.vx *= 0.7; k.vy *= 0.7; } // rebond sur la piste
-      const a = (1 - k.t / k.life) * fade, speed = Math.hypot(k.vx, k.vy, k.vz);
-      v.set(k.vx, k.vy, k.vz).divideScalar(speed || 1);
+      e.vx *= drag; e.vy *= drag;
+      e.x += e.vx * dt; e.y += e.vy * dt; e.z += e.vz * dt;
+      if (e.z < e.floor && e.vz < 0) { e.z = e.floor; e.vz *= -0.38; e.vx *= 0.7; e.vy *= 0.7; } // rebond sur la piste
+      const a = 1 - e.t / e.life, speed = Math.hypot(e.vx, e.vy, e.vz);
+      v.set(e.vx, e.vy, e.vz).divideScalar(speed || 1);
       q.setFromUnitVectors(x, v);
-      s.set(Math.min(22, 2 + speed * 0.024), k.w * (0.4 + a), k.w * (0.4 + a));
-      p.set(k.x, k.y, k.z);
+      s.set(Math.min(22, 2 + speed * 0.024), e.w * (0.4 + a), e.w * (0.4 + a));
+      p.set(e.x, e.y, e.z);
       m.compose(p, q, s);
       mesh.current.setMatrixAt(n, m);
-      c.setRGB(k.c[0] * a, k.c[1] * a, k.c[2] * a);
+      c.setRGB(e.c[0] * a, e.c[1] * a, e.c[2] * a);
       mesh.current.setColorAt(n, c);
       n++;
     }

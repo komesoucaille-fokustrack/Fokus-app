@@ -65,7 +65,7 @@ function ImageLogo() {
 }
 
 export default function Arch() {
-  const base = useRef(), stand = useRef(), ring = useRef(), pool = useRef(), banner = useRef();
+  const base = useRef(), stand = useRef(), ring = useRef(), pool = useRef(), banner = useRef(), finish = useRef();
   const M = useMaterials();
   const tex = useMemo(() => ({ checker: checkerTexture(), glow: glowTexture('#3b82f6') }), []);
   const v = useMemo(() => new THREE.Vector3(), []);
@@ -74,9 +74,13 @@ export default function Arch() {
     const b = barGeo(), k = fx.k, fl = fx.flash;
     base.current.position.set(b.x1 - 6, b.y, 0);
     base.current.rotation.z = PHI;
-    base.current.visible = fx.as > 0.002 || fx.ring >= 0;
-    stand.current.rotation.x = (Math.PI / 2) * fx.arch;
-    stand.current.scale.setScalar(Math.max(0.001, fx.as) * (fx.G.mob ? 0.72 : 1));
+    // l'arche se couche et rétrécit quand le bloc redescend à plat
+    const down = clamp((k - 0.3) / 0.45, 0, 1);
+    base.current.visible = fx.as * down > 0.002 || fx.ring >= 0;
+    stand.current.rotation.x = (Math.PI / 2) * fx.arch * down;
+    stand.current.scale.setScalar(Math.max(0.001, fx.as * down) * (fx.G.mob ? 0.72 : 1));
+    stand.current.visible = fx.as * down > 0.002;
+    finish.current.visible = stand.current.visible;
 
     // le flux bleu éclaire l'arche en approchant
     const lit = clamp((fx.p - 45) / 55, 0, 1) * k * fx.blue;
@@ -89,7 +93,7 @@ export default function Arch() {
     pool.current.material.opacity = (0.3 + 0.7 * lit + 0.4 * fl) * k;
     const r = fx.ring;
     ring.current.visible = r >= 0;
-    if (r >= 0) { ring.current.scale.setScalar(12 + r * 170); ring.current.material.opacity = (1 - r) * (1 - r); }
+    if (r >= 0) { ring.current.scale.setScalar(12 + r * (60 + 110 * k)); ring.current.material.opacity = (1 - r) * (1 - r); }
 
     // position écran du fronton (origine des confettis)
     banner.current.getWorldPosition(v).project(camera);
@@ -99,7 +103,7 @@ export default function Arch() {
   return (
     <group ref={base}>
       {/* Au sol : ligne d'arrivée en damier, flaque de lumière, onde de choc */}
-      <mesh position={[0, 0, TRACK_Z + 1.4]}>
+      <mesh ref={finish} position={[0, 0, TRACK_Z + 1.4]}>
         <planeGeometry args={[SPAN + 30, 7]} />
         <meshBasicMaterial map={tex.checker} toneMapped={false} color={[1.3, 1.3, 1.4]} />
       </mesh>
