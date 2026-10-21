@@ -1,10 +1,36 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FokusLogo from './FokusLogo';
 import { exportJSON, importJSON, setAnim, setPage, toast, useStore } from '../store';
+
+/* Plein écran (Safari iPad : API préfixée webkit) */
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+const fsSupported = () => {
+  const el = document.documentElement;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  return !standalone && !!(el.requestFullscreen || el.webkitRequestFullscreen);
+};
+function toggleFullscreen() {
+  const el = document.documentElement;
+  if (fsElement()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+}
+
+function useFullscreen() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const sync = () => setOn(!!fsElement());
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    return () => { document.removeEventListener('fullscreenchange', sync); document.removeEventListener('webkitfullscreenchange', sync); };
+  }, []);
+  return on;
+}
 
 export default function Header({ onRecurring }) {
   const { S, UI } = useStore();
   const file = useRef(null);
+  const full = useFullscreen();
+  const [canFull] = useState(fsSupported);
   const go = (p) => { if (!UI.busy) setPage(p); };
   const onFile = (e) => {
     const f = e.target.files[0];
@@ -36,6 +62,7 @@ export default function Header({ onRecurring }) {
         </label>
         <button className="b" onClick={exportJSON}>Exporter (JSON)</button>
         <button className="b" onClick={() => file.current.click()}>Importer (JSON)</button>
+        {canFull && <button className={'b ' + (full ? 'on' : '')} onClick={toggleFullscreen}>{full ? 'Quitter le plein écran' : '⛶ Plein écran'}</button>}
         <input ref={file} type="file" accept=".json,application/json" hidden onChange={onFile} />
       </div>
     </header>

@@ -99,7 +99,7 @@ export default function App() {
 
       <Header onRecurring={() => setRecOpen(true)} />
 
-      <main className="mx-auto max-w-[760px] px-4 py-[22px]">
+      <main className="mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (
           <section ref={page} key="p1">
             <ProgressCard ref={card} s={s} busy={UI.busy} />
