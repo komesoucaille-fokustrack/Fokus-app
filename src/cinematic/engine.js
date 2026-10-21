@@ -27,7 +27,7 @@ const CAM = {
 };
 
 /* Dosage selon le pourcentage validé (écart ancien → nouveau score) : [écart, vitesse, étincelles] */
-const DOSE = [[0, 0.06, 0.06], [0.1, 0.12, 0.1], [0.25, 0.3, 0.18], [0.5, 0.42, 0.2], [1, 0.62, 0.32]];
+const DOSE = [[0, 0.03, 0.03], [0.1, 0.06, 0.05], [0.25, 0.15, 0.08], [0.5, 0.22, 0.09], [1, 0.34, 0.15]];
 function dose(d, i) {
   let j = 1;
   while (j < DOSE.length - 1 && d > DOSE[j][0]) j++;
@@ -69,7 +69,7 @@ export function race(c, from, to, onDone) {
   const O = { x: vw / 2, y: vh / 2 };
   const r = c.card.getBoundingClientRect(), b = c.pbar.getBoundingClientRect();
   Object.assign(fx, {
-    active: true, race: fx.race + 1, intro: 0, zoom: 0, k: 0, lay: 0, lay0: 0, lift: 0, p: from, old: from, to, shown: from, pastel: 1, blue: 0, speed: 0,
+    active: true, race: fx.race + 1, intro: 0, zoom: 0, k: 0, lay: 0, lay0: 0, frame: 0, lift: 0, p: from, old: from, to, shown: from, pastel: 1, blue: 0, speed: 0,
     arch: 0, as: 0, flash: 0, ring: -1, moving: false, cut: 0, cutGlow: 0, emit: [], O,
     C: { x0: r.left - O.x, y0: r.top - O.y, w: r.width, h: r.height, r: parseFloat(getComputedStyle(c.card).borderRadius) || 16 },
     G: { x0: b.left - O.x, y: b.top + b.height / 2 - O.y, barW: b.width, bh: b.height, mob },
@@ -94,14 +94,14 @@ export function race(c, from, to, onDone) {
   /* Matrice de la carte : M = T(F + k(A − F) + lift) · Rx(pitch) · Ry(yaw) · Rz(roll) · S · T(−F)
      F = point visé, A = sa place à l'écran ; identité à k = 0.
      zoom : plan large → gros plan sur le front (la carte glisse en sens inverse pour le suivre) ;
-     lay : pose A inclinée → pose B posée à plat, qui suit l'avancement de la course. */
+     lay : pose A inclinée → pose B posée à plat (angles), suit l'avancement de la course ;
+     frame : gros plan sur le front → carte entière, seulement en toute fin de course (on reste zoomé sur la barre). */
   function matrix(t) {
-    const k = fx.k, z = fx.zoom, b = fx.lay, hx = G.x0 + (fx.p / 100) * G.barW, hy = G.y;
+    const k = fx.k, z = fx.zoom, b = fx.lay, f = fx.frame, hx = G.x0 + (fx.p / 100) * G.barW, hy = G.y;
     const cx = C.x0 + C.w / 2, cy = C.y0 + C.h / 2;
-    const fxp = lerp(lerp(cx, hx, z), cx + C.w * 0.04, b), fyp = lerp(lerp(cy, hy, z), cy, b);
-    const ax = lerp(lerp(Aw.x, Ac.x, z), Ab.x, b), ay = lerp(lerp(Aw.y, Ac.y, z), Ab.y, b);
-    // léger recul quand la barre file (effet de vitesse), très doux pour rester fluide
-    const s = 1 + k * (lerp(lerp(wide, close, z), flat, b) - 1) * (1 - 0.06 * fx.speed * fx.fxLevel);
+    const fxp = lerp(lerp(cx, hx, z), cx + C.w * 0.04, f), fyp = lerp(lerp(cy, hy, z), cy, f);
+    const ax = lerp(lerp(Aw.x, Ac.x, z), Ab.x, f), ay = lerp(lerp(Aw.y, Ac.y, z), Ab.y, f);
+    const s = 1 + k * (lerp(lerp(wide, close, z), flat, f) - 1);
     const drift = (Math.sin(t * 0.5) * 1.1 + Math.sin(t * 1.3) * 0.3) * k * (1 - 0.6 * b);
     const pitch = lerp(lerp(POSE_A.pitch, POSE_A.pitchClose, z), POSE_B.pitch, b) + drift * 0.4;
     const yaw = lerp(POSE_A.yaw, POSE_B.yaw, b) + drift, roll = lerp(POSE_A.roll, POSE_B.roll, b);
@@ -126,6 +126,7 @@ export function race(c, from, to, onDone) {
     const t = performance.now() / 1000;
     fx.k = fx.intro;
     fx.lay = Math.max(fx.lay0, smoother(progress() * 1.1));   // la carte se pose à plat au fil de la course
+    fx.frame = Math.max(fx.lay0, smoother((progress() - 0.8) / 0.2)); // recul sur la carte entière en toute fin de course
     // vitesse instantanée de la barre (% / s) → intensité de l'effet de vitesse
     const now = performance.now();
     if (last.t) {
@@ -187,28 +188,28 @@ export function race(c, from, to, onDone) {
 
   tl = gsap.timeline({ onUpdate: paint, onComplete: finish });
   /* 1 — Détourage lumineux du contour, puis la carte se décolle de la page */
-  tl.to(hold, { sink: 0.35, duration: 1.0, ease: 'sine.inOut' }, 0)
-    .to(fx, { cutGlow: 1, duration: 0.35, ease: 'sine.out' }, 0)
-    .to(fx, { cut: 1, duration: 1.5, ease: 'sine.inOut' }, 0.05)
-    .to(fx, { lift: 1, duration: 0.9, ease: 'back.out(1.4)' }, 1.5)
-    .to(fx, { cutGlow: 0, duration: 1.4, ease: 'sine.inOut' }, 1.6)
-    .to(hold, { sink: 1, duration: 1.0, ease: 'power2.inOut' }, 1.5)
+  tl.to(hold, { sink: 0.35, duration: 0.6, ease: 'sine.inOut' }, 0)
+    .to(fx, { cutGlow: 1, duration: 0.15, ease: 'sine.out' }, 0)
+    .to(fx, { cut: 1, duration: 0.75, ease: 'power1.inOut' }, 0.03)
+    .to(fx, { lift: 1, duration: 0.8, ease: 'back.out(1.4)' }, 0.75)
+    .to(fx, { cutGlow: 0, duration: 0.9, ease: 'sine.inOut' }, 0.85)
+    .to(hold, { sink: 1, duration: 0.9, ease: 'power2.inOut' }, 0.75)
   /* 2 — Le gel s'allume en bleu électrique de 0 jusqu'à l'ancien score */
-    .set(fx, { p: 0 }, 1.75)
-    .to(fx, { blue: 1, duration: 0.4, ease: 'power2.out' }, 1.75)
-    .to(fx, { pastel: 0, duration: 0.5, ease: 'power2.in' }, 1.85)
-    .to(fx, { p: from, duration: 0.9, ease: 'power2.out' }, 1.8)
+    .set(fx, { p: 0 }, 1.0)
+    .to(fx, { blue: 1, duration: 0.4, ease: 'power2.out' }, 1.0)
+    .to(fx, { pastel: 0, duration: 0.5, ease: 'power2.in' }, 1.1)
+    .to(fx, { p: from, duration: 0.9, ease: 'power2.out' }, 1.05)
   /* 3 — Pose A : la carte flotte, inclinée ; l'arche se gonfle ; puis gros plan sur le front */
-    .to(fx, { intro: 1, duration: 1.8, ease: 'power3.inOut' }, 1.9)
-    .to(fx, { arch: 1, duration: 1.0, ease: 'power2.out' }, 2.5)
-    .to(fx, { as: 1, duration: 1.6, ease: 'elastic.out(1, 0.5)' }, 2.6)
-    .to(fx, { zoom: 1, duration: 1.8, ease: 'power2.inOut' }, 3.6)
+    .to(fx, { intro: 1, duration: 1.8, ease: 'power3.inOut' }, 1.15)
+    .to(fx, { arch: 1, duration: 1.0, ease: 'power2.out' }, 1.75)
+    .to(fx, { as: 1, duration: 1.6, ease: 'elastic.out(1, 0.5)' }, 1.85)
+    .to(fx, { zoom: 1, duration: 1.8, ease: 'power2.inOut' }, 2.8)
   /* 4 — Course jusqu'au nouveau score : la carte se désincline et se pose à plat (pose B) */
-    .addLabel('run', 5.2)
+    .addLabel('run', 4.5)
     .call(() => { fx.moving = true; }, null, 'run')
     .to(fx, { p: to, duration: run, ease: 'power2.inOut' }, 'run')
     .call(() => { fx.moving = false; }, null, `run+=${run}`)
-    .to(fx, { lay0: 1, duration: 0.6, ease: 'sine.inOut' }, `run+=${run}`)   // toujours bien à plat à l'arrivée
+    .to(fx, { lay0: 1, duration: 0.8, ease: 'sine.inOut' }, `run+=${run}`)   // à l'arrivée : bien à plat, carte entière avec l'arche
   /* 5 — Fin en 2D sans coupure, la barre reprend son pastel */
     .addLabel('ret', `run+=${run + (to >= 100 ? 1.0 : 0.7)}`)
     .to(fx, { intro: 0, duration: 1.4, ease: 'expo.inOut' }, 'ret')

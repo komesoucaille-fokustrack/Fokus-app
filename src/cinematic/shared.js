@@ -12,6 +12,7 @@ export const fx = {
   k: 0,           // entrée dans la vue 3D effective
   lay: 0,         // pose A inclinée (0) → pose B posée à plat (1), suit l'avancement de la course
   lay0: 0,        // plancher de lay (garantit la pose à plat à l'arrivée)
+  frame: 0,       // cadrage : gros plan sur le front (0) → carte entière (1), en fin de course
   lift: 0,        // décollement de la carte hors de la page
   p: 0,           // front de la barre bleue (%)
   old: 0,         // progression avant validation (%)

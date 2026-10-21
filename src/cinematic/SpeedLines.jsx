@@ -9,7 +9,7 @@ import { additive } from './textures';
    autour du front de la barre. Leur nombre, leur longueur et leur éclat
    dépendent du pourcentage validé (fx.fxLevel) et de l'allure du moment (fx.speed).
    ===================================================================== */
-const N = 24;
+const N = 14;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export default function SpeedLines() {
@@ -37,7 +37,7 @@ export default function SpeedLines() {
       // plus intense près de la barre, fondu aux extrémités du trajet
       const edge = Math.min(1, (l.x + 800) / 250, (420 - l.x) / 150);
       const a = sp * edge * (1.2 - 0.7 * Math.abs(l.y)) * (1.1 - 0.5 * l.z);
-      c.setRGB(1.1 * a, 1.5 * a, 2.4 * a);
+      c.setRGB(0.8 * a, 1.1 * a, 1.8 * a);
       mesh.current.setColorAt(i, c);
     });
     mesh.current.instanceMatrix.needsUpdate = true;

@@ -11,8 +11,8 @@ import { additive, glowTexture } from './textures';
    La carte se décolle ensuite de la page.
    ===================================================================== */
 const N = 260;          // points par demi-contour
-const TRAIL = 0.22;     // longueur de la traînée (fraction du demi-contour)
-const RESIDUAL = 0.28;  // liseré qui reste derrière la lumière
+const TRAIL = 0.3;     // longueur de la traînée (fraction du demi-contour)
+const RESIDUAL = 0.45;  // liseré qui reste derrière la lumière
 
 /* Demi-contour de la carte (rectangle arrondi w × h, rayon r) : milieu gauche → milieu droit, par le haut (s = 1) ou le bas (s = -1) */
 function halfOutline(w, h, r, s) {
@@ -62,7 +62,7 @@ export default function Outline() {
   const S = useMemo(() => ({
     key: '',
     mat: new THREE.MeshBasicMaterial({ ...additive, vertexColors: true, side: THREE.DoubleSide }),
-    glow: glowTexture('#cfe0ff'),
+    glow: glowTexture('#ffffff'),
   }), []);
 
   useFrame(() => {
@@ -90,7 +90,7 @@ export default function Outline() {
         const v = d < -1 ? 0 : d < 0 ? 1 + d : RESIDUAL + (1 - RESIDUAL) * Math.exp(-d / trail);
         const e = v * g;
         col.setXYZ(3 * i, 0, 0, 0);
-        col.setXYZ(3 * i + 1, 2.2 * e, 2.6 * e, 3.4 * e);
+        col.setXYZ(3 * i + 1, 4 * e, 4 * e, 4.2 * e); // blanc pur, très lumineux
         col.setXYZ(3 * i + 2, 0, 0, 0);
       }
       col.needsUpdate = true;
@@ -115,7 +115,7 @@ export default function Outline() {
       <mesh ref={bot} material={S.mat}><bufferGeometry /></mesh>
       {heads.map((h, i) => (
         <sprite key={i} ref={h} scale={56}>
-          <spriteMaterial map={S.glow} color={[1.6, 1.8, 2.2]} {...additive} />
+          <spriteMaterial map={S.glow} color={[2.6, 2.6, 2.6]} {...additive} />
         </sprite>
       ))}
     </group>

@@ -38,20 +38,22 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Référence visuelle** : la carte « Aujourd'hui » devient une dalle 3D épaisse et flottante (tranche biseautée brillante, ombre portée),
   la barre est un **gel lumineux en relief** ; plan large incliné puis gros plan sur le début de la barre (cf. visuels fournis).
 - Séquence (~10 s, lente et lisible ; `src/cinematic/engine.js`, constantes `POSE_A`, `POSE_B`, `CAM`) :
-  1. **Détourage lumineux** (`Outline.jsx`, ~1,5 s) : deux traits de lumière glissent en douceur le long du contour de la carte
+  1. **Détourage lumineux** (`Outline.jsx`, ~0,75 s, **blanc pur très lumineux**) : deux traits de lumière font vite le tour de la carte
      (pas de laser), puis elle **se décolle** de la page (relais instantané carte DOM → carte 3D identique au pixel près).
   2. Le gel s'allume en **bleu électrique** de 0 jusqu'à l'**ancien score** (aucune couleur pastel/rouge pendant l'animation ;
      à 0 % un point bleu marque le départ de la barre).
   3. **Pose A** (visuel 1) : la carte flotte, inclinée, monte vers la droite ; la page s'enfonce et se floute ;
      l'arche gonflable se gonfle au bout de la barre ; puis **gros plan** sur le front de la barre (visuel 2).
-  4. **Course** de l'ancien au nouveau score, la caméra suit le front. **Au fil de la progression, la carte se désincline**
+  4. **Course** de l'ancien au nouveau score : la caméra **reste en gros plan sur le front** pendant quasiment toute la course
+     (`frame` ne recule sur la carte entière qu'après 80 % du trajet). **Au fil de la progression, la carte se désincline** (`lay`)
      jusqu'à se poser à plat sur un sol mat (**pose B**, visuel 3), toujours en perspective, profondeur et arche conservées.
      **Dosage proportionnel au pourcentage validé** (table `DOSE` d'engine.js) : durée `1,6 + 4,9·√(écart)`
      (+10 % ≈ 3 s, +25 % ≈ 4 s, +50 % ≈ 5 s, +100 % ≈ 6,5 s) ; effet de vitesse très faible à +10 %, un peu à +25 %,
      légèrement plus à +50 %, plus marqué (sans excès) à +100 % ; étincelles très rares (un peu plus seulement à +100 %).
+     **Effets volontairement très discrets** : ne jamais surcharger (pas de tremblement ni de recul caméra).
   5. À 100 % : passage sous l'arche, flash, gerbe et confettis. Puis retour en 2D **sans coupure** : la carte 3D se repose
      exactement sur la carte DOM et la barre reprend sa couleur pastel.
-- **Légèreté** : peu de particules (max 260 étincelles, 24 traînées), `dpr` ≤ 1,5, multisampling 2 — l'animation doit rester ultra fluide sur iPad.
+- **Légèreté** : peu de particules (max 260 étincelles, 14 traînées), `dpr` ≤ 1,5, multisampling 2 — l'animation doit rester ultra fluide sur iPad.
 - La scène WebGL (`src/cinematic/Scene3D.jsx`) est une surcouche transparente : la caméra Three reproduit `perspective(1100px)`
   (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que la carte. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
   Pas d'effet de profondeur de champ WebGL (il rend le canevas opaque) : le flou d'arrière-plan est fait en CSS sur la page.
