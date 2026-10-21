@@ -47,7 +47,7 @@ function EnergyHead() {
   const tex = useMemo(() => glowTexture('#5aa2ff'), []);
   useFrame(() => {
     const b = barGeo(), a = fx.blue;
-    const on = a > 0.01 && fx.p > 0.2;
+    const on = a > 0.01; // point bleu au départ de la barre, même à 0 %
     head.current.position.set(b.head - b.h * 0.25, b.y, b.z);
     head.current.scale.set(b.h * 0.26, b.h * 0.26, b.h * 0.2);
     head.current.material.color.setRGB(4 * a, 4.4 * a, 5 * a);
@@ -108,7 +108,7 @@ export default function Scene3D() {
     <Canvas
       id="scene3d"
       frameloop="never"
-      dpr={[1, 1.75]}
+      dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: false, powerPreference: 'high-performance', premultipliedAlpha: true }}
       style={{ position: 'fixed' }}
       onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); gl.localClippingEnabled = true; }}
@@ -129,8 +129,8 @@ export default function Scene3D() {
           <Sparks />
           <Arch />
         </Rig>
-        <EffectComposer multisampling={4}>
-          <Bloom mipmapBlur intensity={1.25} luminanceThreshold={1} luminanceSmoothing={0.2} radius={0.62} levels={6} />
+        <EffectComposer multisampling={2}>
+          <Bloom mipmapBlur intensity={1.25} luminanceThreshold={1} luminanceSmoothing={0.2} radius={0.6} levels={5} />
         </EffectComposer>
         <Driver />
       </Suspense>

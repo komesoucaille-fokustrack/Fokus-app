@@ -24,7 +24,9 @@ export const fx = {
   flash: 0,       // flash blanc de l'arche à 100 %
   ring: -1,       // onde de choc (0 → 1), -1 = inactive
   moving: false,  // la barre avance → étincelles
-  speed: 0,       // vitesse de la barre normalisée (0 → 1) → effet de vitesse
+  speed: 0,       // allure du moment (0 → 1, 1 = pic de vitesse de la course)
+  fxLevel: 0,     // intensité de l'effet de vitesse, selon le pourcentage validé
+  sparkLevel: 0,  // quantité d'étincelles, selon le pourcentage validé
   burst: 0,       // compteur de gerbes d'étincelles
   cut: 0,         // détourage lumineux du contour de la carte (0 → 1)
   cutGlow: 0,     // intensité du détourage

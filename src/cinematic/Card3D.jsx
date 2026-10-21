@@ -216,7 +216,7 @@ export default function Card3D() {
     const gl = Math.max(fx.blue > 0.5 ? len : (fx.old / 100) * G.barW, G.bh);
     glow.current.position.set(tx + gl / 2, ty + G.bh / 2, 0.15);
     glow.current.scale.set(gl + G.bh * 2.2, G.bh * 3.4, 1);
-    glow.current.material.opacity = 0.55 * (fx.blue > 0.5 ? 0 : fx.pastel);
+    glow.current.material.opacity = fx.old > 0 ? 0.55 * (fx.blue > 0.5 ? 0 : fx.pastel) : 0; // à 0 % : pas de halo (point bleu à la place)
     pool.current.position.set(tx + len, ty + G.bh / 2, 0.1);
     pool.current.scale.set(G.bh * 5, G.bh * 2.6, 1);
     pool.current.material.opacity = 0.45 * fx.blue;

@@ -26,6 +26,15 @@ const CAM = {
   flat: 0.74,      // largeur de la carte posée à plat (fraction de l'écran)
 };
 
+/* Dosage selon le pourcentage validé (écart ancien → nouveau score) : [écart, vitesse, étincelles] */
+const DOSE = [[0, 0.06, 0.06], [0.1, 0.12, 0.1], [0.25, 0.3, 0.18], [0.5, 0.42, 0.2], [1, 0.62, 0.32]];
+function dose(d, i) {
+  let j = 1;
+  while (j < DOSE.length - 1 && d > DOSE[j][0]) j++;
+  const a = DOSE[j - 1], b = DOSE[j], t = clamp((d - a[0]) / (b[0] - a[0]), 0, 1);
+  return a[i] + (b[i] - a[i]) * t;
+}
+
 const smoother = (x) => { x = clamp(x, 0, 1); return x * x * x * (x * (6 * x - 15) + 10); };
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -66,7 +75,13 @@ export function race(c, from, to, onDone) {
     G: { x0: b.left - O.x, y: b.top + b.height / 2 - O.y, barW: b.width, bh: b.height, mob },
     face: measureFace(c, r),
   });
-  const C = fx.C, G = fx.G;
+  const C = fx.C, G = fx.G, d = clamp((to - from) / 100, 0, 1);
+  fx.fxLevel = dose(d, 1);
+  fx.sparkLevel = dose(d, 2);
+  // durée de la course : +10 % ≈ 3 s, +25 % ≈ 4 s, +50 % ≈ 5 s, +100 % ≈ 6,5 s (la vitesse croît avec l'écart)
+  const run = 1.6 + 4.9 * Math.sqrt(d);
+  const vPeak = Math.max(1, (1.9 * (to - from)) / run);   // pic de vitesse (% / s) d'une course power2.inOut
+
   const close = mob ? 1.8 : vw < 1000 ? 2.1 : CAM.close, wide = Math.min(1, (CAM.wide * vw) / C.w), flat = Math.min(1.1, (CAM.flat * vw) / C.w);
   const Aw = { x: 0.02 * vw, y: 0.02 * vh }, Ac = { x: -0.12 * vw, y: 0.14 * vh }, Ab = { x: 0.03 * vw, y: 0.06 * vh };
   const hold = { sink: 0 };             // la page reste enfoncée pendant le détourage et le plan large
@@ -86,7 +101,7 @@ export function race(c, from, to, onDone) {
     const fxp = lerp(lerp(cx, hx, z), cx + C.w * 0.04, b), fyp = lerp(lerp(cy, hy, z), cy, b);
     const ax = lerp(lerp(Aw.x, Ac.x, z), Ab.x, b), ay = lerp(lerp(Aw.y, Ac.y, z), Ab.y, b);
     // léger recul quand la barre file (effet de vitesse), très doux pour rester fluide
-    const s = 1 + k * (lerp(lerp(wide, close, z), flat, b) - 1) * (1 - 0.05 * fx.speed);
+    const s = 1 + k * (lerp(lerp(wide, close, z), flat, b) - 1) * (1 - 0.06 * fx.speed * fx.fxLevel);
     const drift = (Math.sin(t * 0.5) * 1.1 + Math.sin(t * 1.3) * 0.3) * k * (1 - 0.6 * b);
     const pitch = lerp(lerp(POSE_A.pitch, POSE_A.pitchClose, z), POSE_B.pitch, b) + drift * 0.4;
     const yaw = lerp(POSE_A.yaw, POSE_B.yaw, b) + drift, roll = lerp(POSE_A.roll, POSE_B.roll, b);
@@ -115,7 +130,7 @@ export function race(c, from, to, onDone) {
     const now = performance.now();
     if (last.t) {
       const dt = Math.max(1e-3, (now - last.t) / 1000), v = (fx.p - last.p) / dt;
-      fx.speed += (clamp(v / 35, 0, 1) - fx.speed) * Math.min(1, dt * 6);
+      fx.speed += (clamp(v / vPeak, 0, 1) - fx.speed) * Math.min(1, dt * 6);
     }
     last.t = now;
     last.p = fx.p;
@@ -170,8 +185,6 @@ export function race(c, from, to, onDone) {
   paint();
   c.card.style.visibility = 'hidden';
 
-  // durée de la course : croît moins vite que l'écart → +50 % d'un coup file vite, +10 % avance posément
-  const run = 2.0 + 1.6 * Math.sqrt((to - from) / 100);
   tl = gsap.timeline({ onUpdate: paint, onComplete: finish });
   /* 1 — Détourage lumineux du contour, puis la carte se décolle de la page */
   tl.to(hold, { sink: 0.35, duration: 1.0, ease: 'sine.inOut' }, 0)

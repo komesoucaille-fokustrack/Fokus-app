@@ -7,9 +7,9 @@ import { additive } from './textures';
 /* =====================================================================
    EFFET DE VITESSE — traînées lumineuses qui filent vers l'arrière
    autour du front de la barre. Leur nombre, leur longueur et leur éclat
-   dépendent de la vitesse de la barre (fx.speed) : un gros bond file à toute allure.
+   dépendent du pourcentage validé (fx.fxLevel) et de l'allure du moment (fx.speed).
    ===================================================================== */
-const N = 32;
+const N = 24;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export default function SpeedLines() {
@@ -22,7 +22,7 @@ export default function SpeedLines() {
   }, []);
 
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 1 / 30), b = barGeo(), sp = (fx.moving ? fx.speed : 0) * Math.min(1, fx.k * 1.4 + 0.25) * (1 - 0.55 * fx.lay);
+    const dt = Math.min(delta, 1 / 30), b = barGeo(), sp = (fx.moving ? fx.speed * fx.fxLevel : 0) * Math.min(1, fx.k * 1.4 + 0.25) * (1 - 0.45 * fx.lay);
     mesh.current.visible = (fx.active || fx.warm) && sp > 0.02;
     if (!mesh.current.visible) return;
     const { m, p, q, s, c } = tmp;
