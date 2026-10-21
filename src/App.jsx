@@ -212,10 +212,7 @@ export default function App() {
 
   return (
     <>
-      <svg id="grain" aria-hidden="true">
-        <filter id="gn"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch" /></filter>
-        <rect width="100%" height="100%" filter="url(#gn)" />
-      </svg>
+      <div id="grain" aria-hidden="true" />
 
       {UI.update && (
         <div className="fixed inset-x-0 top-0 z-[300] flex items-center justify-center gap-3 border-b border-line bg-cont/95 px-4 py-2.5 text-[14px] backdrop-blur" style={{ paddingTop: 'max(10px, env(safe-area-inset-top))' }}>

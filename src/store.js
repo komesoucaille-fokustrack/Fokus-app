@@ -446,7 +446,12 @@ export function afterValidate(ids) {
 
 export const setAnim = (anim) => set({ anim });
 export const setConfetti = (confetti) => set({ confetti });
-export const setSetting = (k, v) => set({ set: { ...S.set, [k]: v } });
+export function setSetting(k, v) {
+  set({ set: { ...S.set, [k]: v } });
+  // minuteur prêt (pas encore lancé) : la nouvelle durée s'applique tout de suite
+  const p = S.pomo, ph = { pomo: 'work', pause: 'short', longPause: 'long' }[k];
+  if (p && ph === p.phase && p.paused === 0) set({ pomo: { ...p, dur: v * 60 } });
+}
 export const markSeen = (k, v = todayKey()) => set({ seen: { ...S.seen, [k]: v } });
 
 /* ---------- Tâches reportées ---------- */

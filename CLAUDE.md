@@ -91,7 +91,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Onglet Pomodoro** (`Pomodoro.jsx`, page 4) : concentration / pause courte / pause longue (tous les N cycles), démarrage auto,
   carillon (`lib/sound.js`), tâche liée (temps crédité à la tâche et au jour), sessions du jour (`pomoDay`, `hist.ps`), écran gardé allumé
   (Wake Lock), plein écran (commandes masquées après 3 s, mode « Heure »). Chronos (`Clocks.jsx`) : Classique, Flip (palettes qui tournent),
-  Anneau, Minimal. Fonds (`lib/backgrounds.js`, photos dans `public/bg/` + `-mini.jpg`) choisis dans l'onglet ou les Réglages.
+  Anneau, Minimal. Fonds (`lib/backgrounds.js`, groupes Concepts / Photos / Dégradés) choisis dans l'onglet ou les Réglages :
+  **Concepts** (`Concepts.jsx`, 100 % vectoriels donc nets en 4K, le temps fait partie du décor) : Affiche GT (le « 911 » remplacé par le
+  chrono en Oswald ton sur ton, voiture détourée `public/bg/gt-car.webp`), Bauhaus, Horizon (soleil qui se couche avec la session),
+  Marée (niveau qui monte, chrono en `mix-blend-mode: difference`), Topographie. **Photos** : uniquement en haute définition
+  (`public/bg/`, + `-mini` pour les vignettes) — pas de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
 - Validation : gros bouton flottant (gain par points en vert pastel `#86efac`), puis toast « X tâche(s) validée(s) — Annuler » (6 s, après
   l'animation) ; ↺ décoche une tâche terminée ; « Annuler » après suppression. Textes de la carte : `cardText()` (partagé avec la face 3D :
@@ -108,6 +112,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build (liste des fichiers + version) par le plugin de `vite.config.js` ; bandeau « Nouvelle version ».
 - Mode test : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
   + tâches d'exemple).
+- Réglages (`Settings.jsx`) : rubriques (Score et affichage, Série et motivation, Pomodoro, Animations, Rappels, Étiquettes, Données)
+  en colonne à gauche (iPad) ou en puces (téléphone), listes groupées façon iOS (`.sg`, `.si`).
+- Fluidité : grain = petite texture `public/noise.png` en mosaïque (jamais de filtre SVG plein écran), animations des décors
+  par `transform` (composité), pas de transition sur les tracés SVG.
 - Raccourcis : N, /, Entrée, Échap. Interface en français, mobile d'abord (cibles ≥ 44 px, pas de défilement horizontal).
 
 ## Arborescence
@@ -124,6 +132,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 ## Idées pour plus tard (à rediscuter avec l'utilisateur)
 
 - Catégories de tâches (sport, travail, devoirs…), distinctes ou évoluées à partir des étiquettes.
+- 20 photos HD supplémentaires pour le Pomodoro, même DA que les visuels fournis (intérieurs mid-century chauds, vert profond,
+  noir et blanc, nature brumeuse, voitures, horloges à palettes) : nécessite l'accès réseau à `unsplash.com` / `images.unsplash.com`.
 
 ## Workflow
 

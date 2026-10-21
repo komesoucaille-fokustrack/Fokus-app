@@ -10,8 +10,9 @@ function serviceWorker() {
     name: 'fokus-sw',
     apply: 'build',
     generateBundle(_, bundle) {
-      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
-      const extra = ['index.html', 'manifest.webmanifest', 'icon.svg', 'apple-touch-icon.png', 'icon-512.png'];
+      // polices : seuls les alphabets latins sont préchargés (les autres ne sont téléchargés qu'en cas de besoin)
+      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && !/(cyrillic|greek|vietnamese)/.test(f));
+      const extra = ['index.html', 'manifest.webmanifest', 'icon.svg', 'apple-touch-icon.png', 'icon-512.png', 'noise.png', 'bg/gt-car.webp'];
       const src = readFileSync(new URL('./pwa/sw.js', import.meta.url), 'utf8')
         .replace('__VERSION__', JSON.stringify(Date.now().toString(36)))
         .replace('__ASSETS__', JSON.stringify([...new Set([...extra, ...files])].map((f) => './' + f)));

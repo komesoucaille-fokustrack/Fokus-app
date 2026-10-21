@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Clock, { CLOCKS, useNow } from './Clocks';
 import { fmtMin } from './TaskList';
-import { BGS, bgOf, thumbOf } from '../lib/backgrounds';
+import Concept from './Concepts';
+import { BGS, BG_GROUPS, bgOf, thumbOf } from '../lib/backgrounds';
 import { unlockAudio } from '../lib/sound';
 import {
   PHASES, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
@@ -78,7 +79,8 @@ function Stage({ full, onFull, onExit }) {
 
   return (
     <div className={'stage ' + (full ? 'full ' : '') + (full && idle ? 'idle' : '')} style={{ background: bg.back || bg.css || '#050505', color: bg.ink }}>
-      {bg.img && <img className="stage-img" src={bg.img} alt="" style={{ objectPosition: bg.pos, objectFit: bg.fit || 'cover' }} />}
+      {bg.img && <img className="stage-img" src={bg.img} alt="" decoding="async" style={{ objectPosition: bg.pos, objectFit: bg.fit || 'cover' }} />}
+      {bg.concept && <Concept kind={bg.concept} a={a} b={b} frac={frac} phase={p.phase} />}
       {scrim && <div className="stage-scrim" style={{ background: `radial-gradient(ellipse at 50% 50%, ${scrim}, ${scrim.replace(/[\d.]+\)$/, (m) => Math.min(0.85, parseFloat(m) + 0.2) + ')')})` }} />}
       <div className="stage-in">
         <div className="stage-top">
@@ -90,7 +92,7 @@ function Stage({ full, onFull, onExit }) {
           )}
         </div>
         <div className={'stage-clock ' + (running || hour ? '' : 'paused')}>
-          <Clock style={S.set.clock} a={a} b={b} frac={frac} ink={bg.ink} theme={bg.flip} />
+          {!bg.concept && <Clock style={S.set.clock} a={a} b={b} frac={frac} ink={bg.ink} theme={bg.flip} />}
         </div>
         <div className="stage-task">{t ? t.text : ' '}</div>
         <div className="stage-ctl">
@@ -185,15 +187,19 @@ export default function Pomodoro() {
           <span className="dlab">Chrono</span>
           <div className="segs">
             {CLOCKS.map(([k, l]) => <button key={k} className={'seg ' + (S.set.clock === k ? 'on' : '')} onClick={() => setSetting('clock', k)}>{l}</button>)}
+            {bgOf(S.set.bg).concept && <span className="text-[12.5px] text-mut">Le fond « {bgOf(S.set.bg).name} » affiche son propre chrono.</span>}
           </div>
         </div>
         <div className="drow mt-3 items-start!">
           <span className="dlab pt-2">Fond</span>
           <BgPicker />
         </div>
+        <div className="drow mt-4 items-start!">
+          <span className="dlab pt-2">Durées</span>
+          <div className="min-w-0 flex-1"><Durations /></div>
+        </div>
         <p className="mt-3 text-[12.5px] text-mut">
-          {S.set.pomo} min de concentration · pause {S.set.pause} min · pause longue {S.set.longPause} min toutes les {S.set.cycle} sessions.
-          Durées, démarrage automatique et son : Réglages ⚙.
+          Pause longue toutes les {S.set.cycle} sessions. Cycle, démarrage automatique et son : Réglages ⚙ → Pomodoro.
         </p>
       </div>
 
@@ -206,13 +212,67 @@ export default function Pomodoro() {
 export function BgPicker() {
   const { S } = useStore();
   return (
-    <div className="bgpick">
-      {BGS.map((b) => (
-        <button key={b.id} type="button" className={'bgt ' + (S.set.bg === b.id ? 'on' : '')} onClick={() => setSetting('bg', b.id)} title={b.name} aria-label={'Fond : ' + b.name}>
-          {b.img ? <img src={thumbOf(b)} alt="" loading="lazy" /> : <span style={{ background: b.css }} />}
-          <em>{b.name}</em>
-        </button>
+    <div className="flex min-w-0 flex-1 flex-col gap-3">
+      {BG_GROUPS.map(([g, label]) => (
+        <div key={g}>
+          <div className="mb-1.5 text-[12px] font-semibold tracking-wide text-mut uppercase">{label}</div>
+          <div className="bgpick">
+            {BGS.filter((b) => b.group === g).map((b) => (
+              <button key={b.id} type="button" className={'bgt ' + (S.set.bg === b.id ? 'on' : '')} onClick={() => setSetting('bg', b.id)} title={b.name} aria-label={'Fond : ' + b.name}>
+                {b.img
+                  ? <img src={thumbOf(b)} alt="" loading="lazy" decoding="async" />
+                  : b.concept
+                    ? <div className="bgt-concept"><Concept kind={b.concept} a="25" b="00" frac={0.4} phase="work" /></div>
+                    : <span style={{ background: b.css }} />}
+                <em>{b.name}</em>
+              </button>
+            ))}
+          </div>
+        </div>
       ))}
+    </div>
+  );
+}
+
+/* Durée en minutes, au choix (1 à 180), avec − / + et saisie directe */
+export function MinuteField({ value, onChange, label, max = 180 }) {
+  const [txt, setTxt] = useState(String(value));
+  useEffect(() => setTxt(String(value)), [value]);
+  const put = (v) => { const n = Math.max(1, Math.min(max, Math.round(v) || 1)); onChange(n); setTxt(String(n)); };
+  return (
+    <span className="minf" aria-label={label}>
+      <button type="button" onClick={() => put(value - 1)} aria-label={label + ' : moins une minute'} disabled={value <= 1}>−</button>
+      <input
+        inputMode="numeric" value={txt} aria-label={label + ' (minutes)'}
+        onChange={(e) => setTxt(e.target.value.replace(/\D/g, '').slice(0, 3))}
+        onBlur={() => put(+txt)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      />
+      <span className="minf-u">min</span>
+      <button type="button" onClick={() => put(value + 1)} aria-label={label + ' : plus une minute'} disabled={value >= max}>+</button>
+    </span>
+  );
+}
+
+export const PRESETS = [['Classique', 25, 5, 15], ['Court', 15, 3, 10], ['Long', 50, 10, 30], ['Deep work', 90, 20, 30]];
+/* Durées du Pomodoro : préréglages + minutes libres */
+export function Durations() {
+  const { S } = useStore();
+  const st = S.set;
+  const apply = ([, w, s, l]) => { setSetting('pomo', w); setSetting('pause', s); setSetting('longPause', l); };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="segs">
+        {PRESETS.map((p) => (
+          <button type="button" key={p[0]} className={'seg ' + (st.pomo === p[1] && st.pause === p[2] && st.longPause === p[3] ? 'on' : '')} onClick={() => apply(p)}>
+            {p[0]} <span className="opacity-60 tabular-nums">{p[1]}/{p[2]}</span>
+          </button>
+        ))}
+      </div>
+      <div className="durs">
+        <label><span>Concentration</span><MinuteField label="Concentration" value={st.pomo} onChange={(v) => setSetting('pomo', v)} /></label>
+        <label><span>Pause courte</span><MinuteField label="Pause courte" value={st.pause} max={60} onChange={(v) => setSetting('pause', v)} /></label>
+        <label><span>Pause longue</span><MinuteField label="Pause longue" value={st.longPause} max={90} onChange={(v) => setSetting('longPause', v)} /></label>
+      </div>
     </div>
   );
 }
