@@ -446,3 +446,6 @@
 
 @media (max-width: 639px) { .navseg button { font-size: 13.5px; } }
 @media (min-width: 640px) { .navseg { order: 0; width: auto; display: flex; } .navseg button { padding: 0 14px; } }
+@layer components {
+  .grip[data-auto] { opacity: 0.35; border-style: dashed; cursor: not-allowed; }
+}

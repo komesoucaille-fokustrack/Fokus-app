@@ -5,9 +5,12 @@ import { scheduleBackup } from './lib/backup';
 import { buzz } from './lib/notify';
 
 /* =====================================================================
-   MODÈLE DE DONNÉES (version 2) — clé localStorage « focus_state »
+   MODÈLE DE DONNÉES (version 3) — clé localStorage « focus_state »
    Tâche      { id, text, done, date: 'YYYY-MM-DD' | null (= Plus tard), weight: 1|2|3, prio, tags: [tagId],
-                subs: [{ id, text, done }], carried (nombre de reports), focus (minutes), rid? (récurrence d'origine) }
+                subs: [{ id, text, done }], carried (nombre de reports), focus (minutes), rid? (récurrence d'origine),
+                est (estimation en pomodoros, 0 = aucune), time ('HH:MM' | null, heure de début), dur (minutes | null, durée ajustée) }
+   Journal    sessions = [[début (s), durée (s), tâche | null, 'c' (classique) | 'f' (libre)]] — purgé au-delà de 2 ans
+   Idées      ideas = [{ id, text, at }] — bloc-notes de distractions du minuteur
    Récurrence { id, text, rule: { type: 'daily' | 'weekdays' (days: [0-6]) | 'interval' (every) | 'monthday' (day) },
                 start, weight, tags, prio, last (dernier jour généré → jamais de doublon) }
    Historique hist['YYYY-MM-DD'] = { p, d, t, pd, pt, pr, prt, fm, tg: { tagId: n }, jk? }
@@ -15,19 +18,22 @@ import { buzz } from './lib/notify';
               tg = tâches validées par étiquette, jk = joker utilisé ce jour-là
    Réglages   set = DEF_SET
    ===================================================================== */
-export const VERSION = 2;
+export const VERSION = 3;
 const KEY = 'focus_state';
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
 export const DEF_SET = {
   threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
   pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 'noir',
   amb: 'p12', ambLevel: 2,
-  remind: false, remindAt: '20:00', pomoNotif: false,
+  remind: false, remindAt: '20:00', pomoNotif: false, push: false,
   showStreak: true, showBadges: true, morning: true,
+  order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
+  defDur: 30, capacity: 360, evening: true, eveningAt: '21:00',
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], last: '', off: 0, anim: true, confetti: true,
   set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
+  sessions: [], ideas: [], pushId: '',
 });
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -35,6 +41,9 @@ const arr = (x) => (Array.isArray(x) ? x : []);
 const W = (w) => ([1, 2, 3].includes(+w) ? +w : 1);
 const isKey = (k) => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k);
 const r1 = (x) => Math.round(x * 10) / 10;
+export const isHM = (s) => typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+/* Journal des sessions : on garde 2 ans (stockage léger) */
+const purgeSessions = (a) => { const lim = Date.now() / 1000 - 2 * 366 * 864e2; return a.filter((x) => x[0] >= lim).slice(-20000); };
 
 function normRule(r) {
   if (!r || typeof r !== 'object') return { type: 'daily' };
@@ -66,6 +75,9 @@ export function migrate(raw) {
     subs: arr(t.subs).filter((x) => x && typeof x === 'object').map((x) => ({ id: String(x.id || uid()), text: String(x.text ?? ''), done: !!x.done })),
     carried: Math.max(0, Math.round(+t.carried) || 0),
     focus: Math.max(0, +t.focus || 0),
+    est: clamp(Math.round(+t.est) || 0, 0, 40),
+    time: isHM(t.time) ? t.time : null,
+    dur: Number.isFinite(+t.dur) && +t.dur >= 5 ? Math.round(+t.dur) : null,
   }));
   const rec = arr(o.rec).filter((r) => r && typeof r === 'object').map((r) => {
     const id = String(r.id || uid());
@@ -77,6 +89,7 @@ export function migrate(raw) {
       weight: W(r.weight),
       tags: arr(r.tags).map(String),
       prio: !!r.prio,
+      est: clamp(Math.round(+r.est) || 0, 0, 40),
       // ancienne récurrence déjà présente aujourd'hui → considérée comme générée (pas de doublon)
       last: isKey(r.last) ? r.last : tasks.some((t) => t.rid === id) ? last : '',
     };
@@ -113,6 +126,10 @@ export function migrate(raw) {
           paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0 }
       : null,
     pomoDay: o.pomoDay && typeof o.pomoDay.d === 'string' ? { d: o.pomoDay.d, n: o.pomoDay.n | 0 } : { d: '', n: 0 },
+    sessions: purgeSessions(arr(o.sessions).filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]))
+      .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c'])),
+    ideas: arr(o.ideas).filter((x) => x && x.text).map((x) => ({ id: String(x.id || uid()), text: String(x.text), at: +x.at || Date.now() })),
+    pushId: typeof o.pushId === 'string' ? o.pushId : '',
   };
 }
 
@@ -176,7 +193,8 @@ export function gainOf(sel = UI.sel) {
 }
 /* Ordre d'affichage du jour : priorités en tête, puis l'ordre choisi (ordre du tableau, toujours respecté) */
 /* Ordre d'affichage : priorités (or) en tête, puis 3 pts > 2 pts > 1 pt ; à égalité, l'ordre choisi (tri stable) */
-export const sortTasks = (a) => [...a].sort((x, y) => (y.prio - x.prio) || (y.weight - x.weight));
+/* Ordre « Manuel » (défaut) : seul l'ordre choisi compte. « Automatique » : priorités puis 3 > 2 > 1 pt (tri stable). */
+export const sortTasks = (a, St = S) => (St.set.order === 'auto' ? [...a].sort((x, y) => (y.prio - x.prio) || (y.weight - x.weight)) : a);
 
 /* Jour réussi : true / false / null (neutre : aucune tâche, ou joker utilisé) */
 export const dayOk = (h, th) => (!h || !h.t || h.jk ? null : h.p >= th);
@@ -339,13 +357,13 @@ function prioCount(tasks, date, except) {
 }
 export const canPrio = (date, except) => !date || prioCount(S.tasks, date, except) < 3;
 
-export function addTask({ text, date, weight, prio, tags = [] }) {
+export function addTask({ text, date, weight, prio, tags = [], est = 0, time = null }) {
   const d = date === undefined ? todayKey() : date;
   const r = resolveTags(tags, S.tags);
   if (UI.tag && d && d <= todayKey() && !r.ids.includes(UI.tag)) r.ids.push(UI.tag);
   let p = !!prio;
   if (p && !canPrio(d)) { p = false; toast('3 priorités maximum par jour.'); }
-  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0 };
+  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0, est: est | 0, time: isHM(time) ? time : null, dur: null };
   set({ tasks: [...S.tasks, t], tags: r.tags });
   return t;
 }
@@ -357,6 +375,16 @@ export function togglePrio(id) {
   if (!t) return;
   if (!t.prio && !canPrio(t.date, id)) { toast('3 priorités maximum par jour.'); return; }
   patch(id, { prio: !t.prio });
+  // ordre manuel : la priorité ne bouge pas toute seule, on propose de la remonter
+  if (!t.prio && S.set.order !== 'auto') toast('★ Priorité ajoutée — remonter en tête ?', { label: 'Remonter', fn: () => moveToTop(id) });
+}
+/* Remonte une tâche en tête de sa liste (même jour, ou « Plus tard ») */
+export function moveToTop(id) {
+  const t = S.tasks.find((x) => x.id === id);
+  if (!t) return;
+  const k = todayKey(), same = (x) => (isToday(t, k) ? isToday(x, k) : x.date === t.date);
+  const first = S.tasks.find((x) => x.id !== id && same(x));
+  if (first) moveTask(id, first.id, false);
 }
 export function setDate(id, date) {
   const t = S.tasks.find((x) => x.id === id);
@@ -485,7 +513,7 @@ function spawn(tasks, rec, k) {
     if (!out.some((t) => t.rid === r.id && !t.done)) {
       const p = r.prio && pc < 3;
       if (p) pc++;
-      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, rid: r.id });
+      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, est: r.est | 0, time: null, dur: null, rid: r.id });
     }
     return { ...r, last: k };
   });

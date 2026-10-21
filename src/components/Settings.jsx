@@ -93,6 +93,12 @@ function Score({ S }) {
           {[1, 2, 3].map((w) => <Seg key={w} on={st.defWeight === w} onClick={() => setSetting('defWeight', w)}>{w} pt{w > 1 ? 's' : ''}</Seg>)}
         </Item>
       </Group>
+      <Group title="Ordre des tâches" foot={st.order === 'auto' ? 'Automatique : priorités ★ en tête, puis 3 > 2 > 1 pt. Le glisser-déposer est désactivé.' : 'Manuel : seul l’ordre que tu choisis compte, partout. Les priorités restent signalées en or sans bouger.'}>
+        <Item title="Ordre" desc="Tâches, À venir et liste du minuteur">
+          <Seg on={st.order !== 'auto'} onClick={() => setSetting('order', 'manual')}>Manuel</Seg>
+          <Seg on={st.order === 'auto'} onClick={() => setSetting('order', 'auto')}>Automatique</Seg>
+        </Item>
+      </Group>
       <Group title="Carte « Aujourd’hui » et Progression">
         <Item title="Série 🔥" desc="Série et record dans la carte du jour"><Switch label="Afficher la série" checked={st.showStreak} onChange={(v) => setSetting('showStreak', v)} /></Item>
         <Item title="Badges" desc="Vitrine sur « Ma Progression » et message à l’obtention"><Switch label="Afficher les badges" checked={st.showBadges} onChange={(v) => setSetting('showBadges', v)} /></Item>

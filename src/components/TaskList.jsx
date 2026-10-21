@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
-  addSub, addTag, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
+  addSub, addTag, getState, toast, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
   todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore,
 } from '../store';
 import { addDays, dayLabel } from '../lib/dates';
@@ -150,6 +150,7 @@ function Details({ t, today }) {
 
 function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
   const { S } = useStore();
+  const auto = S.set.order === 'auto';
   const [editing, setEditing] = useState(false);
   const li = useRef(null);
   const input = useRef(null);
@@ -209,10 +210,11 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
         <button className="ic" onClick={del} title="Supprimer" aria-label="Supprimer">🗑</button>
         <button
           className="grip"
-          title="Rester appuyé et glisser pour déplacer"
+          title={auto ? 'Ordre automatique : passe en ordre manuel (Réglages) pour déplacer' : 'Rester appuyé et glisser pour déplacer'}
           aria-label="Déplacer la tâche"
           disabled={busy || editing}
           onPointerDown={(e) => onGrab(e, li.current, t.id)}
+          data-auto={auto || undefined}
         ><Grip /></button>
       </span>
       {open && !editing && <Details t={t} today={today} />}
@@ -231,6 +233,10 @@ export default function TaskList({ tasks, sel, busy, mode = 'today', empty }) {
   const onGrab = (e, el, id) => {
     if (busy || e.button > 0) return;
     e.preventDefault();
+    if (getState().set.order === 'auto') {
+      toast('Ordre automatique : les tâches sont triées par priorité puis par points. Choisis « Manuel » dans Réglages → Score et affichage pour les déplacer.', null, 5200);
+      return;
+    }
     const handle = e.currentTarget;
     handle.setPointerCapture?.(e.pointerId);
     const items = [...list.current.querySelectorAll(':scope > li[data-id]')];
