@@ -93,11 +93,23 @@
   .task {
     list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
     padding: 11px 12px; background: var(--color-card); border: 1px solid var(--color-line); box-shadow: var(--spec);
-    border-radius: 12px; margin-bottom: 8px; cursor: grab; transition: border-color 0.2s, background 0.2s;
+    border-radius: 12px; margin-bottom: 8px; transition: border-color 0.2s, background 0.2s; position: relative;
   }
   .task:hover { background: var(--color-hov); }
   .task.sel { border-color: rgba(255, 255, 255, 0.55); background: var(--color-hov); }
-  .task.drag { opacity: 0.35; }
+  /* tâche soulevée pendant le glisser-déposer */
+  .task.dragging { z-index: 5; background: var(--color-hov); border-color: rgba(255, 255, 255, 0.28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 40px -8px rgba(0, 0, 0, 0.85); transition: none; }
+  /* poignée « 6 points » : rester appuyé et glisser */
+  .grip {
+    display: grid; place-items: center; width: 30px; height: 40px; margin-left: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; background: rgba(255, 255, 255, 0.02);
+    color: #6b6b74; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .grip:hover, .task.dragging .grip { color: #d4d4d8; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.05); }
+  .task.dragging .grip { cursor: grabbing; }
+  .grip:disabled { opacity: 0.3; pointer-events: none; }
+  .ic.pen { padding: 6px 8px; color: #b4b4bb; }
   .task.done .t { text-decoration: line-through; color: var(--color-mut); }
   .ck { flex: none; width: 26px; height: 26px; border: 2px solid #fff; border-radius: 8px; background: transparent; display: grid; place-items: center; transition: background 0.25s var(--ease-spring), transform 0.3s var(--ease-spring); }
   .ck:active { transform: scale(0.85); }
@@ -120,7 +132,7 @@
   }
   #vbtn.show { transform: translate(-50%, 0) scale(1); opacity: 1; pointer-events: auto; }
   #vbtn.show:active { transform: translate(-50%, 0) scale(0.96); }
-  #vbtn em { font-style: normal; color: #93c5fd; margin-left: 8px; }
+  #vbtn em { font-style: normal; color: #86efac; margin-left: 8px; } /* vert pastel : l'achèvement */
 
   /* Surcouches de l'animation */
   #dim { position: fixed; inset: 0; z-index: 50; background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.82)); opacity: 0; pointer-events: none; }

@@ -57,6 +57,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   canons latéraux, pluie depuis le haut), déclenchée au passage de l'arche ou directement si l'animation de la barre est coupée.
 - **Paramètres** (`src/components/Settings.jsx`, icône rouage dans l'en-tête) : deux interrupteurs indépendants et persistés —
   « Animation de la barre » (`S.anim`) et « Confettis à 100 % » (`S.confetti`) : les deux, un seul ou aucun.
+- **Fluidité** : gel bleu construit une seule fois et coupé par un plan de découpe (jamais de géométrie recréée par image),
+  compteur sur une petite texture dédiée (la face n'est dessinée qu'une fois), flou CSS appliqué à 4 blocs seulement.
 - **Légèreté** : peu de particules (max 260 étincelles, 14 traînées), `dpr` ≤ 1,5, multisampling 2 — l'animation doit rester ultra fluide sur iPad.
 - La scène WebGL (`src/cinematic/Scene3D.jsx`) est une surcouche transparente : la caméra Three reproduit `perspective(1100px)`
   (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que la carte. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
@@ -72,8 +74,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 ## Logique métier (à préserver)
 
-- Tâches : ajout, modification, suppression, sélection multiple + validation via le gros bouton flottant (Dynamic Island),
-  réorganisation ⏫ ▲ ▼ ⏬ (+ glisser-déposer), tâches récurrentes.
+- Tâches : ajout, modification (gros stylo ✎), suppression, sélection multiple + validation via le gros bouton flottant
+  (Dynamic Island, gain affiché en **vert pastel** `#86efac`), tâches récurrentes.
+- Réorganisation : **poignée « 6 points »** (rectangle arrondi) à droite, à côté de la poubelle — rester appuyé et glisser
+  (événements pointer, `touch-action: none`, fonctionne au doigt sur iPad) ; la tâche suit le doigt, les autres s'écartent.
 - Minuit (00:00) : score du jour → historique ; tâches `done: true` retirées ; tâches `done: false` reportées au lendemain ;
   tâches récurrentes ajoutées. Boutons de test « Simuler minuit » et « Générer données test » conservés.
 - Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points,

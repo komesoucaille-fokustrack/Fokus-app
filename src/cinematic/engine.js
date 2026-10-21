@@ -88,8 +88,9 @@ export function race(c, from, to, onDone, opts = {}) {
   const last = { t: 0, p: from };
   const progress = () => (to > from ? (fx.p - from) / (to - from) : 1); // avancement de la course (0 → 1)
   let fired = false;
-  const items = [...c.list.querySelectorAll('li')].slice(0, 14);
-  const bg = c.bg;
+  // la page entière s'enfonce en quelques blocs (en-tête, saisie, liste, outils) : peu d'éléments flous = fluide
+  const bg = [...c.bg, c.list];
+  let sunk = -1;
 
   /* Matrice de la carte : M = T(F + k(A − F) + lift) · Rx(pitch) · Ry(yaw) · Rz(roll) · S · T(−F)
      F = point visé, A = sa place à l'écran ; identité à k = 0.
@@ -113,13 +114,13 @@ export function race(c, from, to, onDone, opts = {}) {
 
   /* La page s'enfonce (flou de profondeur de champ) derrière la carte */
   function sinkPage(s) {
-    const set = (el, z) => {
-      el.style.transform = s > 0.001 ? `perspective(1100px) translateZ(${-z * s}px)` : '';
-      el.style.filter = s > 0.01 ? `blur(${10 * s}px)` : '';
+    if (Math.abs(s - sunk) < 0.004 && s !== 0) return; // évite de recalculer le flou CSS quand rien ne bouge
+    sunk = s;
+    bg.forEach((el) => {
+      el.style.transform = s > 0.001 ? `perspective(1100px) translateZ(${-220 * s}px)` : '';
+      el.style.filter = s > 0.01 ? `blur(${(10 * s).toFixed(1)}px)` : '';
       el.style.opacity = s > 0.001 ? 1 - 0.8 * s : '';
-    };
-    bg.forEach((el) => set(el, 220));
-    items.forEach((el, i) => set(el, 260 + 12 * i));
+    });
   }
 
   function paint() {

@@ -79,7 +79,7 @@ function shadowTexture() {
 }
 
 /* Face de la carte, redessinée au pixel près à partir des mesures du DOM */
-function drawFace(ctx, face, sc, pct) {
+function drawFace(ctx, face, sc) {
   const { w, h } = face;
   ctx.setTransform(sc, 0, 0, sc, 0, 0);
   ctx.clearRect(0, 0, w, h);
@@ -108,25 +108,45 @@ function drawFace(ctx, face, sc, pct) {
   ctx.restore();
   // textes
   for (const it of face.texts) {
+    if (it.pct) continue; // le compteur a sa propre petite texture (redessinée sans réuploader toute la face)
     ctx.font = it.font;
     ctx.fillStyle = it.color;
     ctx.textAlign = it.align;
     ctx.textBaseline = 'middle';
     if ('letterSpacing' in ctx) ctx.letterSpacing = it.ls || '0px';
-    ctx.fillText(it.pct ? `${pct}%` : it.text, it.x, it.y);
+    ctx.fillText(it.text, it.x, it.y);
   }
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 }
 
+/* Compteur « 42% » : petite texture redessinée seulement quand le nombre change */
+function drawPct(P, pct) {
+  const { ctx, it, sc, w, h } = P;
+  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = it.font;
+  ctx.fillStyle = it.color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = it.ls || '0px';
+  ctx.fillText(`${pct}%`, 2, h / 2);
+}
+
 export default function Card3D() {
-  const root = useRef(), slab = useRef(), shadow = useRef(), floor = useRef(), pastel = useRef(), blue = useRef(), glow = useRef(), pool = useRef();
+  const root = useRef(), slab = useRef(), shadow = useRef(), floor = useRef(), pastel = useRef(), blue = useRef(), glow = useRef(), pool = useRef(), pctMesh = useRef();
   const S = useMemo(() => {
     const canvas = document.createElement('canvas');
     const faceTex = new THREE.CanvasTexture(canvas);
     faceTex.colorSpace = THREE.SRGBColorSpace;
     faceTex.anisotropy = 8;
+    const pctCanvas = document.createElement('canvas');
+    const pctTex = new THREE.CanvasTexture(pctCanvas);
+    pctTex.colorSpace = THREE.SRGBColorSpace;
+    pctTex.anisotropy = 8;
     return {
-      key: '', race: -1, pct: -1, blueLen: -1, canvas, ctx: canvas.getContext('2d'), sc: 2, faceTex,
+      key: '', race: -1, pct: -1, barKey: '', canvas, ctx: canvas.getContext('2d'), sc: 2, faceTex,
+      P: { canvas: pctCanvas, ctx: pctCanvas.getContext('2d'), tex: pctTex, it: null, sc: 3, w: 1, h: 1 },
+      clip: new THREE.Plane(), local: new THREE.Plane(), nx: new THREE.Vector3(-1, 0, 0),
       faceMat: new THREE.MeshStandardMaterial({ color: '#000000', emissive: '#ffffff', emissiveMap: faceTex, roughness: 0.3, metalness: 0, envMapIntensity: 0 }),
       sideMat: new THREE.MeshPhysicalMaterial({ color: '#1d1d23', metalness: 0.5, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25, envMapIntensity: 1.1 }),
       blueTex: gradientTexture('#1e40af,#2563eb,#3b82f6,#93c5fd,#ffffff'),
@@ -141,7 +161,11 @@ export default function Card3D() {
     map, emissiveMap: map, emissive: '#ffffff', emissiveIntensity: 0.55, roughness: 0.16, metalness: 0,
     clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.4, toneMapped: false, transparent: true,
   });
-  const mats = useMemo(() => ({ pastel: gelMat(null), blue: gelMat(S.blueTex) }), [S]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mats = useMemo(() => {
+    const blueMat = gelMat(S.blueTex);
+    blueMat.clippingPlanes = [S.clip]; // gel construit une fois sur toute la longueur, coupé net au front (aucune reconstruction par image)
+    return { pastel: gelMat(null), blue: blueMat };
+  }, [S]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame(() => {
     const C = fx.C, G = fx.G, b = barGeo(), k = fx.k;
@@ -157,9 +181,24 @@ export default function Card3D() {
     /* Face : redessinée à chaque course et quand le pourcentage affiché change */
     if (S.race !== fx.race && fx.face) {
       S.race = fx.race;
-      S.sc = Math.min(3, 4000 / C.w);
+      S.sc = Math.min(2.5, 3600 / C.w);
       S.canvas.width = Math.round(C.w * S.sc);
       S.canvas.height = Math.round(C.h * S.sc);
+      drawFace(S.ctx, fx.face, S.sc);
+      S.faceTex.needsUpdate = true;
+      // texture du compteur : taille de « 100% » dans la police de la carte
+      const it = fx.face.texts.find((t) => t.pct), P = S.P;
+      P.it = it ?? { font: '800 56px sans-serif', color: '#fff', x: 20, y: 40, ls: '0px' }; // (préchauffage : pas de texte)
+      P.ctx.font = P.it.font;
+      if ('letterSpacing' in P.ctx) P.ctx.letterSpacing = P.it.ls || '0px';
+      const size = parseFloat(P.it.font.split(' ')[1]) || 56;
+      P.w = Math.ceil(P.ctx.measureText('100%').width + 8);
+      P.h = Math.ceil(size * 1.3);
+      P.canvas.width = P.w * P.sc;
+      P.canvas.height = P.h * P.sc;
+      P.tex.dispose();
+      pctMesh.current.scale.set(P.w, P.h, 1);
+      pctMesh.current.position.set(P.it.x + P.w / 2 - 2, C.h - P.it.y, 0.06);
       S.pct = -1;
       S.pastelTex?.dispose();
       S.pastelTex = gradientTexture(gradFor(fx.old || 1));
@@ -170,12 +209,11 @@ export default function Card3D() {
       pastel.current.geometry = gelGeometry(fillW, G.bh);
       S.pastelTex.repeat.set(1 / fillW, 1 / G.bh);
       glow.current.material.color.set(getColorForPercentage(fx.old || 1));
-      S.blueLen = -1;
     }
-    if (fx.face && Math.round(fx.shown) !== S.pct) {
+    if (fx.face && S.P.it && Math.round(fx.shown) !== S.pct) {
       S.pct = Math.round(fx.shown);
-      drawFace(S.ctx, fx.face, S.sc, S.pct);
-      S.faceTex.needsUpdate = true;
+      drawPct(S.P, S.pct);
+      S.P.tex.needsUpdate = true;
     }
     root.current.position.set(C.x0, -(C.y0 + C.h), 0);
     slab.current.position.set(0, 0, -(DEPTH + BEV));
@@ -201,13 +239,17 @@ export default function Card3D() {
     mats.pastel.opacity = fx.pastel;
     pastel.current.visible = fx.pastel > 0.01 && fx.old > 0;
     const len = Math.max(0, b.head - b.x0);
-    if (Math.abs(len - S.blueLen) > 0.4) {
-      S.blueLen = len;
+    const barKey = `${Math.round(G.barW)}x${Math.round(G.bh)}`;
+    if (barKey !== S.barKey) {
+      S.barKey = barKey;
       blue.current.geometry.dispose();
-      blue.current.geometry = gelGeometry(Math.max(G.bh, len), G.bh);
-      S.blueTex.repeat.set(1 / Math.max(G.bh, len), 1 / G.bh);
+      blue.current.geometry = gelGeometry(G.barW, G.bh);
     }
+    S.blueTex.repeat.set(1 / Math.max(G.bh, len), 1 / G.bh); // le dégradé s'étire jusqu'au front (blanc à la tête)
     blue.current.position.set(tx, ty, 0.4);
+    // plan de coupe au front, exprimé dans le repère monde
+    root.current.updateWorldMatrix(true, false); // parents compris : la coupe suit la caméra sans décalage
+    S.clip.copy(S.local.set(S.nx, tx + Math.max(len, G.bh * 0.5))).applyMatrix4(root.current.matrixWorld);
     mats.blue.emissiveIntensity = 0.5 + 0.9 * fx.blue;
     mats.blue.opacity = Math.min(1, fx.blue * 1.5);
     blue.current.visible = fx.blue > 0.01 && fx.p > 0.3;
@@ -244,6 +286,10 @@ export default function Card3D() {
       </mesh>
       <mesh ref={pastel} material={mats.pastel}><bufferGeometry /></mesh>
       <mesh ref={blue} material={mats.blue}><bufferGeometry /></mesh>
+      <mesh ref={pctMesh}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={S.P.tex} transparent depthWrite={false} />
+      </mesh>
     </group>
   );
 }
