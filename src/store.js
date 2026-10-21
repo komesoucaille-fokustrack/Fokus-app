@@ -19,13 +19,14 @@ export const VERSION = 2;
 const KEY = 'focus_state';
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
 export const DEF_SET = {
-  threshold: 80, jokers: 2, defWeight: 1, pomo: 25, pause: 5,
+  threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
+  pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 'noir',
   remind: false, remindAt: '20:00', pomoNotif: false,
   showStreak: true, showBadges: true, morning: true,
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], last: '', off: 0, anim: true, confetti: true,
-  set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null,
+  set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
 });
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -106,7 +107,11 @@ export function migrate(raw) {
     lastExport: isKey(o.lastExport) ? o.lastExport : '',
     since: isKey(o.since) ? o.since : keys[0] || last || today,
     seen: o.seen && typeof o.seen === 'object' ? o.seen : {},
-    pomo: o.pomo && o.pomo.tid && Number.isFinite(o.pomo.start) ? o.pomo : null,
+    pomo: o.pomo && typeof o.pomo === 'object' && Number.isFinite(o.pomo.start)
+      ? { tid: o.pomo.tid || null, phase: ['work', 'short', 'long'].includes(o.pomo.phase) ? o.pomo.phase : 'short', start: o.pomo.start, dur: +o.pomo.dur || 1500,
+          paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0 }
+      : null,
+    pomoDay: o.pomoDay && typeof o.pomoDay.d === 'string' ? { d: o.pomoDay.d, n: o.pomoDay.n | 0 } : { d: '', n: 0 },
   };
 }
 
@@ -169,7 +174,8 @@ export function gainOf(sel = UI.sel) {
   return Math.round(((s.pd + add) / s.pt) * 100) - s.p;
 }
 /* Ordre d'affichage du jour : priorités en tête, puis l'ordre choisi (ordre du tableau, toujours respecté) */
-export const sortPrioFirst = (a) => [...a.filter((t) => t.prio), ...a.filter((t) => !t.prio)];
+/* Ordre d'affichage : priorités (or) en tête, puis 3 pts > 2 pts > 1 pt ; à égalité, l'ordre choisi (tri stable) */
+export const sortTasks = (a) => [...a].sort((x, y) => (y.prio - x.prio) || (y.weight - x.weight));
 
 /* Jour réussi : true / false / null (neutre : aucune tâche, ou joker utilisé) */
 export const dayOk = (h, th) => (!h || !h.t || h.jk ? null : h.p >= th);
@@ -243,10 +249,22 @@ export function cardText(St = S) {
     const z = streaks(St);
     if (z.cur || z.best) parts.push(`🔥 ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
   }
+  const tasks = `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}`;
   return {
     label: parts.join('  ·  '),
-    sub: s.n ? `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}` : 'Aucune tâche aujourd’hui',
+    sub: !s.n ? 'Aucune tâche aujourd’hui' : St.set.scoreMode === 'pts' ? `sur ${s.pt} pts · ${tasks}` : tasks,
   };
+}
+/* Affichage du score : pourcentage, ou points (convertis depuis le % pour le compteur animé) */
+export const scoreFmt = (St = S) => {
+  if (St.set.scoreMode !== 'pts') return (v) => Math.round(v) + '%';
+  const pt = stats(St.tasks).pt;
+  return (v) => { const n = Math.round((v / 100) * pt); return n + (n > 1 ? ' pts' : ' pt'); };
+};
+export function selPoints(sel = UI.sel) {
+  let n = 0;
+  for (const t of S.tasks) if (sel.has(t.id) && !t.done && isToday(t)) n += t.weight;
+  return n;
 }
 
 /* ---------- Notifications (toasts) : file d'attente, avec action « Annuler » ---------- */
@@ -467,9 +485,12 @@ function spawn(tasks, rec, k) {
   });
   return { tasks: out, rec: rec2 };
 }
+/* tags = noms d'étiquettes (créées si besoin) */
 export function addRec({ text, rule, weight, tags = [], prio }) {
-  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight), tags, prio: !!prio, last: '' };
-  set(spawn(S.tasks, [...S.rec, r], todayKey()));
+  const t = resolveTags(tags, S.tags);
+  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, last: '' };
+  set({ tags: t.tags, ...spawn(S.tasks, [...S.rec, r], todayKey()) });
+  toast(`Récurrence ajoutée : ${describeRule(r.rule).toLowerCase()}.`);
 }
 export const deleteRec = (id) => set({ rec: S.rec.filter((r) => r.id !== id) });
 export function describeRule(rule) {
@@ -514,64 +535,96 @@ export function checkBadges() {
   if (S.set.showBadges) fresh.forEach((b) => toast(`🏅 Nouveau badge : ${b.name}`));
 }
 
-/* ---------- Minuteur de concentration (Pomodoro) — calcul par horodatages ---------- */
+/* ---------- Pomodoro — calcul par horodatages (juste même écran verrouillé) ----------
+   pomo = { tid (tâche liée ou null), phase: 'work' | 'short' | 'long', start (ms), dur (s), paused (s écoulées si en pause, 0 = prêt),
+            done (sessions terminées dans le cycle), cr (secondes déjà créditées sur cette phase) } */
+export const PHASES = { work: 'Concentration', short: 'Pause courte', long: 'Pause longue' };
+const durOf = (phase) => (phase === 'work' ? S.set.pomo : phase === 'short' ? S.set.pause : S.set.longPause) * 60;
 export const pomoElapsed = (p = S.pomo, t = Date.now()) => (p.paused != null ? p.paused : (t - p.start) / 1000);
+export const pomoState = () => S.pomo || { tid: null, phase: 'work', start: 0, dur: durOf('work'), paused: 0, done: 0, cr: 0 };
+export const pomoRunning = () => !!S.pomo && S.pomo.paused == null;
+export const pomoToday = (St = S) => (St.pomoDay.d === K(new Date(Date.now() + St.off * 864e5)) ? St.pomoDay.n : 0);
+
 function credit(tid, sec) {
   if (sec < 5) return;
   const m = sec / 60, k = todayKey();
   set({
-    tasks: S.tasks.map((t) => (t.id === tid ? { ...t, focus: r1(t.focus + m) } : t)),
+    tasks: tid ? S.tasks.map((t) => (t.id === tid ? { ...t, focus: r1(t.focus + m) } : t)) : S.tasks,
     fmDay: { d: k, m: r1((S.fmDay.d === k ? S.fmDay.m : 0) + m) },
   });
 }
-export function startFocus(tid) {
-  const p = S.pomo && S.pomo.tid === tid ? S.pomo : { tid, phase: 'work', start: Date.now(), dur: S.set.pomo * 60, paused: null };
-  if (S.pomo && S.pomo.tid !== tid) stopFocus(true);
-  set({ pomo: p });
-  setUI({ modal: 'focus', open: null });
+/* Crédite le temps de concentration pas encore compté (tâche liée + journée) */
+function creditWork(p) {
+  if (p.phase !== 'work') return p;
+  const el = Math.min(pomoElapsed(p), p.dur), add = el - (p.cr || 0);
+  if (add >= 5) { credit(p.tid, add); return { ...p, cr: el }; }
+  return p;
 }
-/* Fait avancer les phases (même si l'écran était verrouillé) ; renvoie 'work' ou 'break' si une phase vient de finir */
+const fresh = (p, phase, run, start = Date.now()) => ({ ...p, phase, start, dur: durOf(phase), paused: run ? null : 0, cr: 0 });
+
+/* Démarrer / mettre en pause */
+export function pomoToggle() {
+  const p = pomoState();
+  if (p.paused != null) set({ pomo: { ...p, start: Date.now() - p.paused * 1000, paused: null } });
+  else set({ pomo: { ...creditWork(p), paused: pomoElapsed(p) } });
+}
+/* Choisir une phase (Concentration / Pause courte / Pause longue) */
+export function pomoPhase(phase) {
+  const p = creditWork(pomoState());
+  set({ pomo: fresh(p, phase, false) });
+}
+export function pomoReset() {
+  const p = creditWork(pomoState());
+  set({ pomo: fresh(p, p.phase, false) });
+}
+/* Phase suivante : après une concentration, pause courte (ou longue tous les N cycles) ; après une pause, concentration */
+function nextPhase(p, natural, at) {
+  if (p.phase === 'work') {
+    const done = p.done + (natural ? 1 : 0);
+    const phase = done > 0 && done % S.set.cycle === 0 ? 'long' : 'short';
+    return { ...fresh(p, phase, S.set.autoBreak, at), done };
+  }
+  return { ...fresh(p, 'work', S.set.autoWork, at), done: p.phase === 'long' ? 0 : p.done };
+}
+export function pomoSkip() {
+  const p = creditWork(pomoState());
+  set({ pomo: nextPhase(p, false) });
+}
+/* Lier une tâche au minuteur (le temps déjà fait reste à l'ancienne tâche) */
+export function pomoTask(tid) {
+  const p = creditWork(pomoState());
+  set({ pomo: { ...p, tid: tid || null } });
+}
+/* Fait avancer les phases terminées ; renvoie la phase qui vient de finir ('work' | 'short' | 'long') ou null */
 export function pomoTick() {
   let p = S.pomo, ended = null;
-  for (let i = 0; p && i < 3; i++) {
+  for (let i = 0; p && i < 6; i++) {
     if (p.paused != null || pomoElapsed(p) < p.dur) break;
+    const end = p.start + p.dur * 1000;
     if (p.phase === 'work') {
-      credit(p.tid, p.dur);
-      p = { ...p, phase: 'break', start: p.start + p.dur * 1000, dur: S.set.pause * 60, paused: null };
-      ended = 'work';
-    } else {
-      p = { ...p, phase: 'work', start: Date.now(), dur: S.set.pomo * 60, paused: 0 };
-      ended = 'break';
+      p = creditWork(p);
+      const k = todayKey();
+      set({ pomoDay: { d: k, n: (S.pomoDay.d === k ? S.pomoDay.n : 0) + 1 } });
     }
+    ended = p.phase;
+    p = nextPhase(p, true, end);
   }
   if (ended) { set({ pomo: p }); checkBadges(); }
   return ended;
 }
-export function pausePomo() {
-  const p = S.pomo;
-  if (!p) return;
-  if (p.paused != null) set({ pomo: { ...p, start: Date.now() - p.paused * 1000, paused: null } });
-  else set({ pomo: { ...p, paused: pomoElapsed(p) } });
+/* Bouton ▶ d'une tâche : la lie au minuteur, démarre et ouvre l'onglet Pomodoro */
+export function startFocus(tid) {
+  let p = creditWork(pomoState());
+  p = { ...p, tid };
+  if (p.phase !== 'work' || p.paused == null) p = { ...fresh(p, 'work', true), done: p.done };
+  set({ pomo: p });
+  setUI({ page: 4, open: null, modal: null });
 }
-export function skipPhase() {
-  const p = S.pomo;
-  if (!p) return;
-  if (p.phase === 'work') {
-    credit(p.tid, pomoElapsed(p));
-    set({ pomo: { ...p, phase: 'break', start: Date.now(), dur: S.set.pause * 60, paused: null } });
-  } else set({ pomo: { ...p, phase: 'work', start: Date.now(), dur: S.set.pomo * 60, paused: 0 } });
-}
-export function stopFocus(keepModal) {
-  const p = S.pomo;
-  if (p && p.phase === 'work') credit(p.tid, Math.min(pomoElapsed(p), p.dur));
-  set({ pomo: null });
-  if (!keepModal) setUI({ modal: null });
-  checkBadges();
-}
-/* « Terminer la tâche » : arrête le minuteur et sélectionne la tâche pour validation */
+/* « Terminer la tâche » : met le minuteur en pause et sélectionne la tâche pour validation */
 export function finishFocusTask() {
-  const tid = S.pomo?.tid;
-  stopFocus();
+  const p0 = pomoState(), tid = p0.tid;
+  const p = creditWork(p0);
+  set({ pomo: { ...p, paused: p.paused ?? pomoElapsed(p), tid: null } });
   const t = S.tasks.find((x) => x.id === tid);
   if (!t || t.done) return;
   if (!isToday(t)) setDate(tid, todayKey());
@@ -587,7 +640,7 @@ export function finishFocusTask() {
 function entry(tasks, k, St) {
   const s = stats(tasks, k), tg = {};
   for (const t of tasks) if (t.done && isToday(t, k)) for (const g of t.tags) tg[g] = (tg[g] || 0) + 1;
-  return { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, tg };
+  return { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
 }
 export function checkDay() {
   if (UI.busy) return false;

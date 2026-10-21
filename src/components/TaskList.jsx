@@ -94,17 +94,17 @@ function Details({ t, today }) {
         </div>
       )}
       <div className="drow">
-        <span className="dlab">Poids</span>
+        <span className="dlab">Points</span>
         <div className="segs">
-          {[[1, 'Petite'], [2, 'Moyenne'], [3, 'Grosse']].map(([w, l]) => (
-            <button type="button" key={w} className={'seg ' + (t.weight === w ? 'on' : '')} onClick={() => setWeight(t.id, w)}>{w} · {l}</button>
+          {[1, 2, 3].map((w) => (
+            <button type="button" key={w} className={'seg ' + (t.weight === w ? 'on' : '')} onClick={() => setWeight(t.id, w)}>{w} pt{w > 1 ? 's' : ''}</button>
           ))}
         </div>
       </div>
       <div className="drow">
         <span className="dlab">Priorité</span>
         <div className="segs">
-          <button type="button" className={'seg ' + (t.prio ? 'on' : '')} onClick={() => togglePrio(t.id)}>★ Priorité du jour</button>
+          <button type="button" className={'seg gold ' + (t.prio ? 'on' : '')} onClick={() => togglePrio(t.id)}>★ Priorité du jour</button>
         </div>
       </div>
       <div className="drow">
@@ -188,7 +188,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
         <button type="button" className="t tbtn" onClick={() => setOpen(t.id)} aria-expanded={open} title="Options de la tâche">
           <span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
           <span className="meta">
-            {t.weight > 1 && <span className="chip">{t.weight} pts</span>}
+            <span className={'chip pts ' + (t.weight === 3 ? 'w3' : '')}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>
             {t.carried >= 2 && <span className="chip warn">reportée {t.carried}×</span>}
             {tags.map((g) => <TagChip key={g.id} tag={g} small />)}
             {t.subs.length > 0 && (

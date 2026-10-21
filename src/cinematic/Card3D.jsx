@@ -129,7 +129,7 @@ function drawPct(P, pct) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   if ('letterSpacing' in ctx) ctx.letterSpacing = it.ls || '0px';
-  ctx.fillText(`${pct}%`, 2, h / 2);
+  ctx.fillText(fx.fmt ? fx.fmt(pct) : `${pct}%`, 2, h / 2);
 }
 
 export default function Card3D() {
@@ -192,7 +192,7 @@ export default function Card3D() {
       P.ctx.font = P.it.font;
       if ('letterSpacing' in P.ctx) P.ctx.letterSpacing = P.it.ls || '0px';
       const size = parseFloat(P.it.font.split(' ')[1]) || 56;
-      P.w = Math.ceil(P.ctx.measureText('100%').width + 8);
+      P.w = Math.ceil(Math.max(P.ctx.measureText('100%').width, fx.fmt ? P.ctx.measureText(fx.fmt(100)).width : 0) + 8);
       P.h = Math.ceil(size * 1.3);
       P.canvas.width = P.w * P.sc;
       P.canvas.height = P.h * P.sc;

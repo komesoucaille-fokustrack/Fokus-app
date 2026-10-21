@@ -74,6 +74,7 @@ export function race(c, from, to, onDone, opts = {}) {
     C: { x0: r.left - O.x, y0: r.top - O.y, w: r.width, h: r.height, r: parseFloat(getComputedStyle(c.card).borderRadius) || 16 },
     G: { x0: b.left - O.x, y: b.top + b.height / 2 - O.y, barW: b.width, bh: b.height, mob },
     face: measureFace(c, r),
+    fmt: opts.fmt || ((v) => Math.round(v) + '%'), // affichage du compteur : % (défaut) ou points
   });
   const C = fx.C, G = fx.G, d = clamp((to - from) / 100, 0, 1);
   fx.fxLevel = dose(d, 1);
@@ -141,7 +142,7 @@ export function race(c, from, to, onDone, opts = {}) {
     const s = Math.max(fx.k, hold.sink);
     sinkPage(s);
     c.dim.style.opacity = s;
-    c.pct.textContent = Math.round(fx.shown) + '%';
+    c.pct.textContent = fx.fmt(fx.shown);
     if (to >= 100 && !fired && fx.p >= 99.4 && fx.moving) climax();
     try { fx.render?.(); } catch (e) { console.warn('Rendu 3D interrompu :', e); fx.render = null; tl?.progress(1); }
   }

@@ -5,21 +5,21 @@ import ProgressCard from './components/ProgressCard';
 import TaskList, { TagChip } from './components/TaskList';
 import QuickAdd from './components/QuickAdd';
 import ValidateButton from './components/ValidateButton';
-import RecurringModal from './components/RecurringModal';
 import Settings from './components/Settings';
 import Search from './components/Search';
 import MorningTriage from './components/MorningTriage';
 import WeeklyReview from './components/WeeklyReview';
-import FocusMode from './components/FocusMode';
+import Pomodoro from './components/Pomodoro';
 import Upcoming from './components/Upcoming';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
-import { notify, setBadge } from './lib/notify';
+import { buzz, notify, setBadge } from './lib/notify';
+import { chime } from './lib/sound';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
-  moveCarried, needsMorning, needsWeekly, setBusy, setModal, setOpen, setPage, setTagFilter, simulateMidnight, sortPrioFirst, stats,
-  toastAction, todayKey, todayTasks, useStore, validateSelection,
+  moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter,
+  simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
 } from './store';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
@@ -37,7 +37,7 @@ class Guard extends Component {
 function prompts() {
   const S = getState(), UI = getUI();
   if (UI.modal || UI.busy) return;
-  if (S.pomo) return setModal('focus');
+  if (S.pomo && S.pomo.paused == null && UI.page !== 4) { setPage(4); return; }
   if (needsMorning()) { markSeen('morning'); return setModal('morning'); }
   if (needsWeekly()) { markSeen('weekly', mondayOf(todayKey())); return setModal('weekly'); }
 }
@@ -51,6 +51,31 @@ function eveningReminder() {
   const s = stats(), left = s.n - s.c;
   markSeen('remind');
   if (left > 0) notify('Fokus', `Il te reste ${left} tâche${left > 1 ? 's' : ''}, ${s.p} % aujourd’hui.`);
+}
+
+/* Pomodoro : fait avancer les phases où que l'on soit dans l'app (son, vibration, notification) + titre de l'onglet */
+function usePomodoro() {
+  useEffect(() => {
+    const step = () => {
+      const S = getState();
+      const ended = pomoTick();
+      if (ended) {
+        if (S.set.sound) chime(ended);
+        buzz(200);
+        const msg = ended === 'work' ? 'Session terminée, place à la pause.' : 'Pause terminée, on s’y remet ?';
+        if (S.set.pomoNotif && document.hidden) notify('Fokus — Pomodoro', msg);
+        else toast((ended === 'work' ? '🍅 ' : '☕ ') + msg);
+      }
+      const p = getState().pomo;
+      if (p && p.paused == null) {
+        const left = Math.max(0, Math.ceil(p.dur - pomoElapsed(p)));
+        document.title = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')} · ${PHASES[p.phase]} — Fokus`;
+      } else if (!document.title.startsWith('Fokus')) document.title = 'Fokus — Tâches & Performance';
+    };
+    const iv = setInterval(step, 1000);
+    document.addEventListener('visibilitychange', step);
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', step); };
+  }, []);
 }
 
 /* Changement de jour automatique à minuit (+ contrôle régulier et au retour sur l'app) */
@@ -101,6 +126,8 @@ export default function App() {
   const [load3D, setLoad3D] = useState(false);
   const card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
   useMidnight();
+  usePomodoro();
+  const fmt = scoreFmt(S);
 
   // Charge la scène 3D en arrière-plan (shaders précompilés avant le premier « Valider »)
   useEffect(() => { const t = setTimeout(() => setLoad3D(true), 250); return () => clearTimeout(t); }, []);
@@ -146,7 +173,7 @@ export default function App() {
       setBusy(true);
       race(
         { ...c, subText, bg: [document.getElementById('hdr'), form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
-        old, nw, () => { setBusy(false); afterValidate(ids); }, { confetti: confettiAt100 },
+        old, nw, () => { setBusy(false); afterValidate(ids); }, { confetti: confettiAt100, fmt: scoreFmt(getState()) },
       );
     } else {
       requestAnimationFrame(() => c.paintBar(nw, true));
@@ -163,7 +190,7 @@ export default function App() {
       const U = getUI();
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
       if (e.key === 'Escape') {
-        if (U.modal && U.modal !== 'focus') { closeModal(); return; }
+        if (U.modal) { closeModal(); return; }
         if (typing) { e.target.blur(); return; }
         if (U.open) setOpen(U.open);
         return;
@@ -180,7 +207,7 @@ export default function App() {
   // Liste du jour : priorités en tête (liseré blanc), puis l'ordre choisi ; filtre par étiquette
   const today = todayTasks(S.tasks);
   const usedTags = S.tags.filter((g) => today.some((t) => t.tags.includes(g.id)));
-  const shown = sortPrioFirst(UI.tag ? today.filter((t) => t.tags.includes(UI.tag)) : today);
+  const shown = sortTasks(UI.tag ? today.filter((t) => t.tags.includes(UI.tag)) : today);
   const visibleSel = UI.page === 1 ? UI.sel.size : 0;
 
   return (
@@ -202,9 +229,9 @@ export default function App() {
       <main className="mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (
           <section ref={page} key="p1">
-            <ProgressCard ref={card} s={s} text={text} busy={UI.busy} />
+            <ProgressCard ref={card} s={s} text={text} busy={UI.busy} fmt={fmt} />
             <div ref={form}>
-              <QuickAdd ref={input} placeholder="Ajouter une tâche… (ex. « Sport demain #santé !! * »)" />
+              <QuickAdd ref={input} allowRec placeholder="Ajouter une tâche… (ex. « Sport demain #santé »)" />
             </div>
             <div ref={list}>
               {usedTags.length > 0 && (
@@ -224,19 +251,22 @@ export default function App() {
           </section>
         ) : UI.page === 3 ? (
           <div ref={page} key="p3"><Upcoming /></div>
+        ) : UI.page === 4 ? (
+          <div ref={page} key="p4"><Pomodoro /></div>
         ) : (
           <div ref={page} key="p2"><Suspense fallback={<div className="card h-[420px]" />}><StatsPage S={S} /></Suspense></div>
         )}
       </main>
 
-      <ValidateButton k={visibleSel} gain={visibleSel ? gainOf(UI.sel) : 0} onClick={validate} />
+      <ValidateButton
+        k={visibleSel} onClick={validate}
+        gain={!visibleSel ? '' : S.set.scoreMode === 'pts' ? `${selPoints(UI.sel)} pt${selPoints(UI.sel) > 1 ? 's' : ''}` : `${gainOf(UI.sel)}%`}
+      />
 
-      {UI.modal === 'rec' && <RecurringModal onClose={closeModal} />}
       {UI.modal === 'settings' && <Settings />}
       {UI.modal === 'search' && <Search onClose={closeModal} />}
       {UI.modal === 'morning' && <MorningTriage onClose={closeModal} />}
       {UI.modal === 'weekly' && <WeeklyReview onClose={closeModal} />}
-      {UI.modal === 'focus' && <FocusMode />}
 
       <div id="dim" ref={dim} />
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}

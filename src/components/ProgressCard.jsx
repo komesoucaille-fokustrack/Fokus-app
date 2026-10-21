@@ -4,7 +4,7 @@ import { gradFor, getColorForPercentage } from '../lib/colors';
 
 /* Carte « Aujourd'hui » — rendu de la barre géré impérativement
    (la chorégraphie 3D en prend le contrôle pendant l'animation). */
-const ProgressCard = forwardRef(function ProgressCard({ s, text, busy }, ref) {
+const ProgressCard = forwardRef(function ProgressCard({ s, text, busy, fmt }, ref) {
   const r = {
     card: useRef(null), label: useRef(null), sub: useRef(null), pct: useRef(null), pwrap: useRef(null), pbar: useRef(null), fill: useRef(null),
     blue: useRef(null), glow: useRef(null),
@@ -12,7 +12,7 @@ const ProgressCard = forwardRef(function ProgressCard({ s, text, busy }, ref) {
 
   const paintBar = (p, flash) => {
     const f = r.fill.current, g = r.glow.current, b = r.blue.current;
-    r.pct.current.textContent = p + '%';
+    r.pct.current.textContent = fmt(p);
     f.style.width = p + '%';
     f.style.background = p ? gradFor(p) : 'transparent';
     g.style.width = p + '%';
@@ -27,7 +27,7 @@ const ProgressCard = forwardRef(function ProgressCard({ s, text, busy }, ref) {
     paintBar,
   }));
 
-  useLayoutEffect(() => { if (!busy) paintBar(s.p); }, [s.p, busy]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (!busy) paintBar(s.p); }, [s.p, s.pt, busy, fmt(100)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="card" id="pcard" ref={r.card}>

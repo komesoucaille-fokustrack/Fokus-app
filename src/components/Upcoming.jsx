@@ -1,7 +1,7 @@
 import QuickAdd from './QuickAdd';
 import TaskList from './TaskList';
 import { addDays, dayLabel } from '../lib/dates';
-import { todayKey, useStore } from '../store';
+import { sortTasks, todayKey, useStore } from '../store';
 
 /* Onglet « À venir » : demain, cette semaine, plus loin, puis « Plus tard », groupés par date (ordre choisi conservé) */
 export default function Upcoming() {
@@ -26,7 +26,7 @@ export default function Upcoming() {
           {ds.map((d) => (
             <div key={d} className="mb-2">
               {title !== 'Demain' && <div className="dhead">{dayLabel(d, today)}</div>}
-              <TaskList tasks={future.filter((t) => t.date === d)} sel={UI.sel} busy={UI.busy} mode="upcoming-day" />
+              <TaskList tasks={sortTasks(future.filter((t) => t.date === d))} sel={UI.sel} busy={UI.busy} mode="upcoming-day" />
             </div>
           ))}
         </div>
@@ -34,7 +34,7 @@ export default function Upcoming() {
       {later.length > 0 && (
         <div className="mb-5">
           <h2 className="sec">Plus tard</h2>
-          <TaskList tasks={later} sel={UI.sel} busy={UI.busy} mode="upcoming-day" />
+          <TaskList tasks={sortTasks(later)} sel={UI.sel} busy={UI.busy} mode="upcoming-day" />
         </div>
       )}
     </section>

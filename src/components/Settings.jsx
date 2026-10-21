@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import Sheet from './Sheet';
+import { BgPicker } from './Pomodoro';
+import { CLOCKS } from './Clocks';
 import {
   PASTELS, addTag, deleteTag, exportJSON, importJSON, jokersLeft, recolorTag, renameTag, resetAll, setAnim, setConfetti, setModal,
   setSetting, toast, todayKey, useStore,
@@ -103,16 +105,34 @@ export default function Settings() {
       </div>
 
       <H>Score</H>
-      <Line title="Poids par défaut" desc="Le score du jour = points faits / points totaux.">
-        {[[1, 'Petite'], [2, 'Moyenne'], [3, 'Grosse']].map(([w, l]) => (
-          <button type="button" key={w} className={'seg ' + (st.defWeight === w ? 'on' : '')} onClick={() => setSetting('defWeight', w)}>{w} · {l}</button>
-        ))}
-      </Line>
-
-      <H>Minuteur de concentration</H>
       <div className="flex flex-col gap-2">
-        <Line title="Concentration"><Stepper value={st.pomo} min={5} max={90} step={5} unit=" min" onChange={(v) => setSetting('pomo', v)} /></Line>
-        <Line title="Pause"><Stepper value={st.pause} min={1} max={30} unit=" min" onChange={(v) => setSetting('pause', v)} /></Line>
+        <Line title="Affichage du score" desc="Pourcentage (points convertis en %) ou directement les points du jour.">
+          <button type="button" className={'seg ' + (st.scoreMode !== 'pts' ? 'on' : '')} onClick={() => setSetting('scoreMode', 'pct')}>Pourcentage</button>
+          <button type="button" className={'seg ' + (st.scoreMode === 'pts' ? 'on' : '')} onClick={() => setSetting('scoreMode', 'pts')}>Points</button>
+        </Line>
+        <Line title="Points par défaut" desc="Proposés à l’ajout d’une tâche (1 petite, 2 moyenne, 3 grosse).">
+          {[1, 2, 3].map((w) => (
+            <button type="button" key={w} className={'seg ' + (st.defWeight === w ? 'on' : '')} onClick={() => setSetting('defWeight', w)}>{w} pt{w > 1 ? 's' : ''}</button>
+          ))}
+        </Line>
+      </div>
+
+      <H>Pomodoro</H>
+      <div className="flex flex-col gap-2">
+        <Line title="Concentration"><Stepper value={st.pomo} min={5} max={120} step={5} unit=" min" onChange={(v) => setSetting('pomo', v)} /></Line>
+        <Line title="Pause courte"><Stepper value={st.pause} min={1} max={30} unit=" min" onChange={(v) => setSetting('pause', v)} /></Line>
+        <Line title="Pause longue"><Stepper value={st.longPause} min={5} max={60} step={5} unit=" min" onChange={(v) => setSetting('longPause', v)} /></Line>
+        <Line title="Sessions avant la pause longue"><Stepper value={st.cycle} min={2} max={8} onChange={(v) => setSetting('cycle', v)} /></Line>
+        <Row title="Lancer les pauses automatiquement" checked={st.autoBreak} onChange={(v) => setSetting('autoBreak', v)} />
+        <Row title="Relancer la concentration après la pause" checked={st.autoWork} onChange={(v) => setSetting('autoWork', v)} />
+        <Row title="Son de fin" desc="Un carillon doux à la fin de chaque phase" checked={st.sound} onChange={(v) => setSetting('sound', v)} />
+        <Line title="Style du chrono">
+          {CLOCKS.map(([k, l]) => <button type="button" key={k} className={'seg ' + (st.clock === k ? 'on' : '')} onClick={() => setSetting('clock', k)}>{l}</button>)}
+        </Line>
+        <div className="rounded-xl border border-line bg-card px-4 py-3">
+          <span className="mb-2 block text-[15px] font-semibold">Fond du Pomodoro</span>
+          <BgPicker />
+        </div>
       </div>
 
       <H>Rappels et notifications</H>

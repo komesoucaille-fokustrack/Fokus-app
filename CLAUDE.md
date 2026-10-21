@@ -81,9 +81,18 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
     `last` + « pas de nouvelle occurrence tant que la précédente n'est pas faite » = jamais de doublon ;
   - historique `hist[jour] = { p, d, t, pd, pt, pr, prt, fm, tg, jk? }` ; réglages `S.set` (`DEF_SET`) ; `badges`, `doneTotal`, `fmDay`,
     `lastExport`, `since`, `seen` (tri du matin, bilan, rappels), `pomo` (minuteur en cours, calculé par horodatages).
-- **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). La Page 1 n'affiche que ces tâches :
-  priorités ★ (3 max par jour) en tête avec liseré blanc, puis l'ordre choisi (ordre du tableau, respecté partout ; le glisser-déposer
-  déplace relativement à la tâche visée). Filtre par étiquette au-dessus de la liste.
+- **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). Réglage `set.scoreMode` :
+  `'pct'` (pourcentage, défaut) ou `'pts'` (« 7 pts », sous-titre « sur 10 pts », bouton « +3 pts ») — `scoreFmt()` sert aussi au compteur
+  de l'animation (`race(..., { fmt })`, seul ajout fait au moteur, visuel inchangé). La Page 1 n'affiche que les tâches du jour, triées par
+  `sortTasks` : priorités ★ en **or** (`--gold`, 3 max par jour) en tête, puis 3 pts > 2 pts > 1 pt, puis l'ordre choisi (tri stable ;
+  même tri dans « À venir »). Filtre par étiquette au-dessus de la liste.
+- **Ajout** (`QuickAdd`) : points 1/2/3 et ★ Priorité choisis directement sous le champ ; bouton « ↻ Récurrence » à côté d'« Ajouter »
+  (tous les jours / tous les X jours / certains jours / un jour du mois + liste des récurrences). Plus d'onglet « Récurrentes » dans l'en-tête.
+- **Onglet Pomodoro** (`Pomodoro.jsx`, page 4) : concentration / pause courte / pause longue (tous les N cycles), démarrage auto,
+  carillon (`lib/sound.js`), tâche liée (temps crédité à la tâche et au jour), sessions du jour (`pomoDay`, `hist.ps`), écran gardé allumé
+  (Wake Lock), plein écran (commandes masquées après 3 s, mode « Heure »). Chronos (`Clocks.jsx`) : Classique, Flip (palettes qui tournent),
+  Anneau, Minimal. Fonds (`lib/backgrounds.js`, photos dans `public/bg/` + `-mini.jpg`) choisis dans l'onglet ou les Réglages.
+  Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
 - Validation : gros bouton flottant (gain par points en vert pastel `#86efac`), puis toast « X tâche(s) validée(s) — Annuler » (6 s, après
   l'animation) ; ↺ décoche une tâche terminée ; « Annuler » après suppression. Textes de la carte : `cardText()` (partagé avec la face 3D :
   `subText` + mise à jour du nœud texte du libellé avant `race`). Si la carte est hors écran, la page remonte avant l'animation.
@@ -105,12 +114,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
-  `RecurringModal`, `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `FocusMode`, `StatsPage`, `Sheet` (modale).
-- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`.
+  `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks`, `StatsPage`, `Sheet` (modale).
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `backgrounds`.
 - `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Outline.jsx`, `Arch.jsx`, `Sparks.jsx`,
   `SpeedLines.jsx` — scène 3D (**l'utilisateur a validé l'animation : ne plus la modifier**).
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
 - `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
+
+## Idées pour plus tard (à rediscuter avec l'utilisateur)
+
+- Catégories de tâches (sport, travail, devoirs…), distinctes ou évoluées à partir des étiquettes.
 
 ## Workflow
 
