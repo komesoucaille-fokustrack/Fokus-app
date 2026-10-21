@@ -29,7 +29,7 @@ export const DEF_SET = {
   remind: false, remindAt: '20:00', pomoNotif: false, push: false, pushUrl: '',
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
-  defDur: 30, capacity: 360, evening: true, eveningAt: '21:00',
+  defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list',
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], last: '', off: 0, anim: true, confetti: true,

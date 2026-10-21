@@ -23,6 +23,7 @@ export function Gear() {
 
 /* Icônes de rubrique (trait fin, cohérentes avec le reste de l'interface) */
 const ICONS = {
+  day: 'M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 14h.01 M12 14h.01 M16 14h.01',
   look: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.4-4-7.6-9-7.6z M7.5 11h.01 M10.5 7.5h.01 M15 7.5h.01',
   score: 'M4 19V9 M10 19V5 M16 19v-7 M22 19H2',
   motiv: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
@@ -33,7 +34,7 @@ const ICONS = {
   data: 'M12 3v12 M7 10l5 5 5-5 M4 21h16',
 };
 const SECTIONS = [
-  ['look', 'Apparence'], ['score', 'Score et affichage'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
+  ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
   ['notif', 'Rappels'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
 const Ico = ({ k }) => (
@@ -324,7 +325,33 @@ function Look({ S }) {
   );
 }
 
-const BODY = { look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, tags: Tags, data: Data };
+function Day({ S }) {
+  const st = S.set;
+  const hm = (m) => `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`;
+  return (
+    <>
+      <Group title="Planification" foot="Au-delà du temps disponible, un avertissement doux apparaît sous la carte du jour. Il ne bloque jamais l’ajout.">
+        <Item title="Temps disponible par jour" desc="Pour l’alerte de surcharge">
+          <Stepper value={st.capacity} min={60} max={960} step={30} unit="" onChange={(v) => setSetting('capacity', v)} />
+          <span className="min-w-[56px] text-[13px] text-mut tabular-nums">{hm(st.capacity)}</span>
+        </Item>
+        <Item title="Durée par défaut" desc="Tâche sans estimation placée dans la chronologie">
+          <Stepper value={st.defDur} min={10} max={180} step={5} unit=" min" onChange={(v) => setSetting('defDur', v)} />
+        </Item>
+      </Group>
+      <Group title="Rituel du soir" foot="« Fermer ma journée » : ce qui est fait, ce qui reste, les priorités de demain. Toujours accessible avec le bouton 🌙 de la page Tâches.">
+        <Item title="Proposer automatiquement"><Switch label="Rituel du soir" checked={st.evening} onChange={(v) => setSetting('evening', v)} /></Item>
+        {st.evening && (
+          <Item title="À partir de">
+            <input type="time" className="field mini w-[120px]! flex-none!" value={st.eveningAt} onChange={(e) => e.target.value && setSetting('eveningAt', e.target.value)} />
+          </Item>
+        )}
+      </Group>
+    </>
+  );
+}
+
+const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, tags: Tags, data: Data };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {

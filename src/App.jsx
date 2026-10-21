@@ -15,6 +15,8 @@ import Hello from './components/Hello';
 import Ambiance from './components/Ambiance';
 import DayStrip from './components/DayStrip';
 import Overload from './components/Overload';
+import Timeline from './components/Timeline';
+import EveningRitual from './components/EveningRitual';
 import { getColorForPercentage } from './lib/colors';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
@@ -26,7 +28,7 @@ import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
   moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter,
-  simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
+  setSetting, simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
 } from './store';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
@@ -41,12 +43,15 @@ class Guard extends Component {
 }
 
 /* Écrans proposés à l'ouverture : minuteur en cours, tri du matin, puis bilan de la semaine */
-function prompts() {
+function prompts(startup) {
   const S = getState(), UI = getUI();
   if (UI.modal || UI.busy) return;
-  if (S.pomo && S.pomo.paused == null && UI.page !== 4) { setPage(4); return; }
-  if (needsMorning()) { markSeen('morning'); return setModal('morning'); }
-  if (needsWeekly()) { markSeen('weekly', mondayOf(todayKey())); return setModal('weekly'); }
+  if (startup === true && S.pomo && S.pomo.paused == null && UI.page !== 4) { setPage(4); return; }
+  if (startup !== 'evening' && needsMorning()) { markSeen('morning'); return setModal('morning'); }
+  if (startup !== 'evening' && needsWeekly()) { markSeen('weekly', mondayOf(todayKey())); return setModal('weekly'); }
+  // rituel du soir : proposé une fois, à partir de l'heure choisie
+  const n = new Date(), hm = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+  if (S.set.evening && S.seen.evening !== todayKey() && hm >= S.set.eveningAt && todayTasks().length) return setModal('evening');
 }
 
 /* Rappel du soir (notification locale, une fois par jour, seulement s'il reste des tâches) */
@@ -104,7 +109,8 @@ function useAmbient(S) {
 function useMidnight() {
   useEffect(() => {
     let timer;
-    const tick = () => { if (checkDay()) prompts(); eveningReminder(); };
+    // en cours d'utilisation, seul le rituel du soir peut s'ouvrir (à partir de l'heure choisie)
+    const tick = () => { if (checkDay()) prompts(); else if (!document.hidden) prompts('evening'); eveningReminder(); };
     const arm = () => {
       const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1);
       timer = setTimeout(() => { tick(); arm(); }, next - n);
@@ -172,7 +178,7 @@ export default function App() {
 
   // Tri du matin / bilan de la semaine / minuteur en cours, puis rappel d'export (tous les 7 jours)
   useEffect(() => {
-    const a = setTimeout(prompts, 450), b = setTimeout(exportReminder, 2500);
+    const a = setTimeout(() => prompts(true), 450), b = setTimeout(exportReminder, 2500);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, []);
   // après le tri du matin, enchaîne éventuellement sur le bilan de la semaine
@@ -279,8 +285,17 @@ export default function App() {
                   {usedTags.map((g) => <TagChip key={g.id} tag={g} on={!UI.tag || UI.tag === g.id} onClick={() => setTagFilter(g.id)} />)}
                 </div>
               )}
-              <CarriedBar />
-              <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CarriedBar />
+                <span className="viewseg ml-auto" role="group" aria-label="Affichage">
+                  <button className={S.set.planView !== 'timeline' ? 'on' : ''} onClick={() => setSetting('planView', 'list')}>Liste</button>
+                  <button className={S.set.planView === 'timeline' ? 'on' : ''} onClick={() => setSetting('planView', 'timeline')}>Chronologie</button>
+                  <button onClick={() => setModal('evening')} title="Fermer ma journée">🌙</button>
+                </span>
+              </div>
+              {S.set.planView === 'timeline'
+                ? <Timeline tasks={shown} sel={UI.sel} busy={UI.busy} />
+                : <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />}
             </div>
             <div ref={tools} className="mt-[30px] flex flex-wrap items-center justify-center gap-2">
               <button className="b text-[13px] text-mut" onClick={() => { simulateMidnight(); setTimeout(prompts, 400); }}>Simuler minuit / Jour suivant (Mode Test)</button>
@@ -307,6 +322,7 @@ export default function App() {
       {UI.modal === 'morning' && <MorningTriage onClose={closeModal} />}
       {UI.modal === 'weekly' && <WeeklyReview onClose={closeModal} />}
       {UI.modal === 'overload' && <Overload onClose={closeModal} />}
+      {UI.modal === 'evening' && <EveningRitual onClose={closeModal} />}
 
       <div id="dim" ref={dim} />
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}

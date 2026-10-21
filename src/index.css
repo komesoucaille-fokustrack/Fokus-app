@@ -475,3 +475,48 @@
   .daystrip.over { border-color: rgba(253, 186, 116, 0.28); }
   .ds-over { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #fdba74; }
 }
+
+/* ---------- Chronologie « Ma journée » ---------- */
+@layer components {
+  .viewseg { display: inline-flex; padding: 3px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-line); margin-bottom: 10px; }
+  .viewseg button { min-height: 36px; min-width: 40px; padding: 0 12px; border-radius: 9px; font-size: 13px; color: rgba(255, 255, 255, 0.7); }
+  .viewseg button.on { background: #fff; color: #000; font-weight: 600; }
+  .tl-wrap { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 900px) { .tl-wrap { grid-template-columns: 260px 1fr; align-items: start; } .tl-loose { position: sticky; top: 84px; } }
+  .tl-loose { padding: 12px; border-radius: 16px; border: 1px solid var(--color-line); background: rgba(18, 18, 21, 0.74); }
+  .tl-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-mut); margin-bottom: 8px; }
+  .tl-item { --tc: #9ca3af; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 8px; margin-bottom: 6px; border-radius: 12px; border: 1px solid var(--color-line); border-left: 3px solid var(--tc); background: rgba(26, 26, 31, 0.7); }
+  .tl-item.sel { border-color: rgba(255, 255, 255, 0.6); border-left-color: var(--tc); }
+  .tl-item.done .tl-txt { text-decoration: line-through; color: var(--color-mut); }
+  .tl-item.tl-dragging { opacity: 0.35; }
+  .tl-sel { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid #fff; position: relative; }
+  .tl-sel::before { content: ''; position: absolute; inset: -11px; }
+  .tl-item.sel .tl-sel, .tl-item.done .tl-sel { background: #fff; }
+  .tl-txt { flex: 1; min-width: 0; text-align: left; font-size: 14px; min-height: 40px; display: flex; flex-direction: column; justify-content: center; }
+  .tl-txt em { font-style: normal; font-size: 11.5px; color: var(--color-mut); }
+  .tl-warn { margin-top: 8px; font-size: 12.5px; color: #fdba74; }
+  .tl-grid { position: relative; border-radius: 16px; border: 1px solid var(--color-line); background: rgba(14, 14, 17, 0.6); overflow: hidden; }
+  .tl-hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+  .tl-hour span { position: absolute; left: 8px; top: 3px; font-size: 11px; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+  .tl-now { position: absolute; left: 44px; right: 0; height: 0; border-top: 1.5px solid rgba(134, 239, 172, 0.75); z-index: 3; pointer-events: none; }
+  .tl-now::before { content: ''; position: absolute; left: -4px; top: -4.5px; width: 7px; height: 7px; border-radius: 50%; background: #86efac; }
+  .tl-block { --tc: #9ca3af; position: absolute; z-index: 2; overflow: hidden; padding: 5px 9px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--tc) 55%, transparent);
+    border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 16%, rgba(18, 18, 21, 0.92)); touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; }
+  .tl-block b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-block span { display: block; font-size: 11.5px; color: rgba(255, 255, 255, 0.6); font-variant-numeric: tabular-nums; }
+  .tl-block.sel { box-shadow: 0 0 0 2px #fff; }
+  .tl-block.prio { border-color: var(--gold); }
+  .tl-block.done { opacity: 0.5; }
+  .tl-block.done b { text-decoration: line-through; }
+  .tl-block.over { box-shadow: inset 0 0 0 1px rgba(253, 186, 116, 0.6); }
+  .tl-block.over span { color: #fdba74; }
+  .tl-block.tl-dragging { opacity: 0.3; }
+  .tl-resize { position: absolute; left: 25%; right: 25%; bottom: 0; height: 12px; cursor: ns-resize; touch-action: none; }
+  .tl-resize::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 26px; height: 3px; margin-left: -13px; border-radius: 3px; background: rgba(255, 255, 255, 0.45); }
+  .tl-ghost { display: none; position: fixed; z-index: 90; pointer-events: none; padding: 6px 10px; border-radius: 10px; border: 1.5px dashed #fff; font-size: 13.5px; font-weight: 600; color: #fff;
+    box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.8); overflow: hidden; }
+  .tl-ghost[data-time]:not([data-time=''])::after { content: attr(data-time); position: absolute; right: 8px; top: 6px; font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.8; }
+}
+@layer components {
+  .rit-done { padding: 8px 2px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 14.5px; list-style: none; }
+}

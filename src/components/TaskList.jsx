@@ -61,7 +61,7 @@ export function TagChip({ tag, on, onClick, small }) {
 }
 
 /* Panneau d'options avancées (s'ouvre au tap sur la tâche) */
-function Details({ t, today }) {
+export function Details({ t, today }) {
   const { S } = useStore();
   const [sub, setSub] = useState('');
   const [tag, setTag] = useState('');
