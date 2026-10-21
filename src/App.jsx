@@ -40,7 +40,7 @@ export default function App() {
   const s = stats(S.tasks);
   const [recOpen, setRecOpen] = useState(false);
   const [load3D, setLoad3D] = useState(false);
-  const card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null);
+  const card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), hud = useRef(null);
   const [text, setText] = useState('');
   useMidnight();
 
@@ -74,7 +74,7 @@ export default function App() {
     if (S.anim && canAnimate() && old !== nw) {
       setBusy(true);
       race(
-        { ...c, bg: [document.getElementById('hdr'), form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
+        { ...c, bg: [document.getElementById('hdr'), form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, hud: hud.current, canvas: document.getElementById('scene3d') },
         old, nw, () => setBusy(false),
       );
     } else {
@@ -122,6 +122,7 @@ export default function App() {
       {recOpen && <RecurringModal onClose={() => setRecOpen(false)} />}
 
       <div id="dim" ref={dim} />
+      <div id="hud" ref={hud}><b>0%</b><span>Progression</span></div>
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}
       <button className="b" id="skip" ref={skipBtn} onClick={(e) => { skip(); e.currentTarget.classList.remove('on'); }}>Passer l’animation ⏭</button>
 

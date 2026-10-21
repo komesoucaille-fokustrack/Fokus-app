@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { Center, RoundedBox, Text3D, useTexture } from '@react-three/drei';
 import font from '../assets/inter-black.typeface.json';
 import { LOGO_URL } from '../brand';
-import { barGeo, fx } from './shared';
+import { TRACK_Z, barGeo, fx } from './shared';
 import { additive, checkerTexture, glowTexture } from './textures';
 import { clamp } from '../lib/colors';
 
@@ -12,7 +12,7 @@ import { clamp } from '../lib/colors';
    ARCHE D'ARRIVÉE « FOKUS 100% » — vrais volumes 3D
    Repère « debout » : X = portée, Y = hauteur, Z = face avant (vers la barre et la caméra)
    ===================================================================== */
-const PHI = -0.62;           // orientation de l'arche dans le plan de la carte (face vers la barre ET la caméra)
+const PHI = -Math.PI / 2;    // l'arche fait face à la barre qui arrive (et à la caméra de poursuite)
 const SPAN = 140, PH = 170;  // entraxe des piliers, hauteur des piliers
 const BAN_Y = PH + 34;       // centre du fronton
 const TEXT = { height: 7, curveSegments: 8, bevelEnabled: true, bevelThickness: 1.2, bevelSize: 0.55, bevelSegments: 3 };
@@ -79,7 +79,7 @@ export default function Arch() {
     stand.current.scale.setScalar(Math.max(0.001, fx.as) * (fx.G.mob ? 0.72 : 1));
 
     // le flux bleu éclaire l'arche en approchant
-    const lit = clamp((fx.p - 45) / 55, 0, 1) * k;
+    const lit = clamp((fx.p - 45) / 55, 0, 1) * k * fx.blue;
     const n = 0.35 + 1.4 * lit + 1.6 * fl;
     M.neon.color.setRGB(0.3 * n + 0.5 * fl, 0.6 * n + 0.5 * fl, 1.9 * n + 0.5 * fl);
     M.rim.color.setRGB(0.15 + 0.7 * lit + 0.9 * fl, 0.35 + 1.3 * lit + 0.9 * fl, 1.1 + 2.6 * lit + 0.9 * fl);
@@ -99,7 +99,7 @@ export default function Arch() {
   return (
     <group ref={base}>
       {/* Au sol : ligne d'arrivée en damier, flaque de lumière, onde de choc */}
-      <mesh position={[0, 0, 0.8]}>
+      <mesh position={[0, 0, TRACK_Z + 1.4]}>
         <planeGeometry args={[SPAN + 30, 7]} />
         <meshBasicMaterial map={tex.checker} toneMapped={false} color={[1.3, 1.3, 1.4]} />
       </mesh>

@@ -6,6 +6,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { barGeo, fx } from './shared';
 import Arch from './Arch';
 import Sparks from './Sparks';
+import Track from './Track';
 import { additive, glowTexture } from './textures';
 
 const shown = () => fx.active || fx.warm;
@@ -38,40 +39,34 @@ function Rig({ children }) {
   return <group ref={group} matrixAutoUpdate={false}>{children}</group>;
 }
 
-/* Néon bleu électrique : cœur lumineux qui suit la barre + tête incandescente + lumière portée */
-function EnergyBar() {
-  const core = useRef(), head = useRef(), halo = useRef(), light = useRef();
+/* Front de la barre : plasma incandescent + halo + lumière bleue portée sur la piste et le sol */
+function EnergyHead() {
+  const head = useRef(), halo = useRef(), light = useRef();
   const tex = useMemo(() => glowTexture('#5aa2ff'), []);
   useFrame(() => {
     const b = barGeo(), a = fx.blue;
-    const start = b.x0 + b.h * 0.4, len = Math.max(0.01, b.head - start - 3);
-    core.current.position.set(start + len / 2, b.y, b.z + 2);
-    core.current.scale.set(3.2, len, 3.2);
-    core.current.material.color.setRGB(0.5 * a, 1.0 * a, 3.2 * a);
-    core.current.visible = a > 0.01 && fx.p > 0.5;
-    head.current.position.set(b.head - 4, b.y, b.z + 3);
+    const on = a > 0.01 && fx.p > 0.2;
+    head.current.position.set(b.head - b.h * 0.25, b.y, b.z);
+    head.current.scale.set(b.h * 0.42, b.h * 0.42, b.h * 0.3);
     head.current.material.color.setRGB(4 * a, 4.4 * a, 5 * a);
-    head.current.visible = core.current.visible;
+    head.current.visible = on;
     halo.current.position.copy(head.current.position);
-    halo.current.material.opacity = 0.9 * a * (fx.moving ? 1 : 0.6);
-    halo.current.scale.setScalar(b.h * 3.4 * (1 + 0.08 * Math.sin(performance.now() / 60)));
-    light.current.position.set(b.head, b.y - 20, b.z + 45);
-    light.current.intensity = 9000 * a;
+    halo.current.material.opacity = 0.85 * a * (fx.moving ? 1 : 0.55);
+    halo.current.scale.setScalar(b.h * 3.6 * (1 + 0.08 * Math.sin(performance.now() / 60)));
+    halo.current.visible = on;
+    light.current.position.set(b.head, b.y, b.z + 40);
+    light.current.intensity = 14000 * a * fx.k;
   });
   return (
     <>
-      <mesh ref={core} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[1, 1, 1, 18, 1]} />
-        <meshBasicMaterial {...additive} />
-      </mesh>
       <mesh ref={head}>
-        <sphereGeometry args={[5, 20, 16]} />
+        <sphereGeometry args={[1, 24, 16]} />
         <meshBasicMaterial {...additive} />
       </mesh>
       <sprite ref={halo}>
         <spriteMaterial map={tex} {...additive} />
       </sprite>
-      <pointLight ref={light} color="#4f8dff" distance={900} decay={2} />
+      <pointLight ref={light} color="#4f8dff" distance={1400} decay={2} />
     </>
   );
 }
@@ -93,11 +88,11 @@ function Driver() {
     fx.render = () => advance(performance.now() / 1000);
     // Préchauffage : compile shaders, géométries et carte d'environnement hors écran
     fx.warm = true;
-    Object.assign(fx, { k: 1, p: 60, arch: 1, as: 1, blue: 1 });
+    Object.assign(fx, { k: 1, p: 60, old: 30, arch: 1, as: 1, blue: 1, rail: 1, ground: 1 });
     fx.render();
     gl.compile(scene, camera);
     fx.render();
-    Object.assign(fx, { k: 0, p: 0, arch: 0, as: 0, blue: 0 });
+    Object.assign(fx, { k: 0, p: 0, old: 0, arch: 0, as: 0, blue: 0, rail: 0, ground: 0 });
     fx.warm = false;
     fx.ready = true;
     return () => { fx.ready = false; fx.render = null; };
@@ -113,7 +108,7 @@ export default function Scene3D() {
       dpr={[1, 1.75]}
       gl={{ alpha: true, antialias: false, powerPreference: 'high-performance', premultipliedAlpha: true }}
       style={{ position: 'fixed' }}
-      onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+      onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); gl.localClippingEnabled = true; }}
     >
       <Suspense fallback={null}>
         <Environment resolution={128} frames={1}>
@@ -124,7 +119,8 @@ export default function Scene3D() {
         </Environment>
         <Rig>
           <Lights />
-          <EnergyBar />
+          <Track />
+          <EnergyHead />
           <Sparks />
           <Arch />
         </Rig>

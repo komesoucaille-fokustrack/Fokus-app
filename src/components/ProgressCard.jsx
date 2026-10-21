@@ -9,7 +9,7 @@ const plural = (n, w) => w + (n > 1 ? 's' : '');
 const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
   const r = {
     card: useRef(null), pct: useRef(null), pwrap: useRef(null), pbar: useRef(null), fill: useRef(null),
-    blue: useRef(null), glow: useRef(null), head: useRef(null), end: useRef(null), rail: useRef(null),
+    blue: useRef(null), glow: useRef(null),
   };
 
   const paintBar = (p, flash) => {
@@ -33,7 +33,6 @@ const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
 
   return (
     <div className="card" id="pcard" ref={r.card}>
-      <div className="slab fx sb" /><div className="slab fx st" /><div className="slab fx sl" /><div className="slab fx sr" />
       <div className="flex items-end justify-between gap-2">
         <div>
           <div className="text-[13px] text-mut">Aujourd’hui</div>
@@ -46,9 +45,6 @@ const ProgressCard = forwardRef(function ProgressCard({ s, busy }, ref) {
       <div id="pwrap" ref={r.pwrap}>
         <div id="glow" ref={r.glow} />
         <div id="pbar" ref={r.pbar}><div id="pfill" ref={r.fill}><div id="pblue" ref={r.blue} /></div></div>
-        <div id="rail" className="fx" ref={r.rail} />
-        <i className="mark" ref={r.head} style={{ left: 0 }} />
-        <i className="mark" ref={r.end} style={{ left: '100%' }} />
       </div>
     </div>
   );
