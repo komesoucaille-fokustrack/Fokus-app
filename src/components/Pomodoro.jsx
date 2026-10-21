@@ -79,7 +79,13 @@ function Stage({ full, onFull, onExit }) {
 
   return (
     <div className={'stage ' + (full ? 'full ' : '') + (full && idle ? 'idle' : '')} style={{ background: bg.back || bg.css || '#050505', color: bg.ink }}>
-      {bg.img && <img className="stage-img" src={bg.img} alt="" decoding="async" style={{ objectPosition: bg.pos, objectFit: bg.fit || 'cover' }} />}
+      {bg.img && (
+        <picture key={bg.id}>
+          {bg.portrait && <source media="(orientation: portrait)" srcSet={bg.portrait} />}
+          <img className="stage-img" src={bg.img} alt="" decoding="async" style={{ objectPosition: bg.pos, objectFit: bg.fit || 'cover' }} />
+        </picture>
+      )}
+      {bg.by && <span className="stage-credit">Photo : {bg.by} · Unsplash</span>}
       {bg.concept && <Concept kind={bg.concept} a={a} b={b} frac={frac} phase={p.phase} />}
       {scrim && <div className="stage-scrim" style={{ background: `radial-gradient(ellipse at 50% 50%, ${scrim}, ${scrim.replace(/[\d.]+\)$/, (m) => Math.min(0.85, parseFloat(m) + 0.2) + ')')})` }} />}
       <div className="stage-in">
@@ -192,7 +198,7 @@ export default function Pomodoro() {
         </div>
         <div className="drow mt-3 items-start!">
           <span className="dlab pt-2">Fond</span>
-          <BgPicker />
+          <BgPicker onPick={() => scrollTo({ top: 0, behavior: 'smooth' })} />
         </div>
         <div className="drow mt-4 items-start!">
           <span className="dlab pt-2">Durées</span>
@@ -209,7 +215,7 @@ export default function Pomodoro() {
 }
 
 /* Choix du fond (aussi dans les Réglages) */
-export function BgPicker() {
+export function BgPicker({ onPick }) {
   const { S } = useStore();
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -218,7 +224,7 @@ export function BgPicker() {
           <div className="mb-1.5 text-[12px] font-semibold tracking-wide text-mut uppercase">{label}</div>
           <div className="bgpick">
             {BGS.filter((b) => b.group === g).map((b) => (
-              <button key={b.id} type="button" className={'bgt ' + (S.set.bg === b.id ? 'on' : '')} onClick={() => setSetting('bg', b.id)} title={b.name} aria-label={'Fond : ' + b.name}>
+              <button key={b.id} type="button" className={'bgt ' + (S.set.bg === b.id ? 'on' : '')} onClick={() => { setSetting('bg', b.id); onPick?.(); }} title={b.by ? `${b.name} — photo : ${b.by} (Unsplash)` : b.name} aria-label={'Fond : ' + b.name}>
                 {b.img
                   ? <img src={thumbOf(b)} alt="" loading="lazy" decoding="async" />
                   : b.concept

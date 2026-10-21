@@ -94,8 +94,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   Anneau, Minimal. Fonds (`lib/backgrounds.js`, groupes Concepts / Photos / Dégradés) choisis dans l'onglet ou les Réglages :
   **Concepts** (`Concepts.jsx`, 100 % vectoriels donc nets en 4K, le temps fait partie du décor) : Affiche GT (le « 911 » remplacé par le
   chrono en Oswald ton sur ton, voiture détourée `public/bg/gt-car.webp`), Bauhaus, Horizon (soleil qui se couche avec la session),
-  Marée (niveau qui monte, chrono en `mix-blend-mode: difference`), Topographie. **Photos** : uniquement en haute définition
-  (`public/bg/`, + `-mini` pour les vignettes) — pas de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
+  Marée (niveau qui monte, chrono en `mix-blend-mode: difference`), Topographie. **Photos** : uniquement en haute définition —
+  22 photos (Salon orange, GT verte + 20 photos Unsplash `p01`…`p20`, licence libre, crédit affiché) en WebP : paysage 2560 px (`-L`),
+  portrait 1290×2796 recadré (`-P`, via `<picture>`), vignette `-mini.jpg` ; même DA (intérieurs mid-century chauds, vert profond,
+  noir et blanc, brume, voitures, horloges à palettes). Jamais de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
 - Validation : gros bouton flottant (gain par points en vert pastel `#86efac`), puis toast « X tâche(s) validée(s) — Annuler » (6 s, après
   l'animation) ; ↺ décoche une tâche terminée ; « Annuler » après suppression. Textes de la carte : `cardText()` (partagé avec la face 3D :
@@ -132,8 +134,6 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 ## Idées pour plus tard (à rediscuter avec l'utilisateur)
 
 - Catégories de tâches (sport, travail, devoirs…), distinctes ou évoluées à partir des étiquettes.
-- 20 photos HD supplémentaires pour le Pomodoro, même DA que les visuels fournis (intérieurs mid-century chauds, vert profond,
-  noir et blanc, nature brumeuse, voitures, horloges à palettes) : nécessite l'accès réseau à `unsplash.com` / `images.unsplash.com`.
 
 ## Workflow
 
