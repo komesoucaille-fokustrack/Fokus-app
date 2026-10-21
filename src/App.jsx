@@ -11,6 +11,9 @@ import MorningTriage from './components/MorningTriage';
 import WeeklyReview from './components/WeeklyReview';
 import Pomodoro from './components/Pomodoro';
 import Upcoming from './components/Upcoming';
+import Hello from './components/Hello';
+import Ambiance from './components/Ambiance';
+import { getColorForPercentage } from './lib/colors';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
@@ -124,7 +127,7 @@ export default function App() {
   const s = stats(S.tasks);
   const text = cardText(S);
   const [load3D, setLoad3D] = useState(false);
-  const card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
+  const hello = useRef(null), card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
   useMidnight();
   usePomodoro();
   const fmt = scoreFmt(S);
@@ -172,7 +175,7 @@ export default function App() {
       if (r.top < 0 || r.bottom > innerHeight) scrollTo({ top: 0, behavior: 'instant' });
       setBusy(true);
       race(
-        { ...c, subText, bg: [document.getElementById('hdr'), form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
+        { ...c, subText, bg: [document.getElementById('hdr'), hello.current, form.current, tools.current], list: list.current, dim: dim.current, skip: skipBtn.current, canvas: document.getElementById('scene3d') },
         old, nw, () => { setBusy(false); afterValidate(ids); }, { confetti: confettiAt100, fmt: scoreFmt(getState()) },
       );
     } else {
@@ -212,6 +215,7 @@ export default function App() {
 
   return (
     <>
+      <Ambiance S={S} />
       <div id="grain" aria-hidden="true" />
 
       {UI.update && (
@@ -223,9 +227,11 @@ export default function App() {
 
       <Header />
 
-      <main className="mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
+      <main className="relative z-[1] mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (
-          <section ref={page} key="p1">
+          <section ref={page} key="p1" className="relative">
+            <Hello ref={hello} S={S} />
+            <div className={'aura ' + (UI.busy ? 'off' : '')} style={{ '--aura': getColorForPercentage(s.p) }} aria-hidden="true" />
             <ProgressCard ref={card} s={s} text={text} busy={UI.busy} fmt={fmt} />
             <div ref={form}>
               <QuickAdd ref={input} allowRec placeholder="Ajouter une tâche… (ex. « Sport demain #santé »)" />

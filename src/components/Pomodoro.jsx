@@ -215,16 +215,27 @@ export default function Pomodoro() {
 }
 
 /* Choix du fond (aussi dans les Réglages) */
-export function BgPicker({ onPick }) {
+export function BgPicker({ onPick, value, onChange, extra = [] }) {
   const { S } = useStore();
+  const cur = value ?? S.set.bg;
+  const pick = (id) => { (onChange || ((v) => setSetting('bg', v)))(id); onPick?.(); };
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
+      {extra.length > 0 && (
+        <div className="bgpick">
+          {extra.map(([id, name, css]) => (
+            <button key={id} type="button" className={'bgt ' + (cur === id ? 'on' : '')} onClick={() => pick(id)} aria-label={name}>
+              <span style={{ background: css }} /><em>{name}</em>
+            </button>
+          ))}
+        </div>
+      )}
       {BG_GROUPS.map(([g, label]) => (
         <div key={g}>
           <div className="mb-1.5 text-[12px] font-semibold tracking-wide text-mut uppercase">{label}</div>
           <div className="bgpick">
             {BGS.filter((b) => b.group === g).map((b) => (
-              <button key={b.id} type="button" className={'bgt ' + (S.set.bg === b.id ? 'on' : '')} onClick={() => { setSetting('bg', b.id); onPick?.(); }} title={b.by ? `${b.name} — photo : ${b.by} (Unsplash)` : b.name} aria-label={'Fond : ' + b.name}>
+              <button key={b.id} type="button" className={'bgt ' + (cur === b.id ? 'on' : '')} onClick={() => pick(b.id)} title={b.by ? `${b.name} — photo : ${b.by} (Unsplash)` : b.name} aria-label={'Fond : ' + b.name}>
                 {b.img
                   ? <img src={thumbOf(b)} alt="" loading="lazy" decoding="async" />
                   : b.concept

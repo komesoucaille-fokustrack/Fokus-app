@@ -188,7 +188,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
         <button type="button" className="t tbtn" onClick={() => setOpen(t.id)} aria-expanded={open} title="Options de la tâche">
           <span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
           <span className="meta">
-            <span className={'chip pts ' + (t.weight === 3 ? 'w3' : '')}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>
+            <span className={'chip pts w' + t.weight}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>
             {t.carried >= 2 && <span className="chip warn">reportée {t.carried}×</span>}
             {tags.map((g) => <TagChip key={g.id} tag={g} small />)}
             {t.subs.length > 0 && (
@@ -288,7 +288,13 @@ export default function TaskList({ tasks, sel, busy, mode = 'today', empty }) {
           />
         ))
       ) : (
-        <div className="py-6 text-center text-mut">{empty ?? 'Aucune tâche. Ajoutez-en une ci-dessus.'}</div>
+        empty ? <div className="py-6 text-center text-mut">{empty}</div> : (
+          <div className="empty">
+            <span className="empty-i" aria-hidden="true">✓</span>
+            <b>Page blanche.</b>
+            <span>Ajoute ta première tâche au-dessus — ou savoure le calme.</span>
+          </div>
+        )
       )}
     </ul>
   );

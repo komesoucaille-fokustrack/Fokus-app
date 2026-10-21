@@ -24,9 +24,9 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
-    // page : réseau d'abord (contenu à jour), cache si hors ligne
+    // page : réseau d'abord en contournant le cache HTTP (GitHub Pages le garde 10 min) → mises à jour immédiates
     e.respondWith(
-      fetch(req)
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./', copy)); return res; })
         .catch(() => caches.match('./').then((r) => r || caches.match('./index.html'))),
     );

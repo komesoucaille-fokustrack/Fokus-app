@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { Gear } from './Settings';
 import { pomoElapsed, setModal, setPage, useStore } from '../store';
@@ -59,6 +60,23 @@ export default function Header() {
   const p = S.pomo, left = p && p.paused == null ? Math.max(0, Math.ceil(p.dur - pomoElapsed(p))) : null;
   const live = left != null && UI.page !== 4 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
   useTick(left != null && UI.page !== 4);
+
+  // pastille blanche qui glisse sous l'onglet actif
+  const nav = useRef(null), ind = useRef(null), first = useRef(true);
+  useLayoutEffect(() => {
+    const place = (anim) => {
+      const b = nav.current?.querySelector(`[data-p="${UI.page}"]`);
+      if (!b) return;
+      const to = { x: b.offsetLeft, y: b.offsetTop, width: b.offsetWidth, height: b.offsetHeight };
+      if (anim) gsap.to(ind.current, { ...to, duration: 0.55, ease: 'expo.out' });
+      else gsap.set(ind.current, to);
+    };
+    place(!first.current);
+    first.current = false;
+    const ro = new ResizeObserver(() => place(false));
+    ro.observe(nav.current);
+    return () => ro.disconnect();
+  }, [UI.page, live, upcoming]);
   return (
     <header
       id="hdr"
@@ -66,17 +84,16 @@ export default function Header() {
       style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
     >
       <FokusLogo />
-      <nav className="flex flex-wrap items-center gap-2">
-        <button className={'b ' + (UI.page === 1 ? 'on' : '')} onClick={() => setPage(1)}>Mes Tâches</button>
-        <button className={'b ' + (UI.page === 3 ? 'on' : '')} onClick={() => setPage(3)}>
-          À venir{upcoming > 0 && <span className="ml-1.5 text-[12px] opacity-60 tabular-nums">{upcoming}</span>}
-        </button>
-        <button className={'b ' + (UI.page === 4 ? 'on' : '')} onClick={() => setPage(4)}>
-          Pomodoro{live && <span className="ml-1.5 text-[12px] opacity-70 tabular-nums">{live}</span>}
-        </button>
-        <button className={'b ' + (UI.page === 2 ? 'on' : '')} onClick={() => setPage(2)}>Ma Progression</button>
+      <nav className="navseg" ref={nav}>
+        <i className="navind" ref={ind} aria-hidden="true" />
+        {[[1, 'Mes Tâches', 'Tâches'], [3, 'À venir', 'À venir', upcoming || ''], [4, 'Pomodoro', 'Pomodoro', live], [2, 'Ma Progression', 'Progrès']].map(([n, l, sl, x]) => (
+          <button key={n} data-p={n} className={UI.page === n ? 'on' : ''} onClick={() => setPage(n)} aria-current={UI.page === n ? 'page' : undefined}>
+            <span className="hidden sm:inline">{l}</span><span className="sm:hidden">{sl}</span>
+            {x ? <span className="ml-1 text-[11px] opacity-60 tabular-nums">{x}</span> : null}
+          </button>
+        ))}
       </nav>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 sm:order-none">
         <button className="b icon-b" onClick={() => open('search')} aria-label="Rechercher" title="Rechercher (/)"><Loupe /></button>
         {canFull && <button className={'b icon-b ' + (full ? 'on' : '')} onClick={toggleFullscreen} aria-label="Plein écran"><FullIcon exit={full} /><span className="ml-1.5 hidden sm:inline">{full ? 'Quitter le plein écran' : 'Plein écran'}</span></button>}
         <button className={'b icon-b ' + (UI.modal === 'settings' ? 'on' : '')} onClick={() => open('settings')} aria-label="Réglages" title="Réglages"><Gear /></button>

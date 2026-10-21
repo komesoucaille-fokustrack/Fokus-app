@@ -16,7 +16,11 @@ Claude gère 100 % du code, des builds et du déploiement. Chaque push sur `main
 
 - Fonds multicouches : `#050505` (page) → `#0c0c0e` (conteneurs) → `#121215` (cartes) → `#1a1a1f` (survol).
 - Bordures spéculaires brillantes : `rgba(255,255,255,0.1)` + reflet interne `inset 0 1px 0 rgba(255,255,255,.14)`.
-- Typographie Inter, `tabular-nums` sur tous les chiffres. Accents de couleur uniquement pour la progression (pastels) et l'animation (bleu électrique).
+- Typographie Inter, `tabular-nums` sur tous les chiffres. Accents de couleur : progression (pastels), animation (bleu électrique),
+  priorités (or), points (pastels discrets), et **ambiance** de l'app (`Ambiance.jsx` : photo/couleur choisie, très floutée et
+  assombrie, calque fixe derrière l'interface ; réglage Apparence, défaut « Forêt sombre » `p12`). Cartes de tâches en verre léger
+  (`rgba(18,18,21,.74)`), carte du jour `#pcard` toujours opaque (relais 3D). En-tête éditorial `Hello.jsx` (date, salutation, résumé),
+  halo `.aura` couleur de la progression, navigation en pastille glissante (`.navseg`/`.navind`).
 - Courbes d'animation « spring » : `cubic-bezier(.22,1,.36,1)`. Tout doit rester fluide sur iPad (Safari, tactile, 60 fps).
 
 ## Barre de progression (Page 1) — dégradés pastel par palier

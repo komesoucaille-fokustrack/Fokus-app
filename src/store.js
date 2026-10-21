@@ -21,6 +21,7 @@ export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '
 export const DEF_SET = {
   threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
   pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 'noir',
+  amb: 'p12', ambLevel: 2,
   remind: false, remindAt: '20:00', pomoNotif: false,
   showStreak: true, showBadges: true, morning: true,
 };

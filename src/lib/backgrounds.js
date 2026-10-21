@@ -3,14 +3,13 @@
    flip = cartes claires ou sombres ; pos = cadrage de la photo. Les concepts affichent leur propre chrono. */
 export const BGS = [
   // Concepts
-  { id: 'c-gt', group: 'concept', name: 'Affiche GT', concept: 'gt', ink: '#e7efe9', flip: 'dark' },
-  { id: 'c-bauhaus', group: 'concept', name: 'Bauhaus', concept: 'bauhaus', ink: '#141414', flip: 'light' },
-  { id: 'c-horizon', group: 'concept', name: 'Horizon', concept: 'horizon', ink: '#fff', flip: 'dark' },
-  { id: 'c-maree', group: 'concept', name: 'Marée', concept: 'maree', ink: '#fff', flip: 'dark', blend: true },
-  { id: 'c-topo', group: 'concept', name: 'Topographie', concept: 'topo', ink: '#efe6d2', flip: 'dark' },
+  { id: 'c-gt', group: 'concept', name: 'Affiche GT', concept: 'gt', ink: '#e7efe9', flip: 'dark', amb: 'radial-gradient(ellipse at 40% 20%, #3a5444, #1b2a21 55%, #0b120e)' },
+  { id: 'c-bauhaus', group: 'concept', name: 'Bauhaus', concept: 'bauhaus', ink: '#141414', flip: 'light', amb: 'radial-gradient(ellipse at 70% 15%, #e2662c, #6b2a12 35%, #1a120d 70%)' },
+  { id: 'c-horizon', group: 'concept', name: 'Horizon', concept: 'horizon', ink: '#fff', flip: 'dark', amb: 'linear-gradient(180deg, #2b3f58, #8a5a68 45%, #c8794f 70%, #16302b)' },
+  { id: 'c-maree', group: 'concept', name: 'Marée', concept: 'maree', ink: '#fff', flip: 'dark', blend: true, amb: 'radial-gradient(ellipse at 50% 110%, #e9e1d2, #3c3a35 40%, #0b0f0d 75%)' },
+  { id: 'c-topo', group: 'concept', name: 'Topographie', concept: 'topo', ink: '#efe6d2', flip: 'dark', amb: 'radial-gradient(ellipse at 50% 30%, #2c4a37, #0d1812 70%)' },
   // Photos
   { id: 'salon-orange', group: 'photo', name: 'Salon orange', img: 'bg/salon-orange.jpg', pos: '50% 55%', ink: '#fff3e6', scrim: ['dark', 0.35], flip: 'dark' },
-  { id: 'gt-vert', group: 'photo', name: 'GT verte', img: 'bg/gt-vert.jpg', pos: '50% 60%', ink: '#eef3ee', scrim: ['dark', 0.2], flip: 'dark' },
   // Photos haute définition (Unsplash, licence libre) : version paysage 2560 px + version portrait 1290×2796
   { id: 'p01', group: 'photo', name: 'Lampe ambrée', by: 'Apekshit Srivastava', img: 'bg/p01-L.webp', portrait: 'bg/p01-P.webp', ink: '#fff', scrim: ['dark', 0.32], flip: 'dark' },
   { id: 'p02', group: 'photo', name: 'Salon rouge', by: 'The Grid Rooms', img: 'bg/p02-L.webp', portrait: 'bg/p02-P.webp', ink: '#fff', scrim: ['dark', 0.32], flip: 'dark' },

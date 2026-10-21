@@ -22,6 +22,7 @@ export function Gear() {
 
 /* Icônes de rubrique (trait fin, cohérentes avec le reste de l'interface) */
 const ICONS = {
+  look: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.4-4-7.6-9-7.6z M7.5 11h.01 M10.5 7.5h.01 M15 7.5h.01',
   score: 'M4 19V9 M10 19V5 M16 19v-7 M22 19H2',
   motiv: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
   pomo: 'M12 8v5l3 2 M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M9 2h6',
@@ -31,7 +32,7 @@ const ICONS = {
   data: 'M12 3v12 M7 10l5 5 5-5 M4 21h16',
 };
 const SECTIONS = [
-  ['score', 'Score et affichage'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
+  ['look', 'Apparence'], ['score', 'Score et affichage'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
   ['notif', 'Rappels'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
 const Ico = ({ k }) => (
@@ -250,12 +251,28 @@ function Data({ S, close }) {
   );
 }
 
-const BODY = { score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, tags: Tags, data: Data };
+function Look({ S }) {
+  const st = S.set;
+  return (
+    <>
+      <Group title="Ambiance de l’app" foot="Une photo ou une couleur, très floutée et assombrie, derrière toute l’interface. Elle ne ralentit pas l’app.">
+        <Item title="Intensité">
+          {[[1, 'Subtile'], [2, 'Moyenne'], [3, 'Intense']].map(([v, l]) => <Seg key={v} on={(st.ambLevel ?? 2) === v} onClick={() => setSetting('ambLevel', v)}>{l}</Seg>)}
+        </Item>
+        <div className="si col">
+          <BgPicker value={st.amb} onChange={(v) => setSetting('amb', v)} extra={[['pomo', 'Comme le Pomodoro', 'linear-gradient(135deg,#2a2a30,#0c0c0e)'], ['none', 'Aucune (noir)', '#050505']]} />
+        </div>
+      </Group>
+    </>
+  );
+}
+
+const BODY = { look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, tags: Tags, data: Data };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {
   const { S } = useStore();
-  const [sec, setSec] = useState('score');
+  const [sec, setSec] = useState('look');
   const body = useRef(null);
   const close = () => setModal(null);
   useLayoutEffect(() => {
