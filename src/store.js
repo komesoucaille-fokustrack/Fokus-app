@@ -25,7 +25,7 @@ export const DEF_SET = {
   threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
   pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 'noir',
   amb: 'p12', ambLevel: 2,
-  remind: false, remindAt: '20:00', pomoNotif: false, push: false,
+  remind: false, remindAt: '20:00', pomoNotif: false, push: false, pushUrl: '',
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00',
@@ -369,6 +369,21 @@ export function addTask({ text, date, weight, prio, tags = [], est = 0, time = n
 }
 const patch = (id, f) => set({ tasks: S.tasks.map((t) => (t.id === id ? { ...t, ...(typeof f === 'function' ? f(t) : f) } : t)) });
 export const editTask = (id, text) => patch(id, { text });
+export const setTaskField = (id, f) => patch(id, f);
+/* Pomodoros faits sur une tâche, calculés depuis le temps de concentration crédité */
+export const pomosDone = (t, St = S) => Math.floor((t.focus || 0) / Math.max(1, St.set.pomo) + 0.05);
+/* Durée d'une tâche (chronologie, surcharge) : durée ajustée, sinon estimation, sinon durée par défaut */
+export const taskDur = (t, St = S) => t.dur || (t.est ? t.est * St.set.pomo : St.set.defDur);
+/* Total estimé du jour (tâches restantes ou faites) et temps fait */
+export function dayLoad(St = S, k = K(new Date(Date.now() + St.off * 864e5))) {
+  let est = 0, done = 0, any = false;
+  for (const t of St.tasks) {
+    if (!isToday(t, k)) continue;
+    if (t.est) { any = true; est += t.est * St.set.pomo; }
+    done += t.focus || 0;
+  }
+  return { est, done, any };
+}
 export const setWeight = (id, weight) => patch(id, { weight: W(weight) });
 export function togglePrio(id) {
   const t = S.tasks.find((x) => x.id === id);
@@ -475,6 +490,11 @@ export function afterValidate(ids) {
 
 export const setAnim = (anim) => set({ anim });
 export const setConfetti = (confetti) => set({ confetti });
+/* Notifications push : identifiant aléatoire de l'appareil (adresse auprès du serveur, sans lien avec les données) */
+export function ensurePushId() {
+  if (!S.pushId) set({ pushId: Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 28) });
+  return S.pushId;
+}
 export function setSetting(k, v) {
   set({ set: { ...S.set, [k]: v } });
   // minuteur prêt (pas encore lancé) : la nouvelle durée s'applique tout de suite

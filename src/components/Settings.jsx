@@ -1,13 +1,14 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Sheet from './Sheet';
 import { BgPicker, Durations } from './Pomodoro';
 import { CLOCKS } from './Clocks';
 import {
   PASTELS, addTag, deleteTag, exportJSON, importJSON, jokersLeft, recolorTag, renameTag, resetAll, setAnim, setConfetti, setModal,
-  setSetting, toast, todayKey, useStore,
+  setSetting, toast, todayKey, useStore, ensurePushId, getState,
 } from '../store';
-import { askPermission, canNotify } from '../lib/notify';
+import { configurePush, disablePush, enablePush, pushStatus, testPush } from '../lib/push';
+import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
 
 /* Rouage (icône paramètres) */
@@ -158,30 +159,77 @@ function Anim({ S }) {
   );
 }
 
+const REASONS = {
+  homescreen: 'Ajoute d’abord Fokus à l’écran d’accueil (Partager → « Sur l’écran d’accueil »), puis ouvre-le depuis son icône.',
+  unsupported: 'Cet appareil ne propose pas les notifications web (iPadOS / iOS 16.4 ou plus requis).',
+  denied: 'Notifications refusées : autorise-les dans Réglages de l’iPad → Notifications → Fokus.',
+  server: 'Serveur de notifications injoignable (ou pas encore configuré).',
+  off: 'Notifications désactivées.',
+};
+
 function Notif({ S }) {
   const st = S.set;
-  const ask = async (on) => {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const refresh = () => pushStatus().then(setStatus);
+  useEffect(() => { refresh(); }, [st.push, st.pushUrl, S.pushId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggle = async (on) => {
+    setBusy(true);
     if (on) {
-      const p = await askPermission();
-      if (p !== 'granted') toast(p === 'unsupported' ? 'Notifications non disponibles ici (sur iPhone : ajoute Fokus à l’écran d’accueil).' : 'Notifications refusées : autorise-les dans les réglages du navigateur.', null, 5000);
-    }
-    return on;
+      ensurePushId();
+      configurePush(getState().set.pushUrl, getState().pushId);
+      const r = await enablePush();
+      if (r.ok) { setSetting('push', true); toast('Notifications actives ✓'); }
+      else { setSetting('push', false); toast(REASONS[r.reason] || 'Activation impossible.', null, 6000); }
+    } else { await disablePush(); setSetting('push', false); }
+    setBusy(false);
+    refresh();
   };
+  const test = async () => {
+    const r = await testPush();
+    toast(r && r.ok ? 'Notification envoyée : elle arrive dans quelques secondes.' : 'Échec de l’envoi. Vérifie l’état ci-dessus.', null, 4500);
+  };
+  const active = st.push && status?.active;
   return (
-    <Group
-      title="Notifications"
-      foot={'Sur iPhone et iPad, les notifications ne fonctionnent que si Fokus est ajouté à l’écran d’accueil (Partager → « Sur l’écran d’accueil », iOS 16.4 ou plus). '
-        + 'Fokus n’a pas de serveur d’envoi : les rappels partent de l’app elle-même, ils ne sont fiables que si elle a été ouverte récemment.'
-        + (canNotify() ? '' : ' Ce navigateur ne propose pas les notifications.')}
-    >
-      <Item title="Rappel du soir" desc="« Il te reste 3 tâches, 60 % aujourd’hui »"><Switch label="Rappel du soir" checked={st.remind} onChange={async (v) => setSetting('remind', await ask(v))} /></Item>
-      {st.remind && (
-        <Item title="Heure du rappel">
-          <input type="time" className="field mini w-[120px]! flex-none!" value={st.remindAt} onChange={(e) => e.target.value && setSetting('remindAt', e.target.value)} />
+    <>
+      <Group
+        title="Notifications"
+        foot={'Elles arrivent même quand Fokus est fermé ou l’iPad verrouillé : un petit serveur les envoie à l’heure prévue. '
+          + 'Sur iPad et iPhone, il faut ajouter Fokus à l’écran d’accueil (Partager → « Sur l’écran d’accueil », iPadOS / iOS 16.4 ou plus), l’ouvrir depuis son icône, puis autoriser les notifications. '
+          + 'Le serveur ne garde que l’abonnement de l’appareil, l’heure et le texte des notifications : aucune tâche, aucun historique.'}
+      >
+        <Item title="État" desc={active ? 'Notifications actives' : status ? REASONS[status.reason] || 'Inactives' : 'Vérification…'}>
+          <span className={'pstate ' + (active ? 'on' : '')}>{active ? '● Actives' : '○ Inactives'}</span>
         </Item>
-      )}
-      <Item title="Fin de phase du Pomodoro" desc="Quand l’app est en arrière-plan"><Switch label="Notification de fin de phase" checked={st.pomoNotif} onChange={async (v) => setSetting('pomoNotif', await ask(v))} /></Item>
-    </Group>
+        <Item title="Notifications (même app fermée)" desc="Fin de phase du Pomodoro et rappel du soir">
+          <Switch label="Activer les notifications" checked={!!st.push} onChange={(v) => !busy && toggle(v)} />
+        </Item>
+        {st.push && (
+          <Item title="Tester" desc="Une notification arrive dans quelques secondes">
+            <button type="button" className="b" onClick={test}>Envoyer une notification de test</button>
+          </Item>
+        )}
+      </Group>
+      <Group title="Quoi et quand">
+        <Item title="Fin de phase du Pomodoro" desc="Seulement quand Fokus n’est pas à l’écran (sinon, le carillon suffit)">
+          <Switch label="Notification de fin de phase" checked={st.pomoNotif} onChange={(v) => setSetting('pomoNotif', v)} />
+        </Item>
+        <Item title="Rappel du soir" desc="« Il te reste 3 tâches, 60 % aujourd’hui » — rien s’il ne reste aucune tâche">
+          <Switch label="Rappel du soir" checked={st.remind} onChange={(v) => setSetting('remind', v)} />
+        </Item>
+        {st.remind && (
+          <Item title="Heure du rappel">
+            <input type="time" className="field mini w-[120px]! flex-none!" value={st.remindAt} onChange={(e) => e.target.value && setSetting('remindAt', e.target.value)} />
+          </Item>
+        )}
+      </Group>
+      <Group title="Avancé" foot="Laisse vide pour utiliser le serveur de Fokus.">
+        <Item title="Adresse du serveur">
+          <input className="field mini w-[300px]! max-w-full" placeholder={PUSH_URL || 'https://fokus-push.….workers.dev'} defaultValue={st.pushUrl}
+            onBlur={(e) => setSetting('pushUrl', e.target.value.trim())} inputMode="url" autoCapitalize="off" />
+        </Item>
+      </Group>
+    </>
   );
 }
 

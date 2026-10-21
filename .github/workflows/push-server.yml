@@ -1,0 +1,43 @@
+# Déploie le serveur de notifications (server/) sur Cloudflare Workers.
+# Secrets du dépôt nécessaires : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID (voir README → Notifications).
+name: Serveur de notifications
+
+on:
+  push:
+    branches: [main]
+    paths: ['server/**', '.github/workflows/push-server.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier les secrets
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "Secrets Cloudflare absents : déploiement ignoré (voir README → Notifications)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 22
+      - name: Tester le chiffrement Web Push
+        if: steps.check.outputs.ok == 'true'
+        working-directory: server
+        run: npm ci && npm test
+      - name: Déployer sur Cloudflare
+        if: steps.check.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server
+          wranglerVersion: '4.151.3'

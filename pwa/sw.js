@@ -41,13 +41,24 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
-// tap sur une notification : ouvre (ou ramène) Fokus
+// notification programmée par le serveur (Web Push) : affichée même app fermée
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Fokus', {
+    body: d.body || '', tag: d.tag || 'fokus', renotify: true,
+    icon: './apple-touch-icon.png', badge: './apple-touch-icon.png', data: { url: d.url || './' },
+  }));
+});
+
+// tap sur une notification : ouvre (ou ramène) Fokus sur le bon onglet
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) if ('focus' in c) return c.focus();
-      return self.clients.openWindow('./');
+      for (const c of list) if ('focus' in c) { c.postMessage({ type: 'open', url }); return c.focus(); }
+      return self.clients.openWindow(url);
     }),
   );
 });

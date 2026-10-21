@@ -1,0 +1,23 @@
+# Serveur de notifications Fokus (Cloudflare Workers, offre gratuite)
+# Déployé automatiquement par .github/workflows/push-server.yml (secrets CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID).
+name = "fokus-push"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# Une instance « User » par appareil abonné (une alarme par notification programmée) + une instance « Keys » (clés VAPID)
+[[durable_objects.bindings]]
+name = "USERS"
+class_name = "User"
+
+[[durable_objects.bindings]]
+name = "KEYS"
+class_name = "Keys"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["User", "Keys"]
+
+[vars]
+ALLOWED_ORIGIN = "https://komesoucaille-fokustrack.github.io"
+CONTACT = "mailto:fokus@example.com"

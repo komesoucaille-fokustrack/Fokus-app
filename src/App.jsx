@@ -19,6 +19,7 @@ import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
 import { buzz, notify, setBadge } from './lib/notify';
 import { chime } from './lib/sound';
+import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
   moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter,
@@ -48,7 +49,7 @@ function prompts() {
 /* Rappel du soir (notification locale, une fois par jour, seulement s'il reste des tâches) */
 function eveningReminder() {
   const S = getState();
-  if (!S.set.remind || S.seen.remind === todayKey()) return;
+  if (!S.set.remind || S.set.push || S.seen.remind === todayKey()) return; // avec le push, le serveur s'en charge
   const d = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   if (hm < S.set.remindAt) return;
   const s = stats(), left = s.n - s.c;
@@ -66,7 +67,7 @@ function usePomodoro() {
         if (S.set.sound) chime(ended);
         buzz(200);
         const msg = ended === 'work' ? 'Session terminée, place à la pause.' : 'Pause terminée, on s’y remet ?';
-        if (S.set.pomoNotif && document.hidden) notify('Fokus — Pomodoro', msg);
+        if (S.set.pomoNotif && document.hidden && !S.set.push) notify('Fokus — Pomodoro', msg);
         else toast((ended === 'work' ? '🍅 ' : '☕ ') + msg);
       }
       const p = getState().pomo;
@@ -130,10 +131,25 @@ export default function App() {
   const hello = useRef(null), card = useRef(null), form = useRef(null), list = useRef(null), tools = useRef(null), dim = useRef(null), skipBtn = useRef(null), input = useRef(null);
   useMidnight();
   usePomodoro();
+  usePushSync();
   const fmt = scoreFmt(S);
 
   // Charge la scène 3D en arrière-plan (shaders précompilés avant le premier « Valider »)
   useEffect(() => { const t = setTimeout(() => setLoad3D(true), 250); return () => clearTimeout(t); }, []);
+
+  // Ouverture depuis une notification : ?page=4 (Pomodoro), ?ritual=evening (fermer ma journée)
+  useEffect(() => {
+    const go = (u) => {
+      const q = new URL(u, location.href).searchParams;
+      if (q.get('page')) setPage(+q.get('page') || 1);
+      if (q.get('ritual') === 'evening') setTimeout(() => setModal('evening'), 300);
+    };
+    go(location.href);
+    if (location.search.match(/page=|ritual=/)) history.replaceState(null, '', location.pathname);
+    const msg = (e) => { if (e.data?.type === 'open') go(e.data.url); };
+    navigator.serviceWorker?.addEventListener('message', msg);
+    return () => navigator.serviceWorker?.removeEventListener('message', msg);
+  }, []);
 
   // Tri du matin / bilan de la semaine / minuteur en cours, puis rappel d'export (tous les 7 jours)
   useEffect(() => {
