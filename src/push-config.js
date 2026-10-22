@@ -1,3 +1,3 @@
 /* Adresse du serveur de notifications (Cloudflare Worker « fokus-push », dossier server/).
    Renseignée après le premier déploiement ; modifiable aussi dans Réglages → Rappels (avancé). */
-export const PUSH_URL = '';
+export const PUSH_URL = 'https://fokus-push.kome-soucaille.workers.dev';

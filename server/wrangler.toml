@@ -20,4 +20,4 @@ new_sqlite_classes = ["User", "Keys"]
 
 [vars]
 ALLOWED_ORIGIN = "https://komesoucaille-fokustrack.github.io"
-CONTACT = "mailto:fokus@example.com"
+CONTACT = "https://komesoucaille-fokustrack.github.io/Fokus-app/"
