@@ -139,8 +139,15 @@
   .hc.jk { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
   .hc.pick { outline: 2px solid #fff; outline-offset: 1px; }
 
-  .badge { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--color-line); background: var(--color-cont); color: var(--color-mut); opacity: 0.4; filter: grayscale(1); min-height: 92px; }
-  .badge.got { opacity: 1; filter: none; color: #fff; background: var(--color-card); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+  .badge { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; text-align: center; padding: 12px 6px 10px; border-radius: 16px; border: 1px solid var(--color-line); background: rgba(255, 255, 255, 0.015); color: var(--color-mut); min-height: 128px; transition: transform 0.25s var(--ease-spring), background 0.2s; }
+  .badge:active { transform: scale(0.96); }
+  .badge .bname { font-size: 11.5px; line-height: 1.25; opacity: 0.55; }
+  .badge.part .bname { opacity: 0.8; }
+  .badge .bval { font-style: normal; font-size: 11px; font-variant-numeric: tabular-nums; color: #d4d4d8; }
+  .badge.got { color: #fff; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+  .badge.got .bname { opacity: 1; }
+  .medal { flex-shrink: 0; }
+  .medal.got { filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55)); }
 
   /* ---------- Carte de progression ---------- */
   #pcard { position: relative; }
@@ -589,16 +596,6 @@
   .est-pre .seg { min-height: 40px; padding: 0 10px; font-variant-numeric: tabular-nums; }
 }
 
-/* Badges : progression des badges verrouillés */
-@layer components {
-  .badge.got .bprog { display: none; }
-  .badge.part { opacity: 0.68; }
-  .bprog { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 80%; margin-top: 2px; filter: none; }
-  .bprog b { display: block; width: 100%; height: 3px; border-radius: 99px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-  .bprog i { display: block; height: 100%; border-radius: 99px; background: #86efac; }
-  .bprog em { font-style: normal; font-size: 10.5px; font-variant-numeric: tabular-nums; color: #d4d4d8; }
-}
-
 /* Notifications : message d'échec détaillé et diagnostic pas à pas */
 @layer components {
   .push-fail { margin: 6px 14px 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; color: #fca5a5; background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
@@ -608,4 +605,12 @@
   .pdiag li.ok b { color: #86efac; }
   .pdiag li.ko b, .pdiag li.ko span { color: #fca5a5; }
   .pdiag li em { grid-column: 2; font-style: normal; font-size: 12.5px; color: var(--color-mut); word-break: break-word; }
+}
+
+/* Icônes (Icons.jsx) : alignées sur le texte, jamais écrasées */
+@layer components {
+  .ico { flex-shrink: 0; display: inline-block; vertical-align: -0.15em; }
+  .toast-msg { display: inline-flex; align-items: center; gap: 9px; }
+  .toast-msg .ico { color: #c7d2fe; }
+  #skip { display: inline-flex; align-items: center; gap: 8px; }
 }

@@ -275,7 +275,7 @@ export function cardText(St = S) {
   if (s.prt) parts.push((typeof innerWidth !== 'undefined' && innerWidth < 480 ? '★ ' : 'Priorités : ') + `${s.pr}/${s.prt}`);
   if (St.set.showStreak) {
     const z = streaks(St);
-    if (z.cur || z.best) parts.push(`🔥 ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
+    if (z.cur || z.best) parts.push(`Série ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
   }
   const tasks = `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}`;
   return {
@@ -303,8 +303,8 @@ function nextToast() {
   setUI({ toast: t });
   if (t) tTimer = setTimeout(nextToast, t.ms);
 }
-export function toast(msg, action, ms) {
-  const t = { id: uid(), msg, action, ms: ms || (action ? 6000 : 3200) };
+export function toast(msg, action, ms, icon) {
+  const t = { id: uid(), msg, action, icon, ms: ms || (action ? 6000 : 3200) };
   if (action) { tq = tq.filter((x) => !x.action); tq.unshift(t); } else tq.push(t);
   if (UI.busy) return; // affichée après l'animation
   if (action || !UI.toast) nextToast();
@@ -570,102 +570,148 @@ export function describeRule(rule) {
 /* ---------- Badges ----------
    Chaque badge : id (stable, déjà obtenu = gardé), cat (rubrique de la vitrine), icon, name, et
    goal + v(c) (valeur actuelle) → progression « 12 / 30 » tant qu'il est verrouillé. */
-export const BADGE_CATS = [['reg', 'Régularité'], ['top', 'Journées parfaites'], ['task', 'Tâches'], ['focus', 'Concentration'], ['habit', 'Habitudes']];
-const B = (cat, id, icon, name, goal, v) => ({ cat, id, icon, name, goal, v });
+export const BADGE_CATS = [['reg', 'Régularité'], ['top', 'Journées parfaites'], ['task', 'Tâches'], ['focus', 'Concentration'], ['habit', 'Habitudes'], ['fokus', 'Collection Fokus']];
+/* Paliers des médailles : 1 bronze, 2 argent, 3 or, 4 émeraude Fokus (légendaire) */
+export const TIERS = ['', 'Bronze', 'Argent', 'Or', 'Émeraude'];
+const B = (cat, id, icon, name, goal, v, tier = 1) => ({ cat, id, icon, name, goal, v, tier });
 export const BADGES = [
-  B('reg', 'streak3', '🌱', '3 jours de série', 3, (c) => c.z.best),
-  B('reg', 'streak7', '🔥', '7 jours de série', 7, (c) => c.z.best),
-  B('reg', 'streak14', '🔥', '14 jours de série', 14, (c) => c.z.best),
-  B('reg', 'streak30', '🔥', '30 jours de série', 30, (c) => c.z.best),
-  B('reg', 'streak60', '☄️', '60 jours de série', 60, (c) => c.z.best),
-  B('reg', 'streak100', '🏆', '100 jours de série', 100, (c) => c.z.best),
-  B('reg', 'streak365', '👑', 'Un an de série', 365, (c) => c.z.best),
-  B('reg', 'week1', '📅', 'Première semaine réussie', 1, (c) => c.z.weeksOk),
-  B('reg', 'week4', '🗓️', '4 semaines réussies', 4, (c) => c.z.weeksOk),
-  B('reg', 'week12', '🗓️', '12 semaines réussies', 12, (c) => c.z.weeksOk),
-  B('reg', 'comeback', '🔁', 'Retour en force : 100 % après une journée sous 50 %', 1, (c) => c.comeback),
-  B('top', 'first100', '💯', 'Première journée à 100 %', 1, (c) => c.perfect),
-  B('top', 'perfect10', '💯', '10 journées à 100 %', 10, (c) => c.perfect),
-  B('top', 'perfect50', '💎', '50 journées à 100 %', 50, (c) => c.perfect),
-  B('top', 'perfect3row', '✨', '3 journées à 100 % d’affilée', 3, (c) => c.perfectRow),
-  B('top', 'perfect7row', '🌟', '7 journées à 100 % d’affilée', 7, (c) => c.perfectRow),
-  B('top', 'weekend', '🏖️', 'Week-end au top : samedi et dimanche à 100 %', 1, (c) => c.weekend),
-  B('top', 'month80', '📈', 'Mois solide : 80 % de moyenne sur un mois', 1, (c) => c.month80),
-  B('task', 'tasks10', '✓', '10 tâches validées', 10, (c) => c.done),
-  B('task', 'tasks50', '✓', '50 tâches validées', 50, (c) => c.done),
-  B('task', 'tasks100', '✓', '100 tâches validées', 100, (c) => c.done),
-  B('task', 'tasks250', '✓✓', '250 tâches validées', 250, (c) => c.done),
-  B('task', 'tasks500', '✓✓', '500 tâches validées', 500, (c) => c.done),
-  B('task', 'tasks1000', '★', '1000 tâches validées', 1000, (c) => c.done),
-  B('task', 'tasks2500', '🚀', '2500 tâches validées', 2500, (c) => c.done),
-  B('task', 'day10', '⚡', '10 tâches en une journée', 10, (c) => c.dayMax),
-  B('task', 'pts20', '💪', '20 points en une journée', 20, (c) => c.ptsMax),
-  B('task', 'prio25', '⭐', '25 priorités tenues', 25, (c) => c.prio),
-  B('task', 'prio100', '🌠', '100 priorités tenues', 100, (c) => c.prio),
-  B('task', 'prioAll7', '🎯', '7 jours avec toutes les priorités tenues', 7, (c) => c.prioAll),
-  B('focus', 'pomo1', '🍅', 'Premier pomodoro terminé', 1, (c) => c.pomos),
-  B('focus', 'pomo25', '🍅', '25 pomodoros', 25, (c) => c.pomos),
-  B('focus', 'pomo100', '🍅', '100 pomodoros', 100, (c) => c.pomos),
-  B('focus', 'pomo500', '🏅', '500 pomodoros', 500, (c) => c.pomos),
-  B('focus', 'focus1', '⏱', '1 h de concentration', 60, (c) => c.focus),
-  B('focus', 'focus10', '⏱', '10 h de concentration', 600, (c) => c.focus),
-  B('focus', 'focus50', '⏳', '50 h de concentration', 3000, (c) => c.focus),
-  B('focus', 'focus100', '⌛', '100 h de concentration', 6000, (c) => c.focus),
-  B('focus', 'focus500', '🧠', '500 h de concentration', 30000, (c) => c.focus),
-  B('focus', 'deep90', '🧘', '90 min d’affilée en une session', 1, (c) => c.deep),
-  B('focus', 'flow1', '🌊', 'Premier chrono libre', 1, (c) => c.flow),
-  B('focus', 'day4h', '🔋', '4 h de concentration en un jour', 240, (c) => c.fmMax),
-  B('habit', 'early', '🌅', 'Lève-tôt : une session avant 7 h', 1, (c) => c.early),
-  B('habit', 'night', '🌙', 'Oiseau de nuit : une session après 22 h', 1, (c) => c.night),
-  B('habit', 'estim', '🎯', 'Bonne estimation : à 10 % près sur au moins 1 h', 1, (c) => c.estim),
-  B('habit', 'tags5', '🏷️', '5 étiquettes', 5, (c) => c.tags),
-  B('habit', 'rec3', '↻', '3 tâches récurrentes', 3, (c) => c.recs),
-  B('habit', 'backup', '💾', 'Première sauvegarde exportée', 1, (c) => c.backup),
-  B('habit', 'joker', '🃏', 'Premier joker utilisé', 1, (c) => c.joker),
-  B('habit', 'since30', '🎂', 'Un mois avec Fokus', 30, (c) => c.since),
-  B('habit', 'since365', '🎉', 'Un an avec Fokus', 365, (c) => c.since),
+  B('reg', 'streak3', 'sprout', '3 jours de série', 3, (c) => c.z.best, 1),
+  B('reg', 'streak7', 'flame', '7 jours de série', 7, (c) => c.z.best, 1),
+  B('reg', 'streak14', 'flame', '14 jours de série', 14, (c) => c.z.best, 2),
+  B('reg', 'streak30', 'flame', '30 jours de série', 30, (c) => c.z.best, 2),
+  B('reg', 'streak60', 'comet', '60 jours de série', 60, (c) => c.z.best, 3),
+  B('reg', 'streak100', 'trophy', '100 jours de série', 100, (c) => c.z.best, 3),
+  B('reg', 'streak200', 'trophy', '200 jours de série', 200, (c) => c.z.best, 4),
+  B('reg', 'streak365', 'crown', 'Un an de série', 365, (c) => c.z.best, 4),
+  B('reg', 'week1', 'calendar', 'Première semaine réussie', 1, (c) => c.z.weeksOk, 1),
+  B('reg', 'week4', 'calendar', '4 semaines réussies', 4, (c) => c.z.weeksOk, 2),
+  B('reg', 'week12', 'calendar', '12 semaines réussies', 12, (c) => c.z.weeksOk, 3),
+  B('reg', 'week26', 'layers', '26 semaines réussies', 26, (c) => c.z.weeksOk, 3),
+  B('reg', 'week52', 'crown', '52 semaines réussies', 52, (c) => c.z.weeksOk, 4),
+  B('reg', 'active30', 'sun', '30 jours actifs', 30, (c) => c.active, 1),
+  B('reg', 'active100', 'sun', '100 jours actifs', 100, (c) => c.active, 2),
+  B('reg', 'active365', 'sun', '365 jours actifs', 365, (c) => c.active, 4),
+  B('reg', 'comeback', 'repeat', 'Retour en force : 100 % après une journée sous 50 %', 1, (c) => c.comeback, 1),
+  B('reg', 'comeback5', 'repeat', '5 retours en force', 5, (c) => c.comeback, 3),
+  B('top', 'first100', 'target', 'Première journée à 100 %', 1, (c) => c.perfect, 1),
+  B('top', 'perfect10', 'target', '10 journées à 100 %', 10, (c) => c.perfect, 2),
+  B('top', 'perfect50', 'diamond', '50 journées à 100 %', 50, (c) => c.perfect, 3),
+  B('top', 'perfect100', 'diamond', '100 journées à 100 %', 100, (c) => c.perfect, 4),
+  B('top', 'perfect3row', 'sparkle', '3 journées à 100 % d’affilée', 3, (c) => c.perfectRow, 1),
+  B('top', 'perfect7row', 'star', '7 journées à 100 % d’affilée', 7, (c) => c.perfectRow, 2),
+  B('top', 'perfect14row', 'star', '14 journées à 100 % d’affilée', 14, (c) => c.perfectRow, 3),
+  B('top', 'perfect30row', 'crown', '30 journées à 100 % d’affilée', 30, (c) => c.perfectRow, 4),
+  B('top', 'weekend', 'sun', 'Week-end au top : samedi et dimanche à 100 %', 1, (c) => c.weekend, 1),
+  B('top', 'weekend4', 'sun', '4 week-ends au top', 4, (c) => c.weekend, 3),
+  B('top', 'month80', 'chart', 'Mois solide : 80 % de moyenne sur un mois', 1, (c) => c.month80, 2),
+  B('top', 'month90', 'chart', 'Mois d’excellence : 90 % de moyenne sur un mois', 1, (c) => c.month90, 3),
+  B('task', 'tasks10', 'check', '10 tâches validées', 10, (c) => c.done, 1),
+  B('task', 'tasks50', 'check', '50 tâches validées', 50, (c) => c.done, 1),
+  B('task', 'tasks100', 'check', '100 tâches validées', 100, (c) => c.done, 2),
+  B('task', 'tasks250', 'layers', '250 tâches validées', 250, (c) => c.done, 2),
+  B('task', 'tasks500', 'layers', '500 tâches validées', 500, (c) => c.done, 3),
+  B('task', 'tasks1000', 'star', '1000 tâches validées', 1000, (c) => c.done, 3),
+  B('task', 'tasks2500', 'rocket', '2500 tâches validées', 2500, (c) => c.done, 4),
+  B('task', 'tasks5000', 'rocket', '5000 tâches validées', 5000, (c) => c.done, 4),
+  B('task', 'day10', 'bolt', '10 tâches en une journée', 10, (c) => c.dayMax, 2),
+  B('task', 'day15', 'bolt', '15 tâches en une journée', 15, (c) => c.dayMax, 3),
+  B('task', 'day20', 'bolt', '20 tâches en une journée', 20, (c) => c.dayMax, 4),
+  B('task', 'pts20', 'dumbbell', '20 points en une journée', 20, (c) => c.ptsMax, 2),
+  B('task', 'pts40', 'dumbbell', '40 points en une journée', 40, (c) => c.ptsMax, 4),
+  B('task', 'prio25', 'star', '25 priorités tenues', 25, (c) => c.prio, 1),
+  B('task', 'prio100', 'star', '100 priorités tenues', 100, (c) => c.prio, 2),
+  B('task', 'prio250', 'star', '250 priorités tenues', 250, (c) => c.prio, 3),
+  B('task', 'prioAll7', 'target', '7 jours avec toutes les priorités tenues', 7, (c) => c.prioAll, 2),
+  B('task', 'prioAll30', 'target', '30 jours avec toutes les priorités tenues', 30, (c) => c.prioAll, 3),
+  B('focus', 'pomo1', 'focus', 'Première session de concentration terminée', 1, (c) => c.pomos, 1),
+  B('focus', 'pomo25', 'focus', '25 sessions terminées', 25, (c) => c.pomos, 1),
+  B('focus', 'pomo100', 'focus', '100 sessions terminées', 100, (c) => c.pomos, 2),
+  B('focus', 'pomo500', 'medal', '500 sessions terminées', 500, (c) => c.pomos, 3),
+  B('focus', 'pomo1000', 'medal', '1000 sessions terminées', 1000, (c) => c.pomos, 4),
+  B('focus', 'focus1', 'hourglass', '1 h de concentration', 60, (c) => c.focus, 1),
+  B('focus', 'focus10', 'hourglass', '10 h de concentration', 600, (c) => c.focus, 1),
+  B('focus', 'focus25', 'hourglass', '25 h de concentration', 1500, (c) => c.focus, 2),
+  B('focus', 'focus50', 'hourglass', '50 h de concentration', 3000, (c) => c.focus, 2),
+  B('focus', 'focus100', 'brain', '100 h de concentration', 6000, (c) => c.focus, 3),
+  B('focus', 'focus500', 'brain', '500 h de concentration', 30000, (c) => c.focus, 4),
+  B('focus', 'deep90', 'leaf', '90 min d’affilée en une session', 90, (c) => c.deep, 2),
+  B('focus', 'deep120', 'leaf', '2 h d’affilée en une session', 120, (c) => c.deep, 3),
+  B('focus', 'deep180', 'leaf', '3 h d’affilée en une session', 180, (c) => c.deep, 4),
+  B('focus', 'flow1', 'wave', 'Premier chrono libre', 1, (c) => c.flow, 1),
+  B('focus', 'flow25', 'wave', '25 sessions en chrono libre', 25, (c) => c.flow, 2),
+  B('focus', 'day4h', 'battery', '4 h de concentration en un jour', 240, (c) => c.fmMax, 2),
+  B('focus', 'day6h', 'battery', '6 h de concentration en un jour', 360, (c) => c.fmMax, 3),
+  B('focus', 'week20h', 'chart', '20 h de concentration en une semaine', 1200, (c) => c.fmWeek, 3),
+  B('habit', 'early', 'sunrise', 'Lève-tôt : une session avant 7 h', 1, (c) => c.early, 1),
+  B('habit', 'early10', 'sunrise', '10 sessions avant 7 h', 10, (c) => c.early, 3),
+  B('habit', 'night', 'moon', 'Oiseau de nuit : une session après 22 h', 1, (c) => c.night, 1),
+  B('habit', 'night10', 'moon', '10 sessions après 22 h', 10, (c) => c.night, 2),
+  B('habit', 'estim', 'target', 'Bonne estimation : à 10 % près sur au moins 1 h', 1, (c) => c.estim, 1),
+  B('habit', 'estim10', 'target', '10 journées bien estimées', 10, (c) => c.estim, 3),
+  B('habit', 'tags5', 'tag', '5 étiquettes', 5, (c) => c.tags, 1),
+  B('habit', 'rec3', 'repeat', '3 tâches récurrentes', 3, (c) => c.recs, 1),
+  B('habit', 'planner', 'clock', 'Planificateur : 5 tâches à heure fixe', 5, (c) => c.timed, 1),
+  B('habit', 'backup', 'save', 'Première sauvegarde exportée', 1, (c) => c.backup, 1),
+  B('habit', 'joker', 'joker', 'Premier joker utilisé', 1, (c) => c.joker, 1),
+  B('habit', 'aesthete', 'palette', 'Esthète : une ambiance à ton goût', 1, (c) => c.aesthete, 1),
+  B('habit', 'music', 'headphones', 'Concentration en musique : un son d’ambiance', 1, (c) => c.music, 1),
+  B('habit', 'since30', 'gift', 'Un mois avec Fokus', 30, (c) => c.since, 1),
+  B('habit', 'since100', 'gift', '100 jours avec Fokus', 100, (c) => c.since, 2),
+  B('habit', 'since365', 'gift', 'Un an avec Fokus', 365, (c) => c.since, 4),
+  B('fokus', 'fokus10', 'ring', 'Fokus Bronze : 10 badges', 10, (c) => c.count, 1),
+  B('fokus', 'fokus25', 'ring', 'Fokus Argent : 25 badges', 25, (c) => c.count, 2),
+  B('fokus', 'fokus50', 'ring', 'Fokus Or : 50 badges', 50, (c) => c.count, 3),
+  B('fokus', 'fokus75', 'ring', 'Légende Fokus : 75 badges', 75, (c) => c.count, 4),
 ];
+const META = new Set(['fokus10', 'fokus25', 'fokus50', 'fokus75']);
 
 /* Valeurs utiles aux badges (historique + aujourd'hui + journal des sessions), calculées une fois */
 export function badgeCtx(St = S) {
   const tk = K(new Date(Date.now() + St.off * 864e5)), s = stats(St.tasks, tk);
   const days = Object.keys(St.hist).filter((k) => k < tk).sort().map((k) => [k, St.hist[k]]);
   if (s.n) days.push([tk, { p: s.p, d: s.c, t: s.n, pd: s.pd, pr: s.pr, prt: s.prt, fm: focusToday(St) }]);
-  let perfect = 0, row = 0, perfectRow = 0, comeback = 0, weekend = 0, dayMax = 0, ptsMax = 0, prio = 0, prioAll = 0, fmMax = 0, estim = 0, joker = 0;
+  let perfect = 0, row = 0, perfectRow = 0, comeback = 0, weekend = 0, dayMax = 0, ptsMax = 0, prio = 0, prioAll = 0, fmMax = 0, estim = 0, joker = 0, active = 0;
   let prev = null;
-  const months = {};
+  const months = {}, weeks = {};
   for (const [k, h] of days) {
     const act = h.t > 0, full = act && h.p >= 100;
+    if (act) active++;
     if (full) { perfect++; row++; perfectRow = Math.max(perfectRow, row); } else if (act) row = 0;
-    if (full && prev && prev[1].t > 0 && prev[1].p < 50 && daysBetween(prev[0], k) === 1) comeback = 1;
-    if (full && parseK(k).getDay() === 0 && prev && prev[1].t > 0 && prev[1].p >= 100 && daysBetween(prev[0], k) === 1) weekend = 1;
+    if (full && prev && prev[1].t > 0 && prev[1].p < 50 && daysBetween(prev[0], k) === 1) comeback++;
+    if (full && parseK(k).getDay() === 0 && prev && prev[1].t > 0 && prev[1].p >= 100 && daysBetween(prev[0], k) === 1) weekend++;
     dayMax = Math.max(dayMax, h.d || 0);
     ptsMax = Math.max(ptsMax, h.pd || 0);
     prio += h.pr || 0;
     if (h.prt > 0 && h.pr >= h.prt) prioAll++;
     fmMax = Math.max(fmMax, h.fm || 0);
-    if (h.ea && h.ea[0] >= 60 && Math.abs(h.ea[1] - h.ea[0]) <= h.ea[0] * 0.1) estim = 1;
+    weeks[mondayOf(k)] = (weeks[mondayOf(k)] || 0) + (h.fm || 0);
+    if (h.ea && h.ea[0] >= 60 && Math.abs(h.ea[1] - h.ea[0]) <= h.ea[0] * 0.1) estim++;
     if (h.jk) joker = 1;
     if (act) { const m = (months[k.slice(0, 7)] ||= [0, 0]); m[0] += h.p; m[1]++; }
     if (act) prev = [k, h];
   }
-  const month80 = Object.values(months).some(([sum, n]) => n >= 20 && sum / n >= 80) ? 1 : 0;
+  const monthAvg = (min) => (Object.values(months).some(([sum, n]) => n >= 20 && sum / n >= min) ? 1 : 0);
   let pomos = 0, deep = 0, flow = 0, early = 0, night = 0;
   for (const x of St.sessions) {
     if (x[3] === 'c' && x[4]) pomos++;
-    if (x[3] === 'f') flow = 1;
-    if (x[1] >= 5400) deep = 1;
-    if (x[1] >= 600) { const h = new Date(x[0] * 1000).getHours(); if (h >= 4 && h < 7) early = 1; if (h >= 22 || h < 2) night = 1; }
+    if (x[3] === 'f') flow++;
+    deep = Math.max(deep, Math.floor(x[1] / 60));
+    if (x[1] >= 600) { const h = new Date(x[0] * 1000).getHours(); if (h >= 4 && h < 7) early++; if (h >= 22 || h < 2) night++; }
   }
   return {
-    z: streaks(St), perfect, perfectRow, comeback, weekend, month80, done: St.doneTotal, dayMax, ptsMax, prio, prioAll,
-    pomos, focus: focusTotal(St), deep, flow, fmMax, early, night, estim, tags: St.tags.length, recs: St.rec.length,
-    backup: St.lastExport ? 1 : 0, joker, since: daysBetween([St.since, ...Object.keys(St.hist)].filter(Boolean).sort()[0] || tk, tk) + 1,
+    z: streaks(St), perfect, perfectRow, comeback, weekend, month80: monthAvg(80), month90: monthAvg(90), done: St.doneTotal, dayMax, ptsMax, prio, prioAll, active,
+    pomos, focus: focusTotal(St), deep, flow, fmMax, fmWeek: Math.max(0, ...Object.values(weeks)), early, night, estim, tags: St.tags.length, recs: St.rec.length,
+    timed: St.tasks.filter((t) => t.time).length, backup: St.lastExport ? 1 : 0, joker,
+    aesthete: St.set.amb && St.set.amb !== DEF_SET.amb ? 1 : 0, music: St.set.ambient && St.set.ambient !== 'none' ? 1 : 0,
+    since: daysBetween([St.since, ...Object.keys(St.hist)].filter(Boolean).sort()[0] || tk, tk) + 1,
+    count: BADGES.filter((b) => !META.has(b.id) && St.badges[b.id]).length,
   };
 }
 export function checkBadges() {
   const c = badgeCtx();
-  const fresh = BADGES.filter((b) => !S.badges[b.id] && b.v(c) >= b.goal);
+  const fresh = BADGES.filter((b) => !META.has(b.id) && !S.badges[b.id] && b.v(c) >= b.goal);
+  c.count += fresh.length; // les badges « Collection » tiennent compte de ceux qui tombent maintenant
+  fresh.push(...BADGES.filter((b) => META.has(b.id) && !S.badges[b.id] && b.v(c) >= b.goal));
   if (!fresh.length) return;
   const badges = { ...S.badges };
   fresh.forEach((b) => { badges[b.id] = todayKey(); });
@@ -673,8 +719,8 @@ export function checkBadges() {
   set({ badges });
   if (!S.set.showBadges) return;
   // plusieurs badges d'un coup (import, données test) : un seul message
-  if (fresh.length > 2) toast(`🏅 ${fresh.length} nouveaux badges débloqués !`);
-  else fresh.forEach((b) => toast(`🏅 Nouveau badge : ${b.name}`));
+  if (fresh.length > 2) toast(`${fresh.length} nouveaux badges débloqués !`, null, null, 'medal');
+  else fresh.forEach((b) => toast(`Nouveau badge : ${b.name}`, null, null, 'medal'));
 }
 
 /* ---------- Pomodoro — calcul par horodatages (juste même écran verrouillé) ----------
@@ -838,7 +884,7 @@ export function checkDay() {
   rest = rest.map((t) => (t.prio && isToday(t, tk) ? (++pc > 3 ? { ...t, prio: false } : t) : t));
   UI = { ...UI, sel: new Set(), open: null };
   set({ hist, last: tk, ...spawn(rest, S.rec, tk) });
-  if (jk) toast(jk > 1 ? `${jk} jokers utilisés, ta série continue 🔥` : 'Joker utilisé, ta série continue 🔥', null, 4500);
+  if (jk) toast(jk > 1 ? `${jk} jokers utilisés, ta série continue.` : 'Joker utilisé, ta série continue.', null, 4500, 'joker');
   checkBadges();
   return true;
 }

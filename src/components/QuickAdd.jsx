@@ -3,6 +3,7 @@ import { parseQuick } from '../lib/quickAdd';
 import { JOURS_COURTS, dayLabel } from '../lib/dates';
 import { TagChip, fmtMin } from './TaskList';
 import { addRec, addTask, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
+import Icon from './Icons';
 
 const KIND = { date: 'hl-date', tag: 'hl-tag', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
 const TYPES = [['daily', 'Tous les jours'], ['interval', 'Tous les X jours'], ['weekdays', 'Certains jours'], ['monthday', 'Un jour du mois']];
@@ -50,7 +51,7 @@ function RecPanel({ rule, setRule }) {
                   {r.tags.map((id) => S.tags.find((g) => g.id === id)).filter(Boolean).map((g) => <TagChip key={g.id} tag={g} small />)}
                 </span>
               </span>
-              <button type="button" className="ic" onClick={() => deleteRec(r.id)} title="Supprimer la récurrence" aria-label="Supprimer la récurrence">🗑</button>
+              <button type="button" className="ic" onClick={() => deleteRec(r.id)} title="Supprimer la récurrence" aria-label="Supprimer la récurrence"><Icon name="trash" /></button>
             </li>
           ))}
         </ul>
@@ -143,7 +144,8 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
         <button type="button" className={'seg gold ' + (pr ? 'on' : '')} onClick={() => setPrio((p) => !p)} aria-pressed={pr}>★ Priorité</button>
         {q.tokens.filter((t) => t.kind !== 'off' && t.kind !== 'weight' && t.kind !== 'prio' && !(rec && t.kind === 'date')).map((t) => {
           const w0 = text.slice(t.start, t.end);
-          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '⌛ ' + fmtMin(q.est) : w0;
+          const ico = { date: 'calendar', time: 'clock', est: 'hourglass' }[t.kind];
+          const label = <>{ico && <Icon name={ico} size={12} />}{t.kind === 'date' ? dayLabel(q.date, today) : t.kind === 'time' ? q.time : t.kind === 'est' ? fmtMin(q.est) : w0}</>;
           return <button type="button" key={t.key} className={'chip ' + KIND[t.kind]} onClick={() => toggle(t.key)} title="Annuler la détection">{label} ✕</button>;
         })}
       </div>

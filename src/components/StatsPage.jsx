@@ -3,9 +3,11 @@ import Chart from 'chart.js/auto';
 import gsap from 'gsap';
 import { K, dayLabel, parseK } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
-import { BADGES, BADGE_CATS, badgeCtx, clearNewBadge, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
+import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
 import { fmtMin } from './TaskList';
 import FocusStats from './FocusStats';
+import Icon from './Icons';
+import Medal from './Medal';
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const VIEWS = [['w', 'Semaine'], ['m', 'Mois'], ['y', 'Année']];
@@ -99,7 +101,7 @@ function Heatmap({ S }) {
         {h && h.t > 0 ? (
           <span className="text-mut tabular-nums">
             <b style={{ color: getColorForPercentage(h.p) }}>{h.p} %</b> · {h.d}/{h.t} tâches · {h.pd ?? h.d}/{h.pt ?? h.t} pts
-            {h.prt > 0 && ` · Priorités ${h.pr}/${h.prt}`}{h.fm > 0 && ` · ⏱ ${fmtMin(h.fm)}`}{h.jk && ' · 🃏 joker utilisé'}
+            {h.prt > 0 && ` · Priorités ${h.pr}/${h.prt}`}{h.fm > 0 && ` · concentration ${fmtMin(h.fm)}`}{h.jk && ' · joker utilisé'}
           </span>
         ) : <span className="text-mut">Aucune donnée ce jour-là.</span>}
       </div>
@@ -119,7 +121,9 @@ function Badges({ S }) {
   }, [UI.newBadge]);
   const n = BADGES.filter((b) => S.badges[b.id]).length;
   const c = useMemo(() => badgeCtx(S), [S]);
-  const fmt = (b, v) => (b.id.startsWith('focus') || b.id === 'day4h' ? `${Math.floor(v / 60)} / ${b.goal / 60} h` : `${v} / ${b.goal}`);
+  // badges en minutes (concentration) : affichés en heures
+  const fmt = (b, v) => (/^(focus\d|day\dh|week\d+h|deep)/.test(b.id) ? `${fmtMin(v)} / ${fmtMin(b.goal)}` : `${v} / ${b.goal}`);
+  const info = (b, d, v) => toast(d ? `${b.name} — ${TIERS[b.tier]}, obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : `${b.name} — ${TIERS[b.tier]} · ${fmt(b, v)}`, null, 3800, 'medal');
   return (
     <div className="card">
       <div className="mb-1 flex items-baseline justify-between"><b className="text-[15px]">Badges</b><span className="text-[12px] text-mut tabular-nums">{n} / {BADGES.length}</span></div>
@@ -129,15 +133,16 @@ function Badges({ S }) {
           return (
             <section key={cat} className="mt-3">
               <div className="mb-2 flex items-baseline justify-between text-[12px] tracking-wide text-mut uppercase"><span>{label}</span><span className="tabular-nums">{got} / {list.length}</span></div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6">
                 {list.map((b) => {
                   const d = S.badges[b.id], v = Math.min(b.goal, Math.floor(b.v(c) || 0)), show = !d && b.goal > 1 && v > 0;
                   return (
-                    <div key={b.id} data-b={b.id} className={'badge ' + (d ? 'got' : show ? 'part' : '')} title={d ? `Obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : 'À débloquer'}>
-                      <span className="text-[22px] leading-none">{b.icon}</span>
-                      <span className="text-[11px] leading-tight">{b.name}</span>
-                      {show && <span className="bprog" aria-label={`Progression ${fmt(b, v)}`}><b><i style={{ width: (v / b.goal) * 100 + "%" }} /></b><em>{fmt(b, v)}</em></span>}
-                    </div>
+                    <button type="button" key={b.id} data-b={b.id} className={'badge ' + (d ? 'got' : show ? 'part' : '')} onClick={() => info(b, d, v)}
+                      aria-label={b.name + (d ? ' (obtenu)' : show ? ` (${fmt(b, v)})` : ' (à débloquer)')}>
+                      <Medal icon={b.icon} tier={b.tier} got={!!d} progress={v / b.goal} size={58} />
+                      <span className="bname">{b.name}</span>
+                      {show && <em className="bval">{fmt(b, v)}</em>}
+                    </button>
                   );
                 })}
               </div>
@@ -222,8 +227,8 @@ export default function StatsPage({ S }) {
         >{avg}%</div>
         <div className="relative h-[340px]"><canvas ref={canvas} /></div>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-mut tabular-nums">
-          <span>⏱ Concentration : <b className="text-white">{fmtMin(fm)}</b></span>
-          {S.set.showStreak && <span>🔥 Série : <b className="text-white">{z.cur} j</b> (record {z.best} j)</span>}
+          <span className="inline-flex items-center gap-1.5"><Icon name="focus" size={14} />Concentration : <b className="text-white">{fmtMin(fm)}</b></span>
+          {S.set.showStreak && <span className="inline-flex items-center gap-1.5"><Icon name="flame" size={14} />Série : <b className="text-white">{z.cur} j</b> (record {z.best} j)</span>}
           {S.set.showStreak && <span>Semaines réussies d’affilée : <b className="text-white">{z.wcur}</b> (record {z.wbest})</span>}
         </div>
       </div>

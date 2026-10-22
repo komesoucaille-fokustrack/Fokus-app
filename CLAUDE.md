@@ -157,9 +157,13 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   asynchrone dans `main.jsx`), rappel d'export tous les 7 jours. Notifications locales / pastille / vibration : `src/lib/notify.js`.
 - Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points, couleur de la moyenne
   de la période (Semaine / Mois / Année) ; concentration et série ; répartition par étiquette ; calendrier de chaleur 12 mois ; vitrine de badges.
-- **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 51 badges) en 5 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
-  Concentration, Habitudes) ; chaque badge a un `goal` et une valeur `v(c)` → barre « 12 / 30 » tant qu'il est verrouillé. Les `id`
-  ne changent jamais (badges déjà obtenus conservés). Plus de 2 badges d'un coup → un seul toast récapitulatif.
+- **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 87 badges) en 6 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
+  Concentration, Habitudes, Collection Fokus = badges « méta » comptant les autres) ; chaque badge : `icon` (nom d'icône), `goal`, `v(c)`,
+  `tier` (1 bronze, 2 argent, 3 or, 4 émeraude Fokus). Affichés en **médailles Fokus** (`Medal.jsx` : anneau du logo autour d'une icône ;
+  verrouillé = l'anneau se remplit avec la progression ; obtenu = anneau fermé aux couleurs du palier) ; tap = détail en toast.
+  Les `id` ne changent jamais (badges déjà obtenus conservés). Plus de 2 badges d'un coup → un seul toast récapitulatif.
+- **Icônes** : `Icons.jsx` (trait fin arrondi, `currentColor`) — **aucun emoji coloré dans l'interface** (seuls ★ ✓ ✕ et les flèches,
+  typographiques, restent) ; `toast(msg, action, ms, icon)` accepte une icône ; notifications système en texte simple.
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build par le plugin de `vite.config.js` (injecte `const VERSION` / `const ASSETS` ;
   le build **échoue** si un nom reste non remplacé — sinon le service worker plante : plus de hors ligne ni de notifications) ;
   cache consulté avec `ignoreVary` ; rechargement automatique seulement lors d'une mise à jour ; bandeau « Nouvelle version ».
@@ -177,7 +181,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Sheet` (modale).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Icons`, `Medal`, `Sheet` (modale).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`.
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
   au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).

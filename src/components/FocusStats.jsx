@@ -88,7 +88,7 @@ export default function FocusStats({ S }) {
   const best = d.hours.indexOf(Math.max(...d.hours));
   const tagOf = (id) => S.tags.find((g) => g.id === id) || { name: id === '—' ? 'Sans étiquette' : 'Étiquette supprimée', color: '#a0a0a0' };
   const max = Math.max(1, ...d.tags.map((x) => x[1]), ...d.tasks.map((x) => x[1]));
-  const accTxt = d.acc && (Math.abs(d.acc.ratio - 1) < 0.1 ? 'Très justes 👌' : d.acc.ratio > 1 ? `+${Math.round((d.acc.ratio - 1) * 100)} % : tu sous-estimes` : `−${Math.round((1 - d.acc.ratio) * 100)} % : tu surestimes`);
+  const accTxt = d.acc && (Math.abs(d.acc.ratio - 1) < 0.1 ? 'Très justes' : d.acc.ratio > 1 ? `+${Math.round((d.acc.ratio - 1) * 100)} % : tu sous-estimes` : `−${Math.round((1 - d.acc.ratio) * 100)} % : tu surestimes`);
 
   return (
     <div className="card">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Details, fmtMin } from './TaskList';
 import Sheet from './Sheet';
 import { setOpen, setTaskField, taskDur, toast, toggleSel, todayKey, useStore } from '../store';
+import Icon from './Icons';
 
 /* =====================================================================
    « MA JOURNÉE » EN CHRONOLOGIE (6 h → 24 h)
@@ -167,8 +168,8 @@ export default function Timeline({ tasks, sel, busy }) {
               <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">{[3, 8, 13].map((y) => [2.5, 7.5].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.35" fill="currentColor" />))}</svg>
             </span>
           </div>
-        )) : <p className="text-[13px] text-mut">Tout a une heure. 👌</p>}
-        {overlaps > 0 && <p className="tl-warn">⚠︎ {overlaps} tâches se chevauchent</p>}
+        )) : <p className="text-[13px] text-mut">Tout a une heure.</p>}
+        {overlaps > 0 && <p className="tl-warn"><Icon name="alert" size={13} className="align-[-2px]" /> {overlaps} tâches se chevauchent</p>}
       </div>
       <div className="tl-grid" ref={grid} style={{ height: (H1 - H0) * 60 * PX }}>
         {hours.map((h) => (

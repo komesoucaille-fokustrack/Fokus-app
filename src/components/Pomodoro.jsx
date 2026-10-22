@@ -11,6 +11,7 @@ import {
   PHASES, addIdea, flowStop, removeIdea, setPomoMode, toast, addTask, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
   setSetting, sortTasks, todayKey, todayTasks, useStore,
 } from '../store';
+import Ico from './Icons';
 
 const two = (n) => String(n).padStart(2, '0');
 
@@ -81,7 +82,7 @@ function Stage({ full, onFull, onExit }) {
       : [two(Math.floor(left / 60)), two(left % 60), Math.min(1, el / p.dur)];
   const [note, setNote] = useState(false);
   const [idea, setIdea] = useState('');
-  const saveIdea = (e) => { e.preventDefault(); if (idea.trim()) { addIdea(idea); toast('💡 Idée notée — on la reverra à la pause.'); } setIdea(''); setNote(false); };
+  const saveIdea = (e) => { e.preventDefault(); if (idea.trim()) { addIdea(idea); toast('Idée notée — on la reverra à la pause.', null, null, 'bulb'); } setIdea(''); setNote(false); };
   const ready = p.paused === 0;
   const scrim = bg.scrim ? (bg.scrim[0] === 'dark' ? `rgba(0,0,0,${bg.scrim[1]})` : `rgba(255,255,255,${bg.scrim[1]})`) : null;
   const toggle = () => { unlockAudio(); pomoToggle(); };
@@ -230,7 +231,7 @@ export default function Pomodoro() {
           <div className="min-w-0 flex-1"><Durations /></div>
         </div>
         <p className="mt-3 text-[12.5px] text-mut">
-          Pause longue toutes les {S.set.cycle} sessions. Cycle, démarrage automatique et son : Réglages ⚙ → Pomodoro.
+          Pause longue toutes les {S.set.cycle} sessions. Cycle, démarrage automatique et son : Réglages → Pomodoro.
         </p>
       </div>
 
@@ -252,7 +253,7 @@ function Ideas() {
   };
   return (
     <div ref={box} className="card mt-4">
-      <div className="mb-2 flex items-baseline justify-between"><b className="text-[15px]">💡 Idées notées pendant la session</b><span className="text-[12px] text-mut tabular-nums">{S.ideas.length}</span></div>
+      <div className="mb-2 flex items-baseline justify-between"><b className="flex items-center gap-2 text-[15px]"><Ico name="bulb" />Idées notées pendant la session</b><span className="text-[12px] text-mut tabular-nums">{S.ideas.length}</span></div>
       {S.ideas.map((x) => (
         <div key={x.id} className="idea">
           <span className="min-w-0 flex-1 break-words">{x.text}</span>
@@ -294,7 +295,7 @@ function SoundCard() {
               onPointerUp={(e) => { if (!live) previewAmbient(st.ambient, +e.currentTarget.value, 3); }} aria-label="Volume de l’ambiance" />
             <label className="flex items-center gap-2 text-[13px] text-mut"><span className="sw"><input type="checkbox" checked={st.ambMute} onChange={(e) => setSetting('ambMute', e.target.checked)} /><i /></span>Couper pendant les pauses</label>
           </div>
-          <p className="mt-2 text-[12px] text-mut">{live ? '🔊 En lecture pendant la concentration.' : 'Aperçu de quelques secondes ; le son se lance tout seul quand tu démarres la concentration.'} {CREDITS[st.ambient] || 'Généré en direct, sans fichier.'}</p>
+          <p className="mt-2 text-[12px] text-mut">{live ? <><Ico name="sound" size={13} className="align-[-2px]" /> En lecture pendant la concentration.</> : 'Aperçu de quelques secondes ; le son se lance tout seul quand tu démarres la concentration.'} {CREDITS[st.ambient] || 'Généré en direct, sans fichier.'}</p>
         </>
       )}
     </div>

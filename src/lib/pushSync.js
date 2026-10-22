@@ -19,11 +19,11 @@ function pomoJobs(S) {
   const jobs = [];
   if (p.phase === 'work') {
     const long = (p.done + 1) % st.cycle === 0, br = long ? st.longPause : st.pause;
-    jobs.push({ at: end, title: 'Session terminée 🍅', body: st.autoBreak ? `Pause ${long ? 'longue ' : ''}de ${mn(br)} lancée. Bravo !` : `Place à une pause de ${mn(br)}.`, url });
-    if (st.autoBreak) jobs.push({ at: end + br * 60000, title: 'Pause terminée ☕', body: st.autoWork ? 'Nouvelle session lancée.' : 'On s’y remet ? Touche pour relancer.', url });
+    jobs.push({ at: end, title: 'Session terminée', body: st.autoBreak ? `Pause ${long ? 'longue ' : ''}de ${mn(br)} lancée. Bravo !` : `Place à une pause de ${mn(br)}.`, url });
+    if (st.autoBreak) jobs.push({ at: end + br * 60000, title: 'Pause terminée', body: st.autoWork ? 'Nouvelle session lancée.' : 'On s’y remet ? Touche pour relancer.', url });
   } else {
-    jobs.push({ at: end, title: 'Pause terminée ☕', body: st.autoWork ? 'Nouvelle session lancée.' : 'On s’y remet ? Touche pour relancer.', url });
-    if (st.autoWork) jobs.push({ at: end + st.pomo * 60000, title: 'Session terminée 🍅', body: 'Prends une pause, tu l’as méritée.', url });
+    jobs.push({ at: end, title: 'Pause terminée', body: st.autoWork ? 'Nouvelle session lancée.' : 'On s’y remet ? Touche pour relancer.', url });
+    if (st.autoWork) jobs.push({ at: end + st.pomo * 60000, title: 'Session terminée', body: 'Prends une pause, tu l’as méritée.', url });
   }
   return jobs;
 }

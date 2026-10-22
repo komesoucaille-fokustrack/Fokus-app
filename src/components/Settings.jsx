@@ -10,6 +10,7 @@ import {
 import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testPush } from '../lib/push';
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
+import Icon from './Icons';
 
 /* Rouage (icône paramètres) */
 export function Gear() {
@@ -102,7 +103,7 @@ function Score({ S }) {
         </Item>
       </Group>
       <Group title="Carte « Aujourd’hui » et Progression">
-        <Item title="Série 🔥" desc="Série et record dans la carte du jour"><Switch label="Afficher la série" checked={st.showStreak} onChange={(v) => setSetting('showStreak', v)} /></Item>
+        <Item title="Série" desc="Série et record dans la carte du jour"><Switch label="Afficher la série" checked={st.showStreak} onChange={(v) => setSetting('showStreak', v)} /></Item>
         <Item title="Badges" desc="Vitrine sur « Ma Progression » et message à l’obtention"><Switch label="Afficher les badges" checked={st.showBadges} onChange={(v) => setSetting('showBadges', v)} /></Item>
       </Group>
     </>
@@ -279,7 +280,7 @@ function Tags({ S }) {
             {PASTELS.map((c) => (
               <button type="button" key={c} className={'swatch ' + (g.color === c ? 'on' : '')} style={{ background: c }} onClick={() => recolorTag(g.id, c)} aria-label={'Couleur ' + c} />
             ))}
-            <button type="button" className="ic" onClick={() => deleteTag(g.id)} aria-label="Supprimer l’étiquette">🗑</button>
+            <button type="button" className="ic" onClick={() => deleteTag(g.id)} aria-label="Supprimer l’étiquette"><Icon name="trash" /></button>
           </span>
         </div>
       ))}
@@ -371,7 +372,7 @@ function Day({ S }) {
           <Stepper value={st.defDur} min={10} max={180} step={5} unit=" min" onChange={(v) => setSetting('defDur', v)} />
         </Item>
       </Group>
-      <Group title="Rituel du soir" foot="« Fermer ma journée » : ce qui est fait, ce qui reste, les priorités de demain. Toujours accessible avec le bouton 🌙 de la page Tâches.">
+      <Group title="Rituel du soir" foot="« Fermer ma journée » : ce qui est fait, ce qui reste, les priorités de demain. Toujours accessible avec le bouton lune de la page Tâches.">
         <Item title="Proposer automatiquement"><Switch label="Rituel du soir" checked={st.evening} onChange={(v) => setSetting('evening', v)} /></Item>
         {st.evening && (
           <Item title="À partir de">
