@@ -41,3 +41,9 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: server
           wranglerVersion: '4.151.3'
+      - name: Vérifier que le serveur répond
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          sleep 5
+          curl -fsS https://fokus-push.kome-soucaille.workers.dev/ && echo
+          curl -fsS https://fokus-push.kome-soucaille.workers.dev/vapid | head -c 120 && echo
