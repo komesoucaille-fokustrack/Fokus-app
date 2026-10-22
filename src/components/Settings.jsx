@@ -318,7 +318,7 @@ function Look({ S }) {
           {[[1, 'Subtile'], [2, 'Moyenne'], [3, 'Intense']].map(([v, l]) => <Seg key={v} on={(st.ambLevel ?? 2) === v} onClick={() => setSetting('ambLevel', v)}>{l}</Seg>)}
         </Item>
         <div className="si col">
-          <BgPicker value={st.amb} onChange={(v) => setSetting('amb', v)} extra={[['pomo', 'Comme le Pomodoro', 'linear-gradient(135deg,#2a2a30,#0c0c0e)'], ['none', 'Aucune (noir)', '#050505']]} />
+          <BgPicker value={st.amb} onChange={(v) => setSetting('amb', v)} extra={[['pomo', 'Comme le Pomodoro', 'linear-gradient(135deg,#2a2a30,#0c0c0e)'], ['none', 'Aucune (noir)', '#050608']]} />
         </div>
       </Group>
     </>

@@ -11,7 +11,7 @@ import { focusToday, todayKey } from '../store';
    ===================================================================== */
 const BLUE = '#93c5fd', MINT = '#86efac';
 const axis = { ticks: { color: '#a0a0a0', font: { family: 'Inter Variable' } }, grid: { color: 'rgba(255,255,255,.06)' }, border: { display: false } };
-const tip = { backgroundColor: '#0c0c0e', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 10, displayColors: false };
+const tip = { backgroundColor: '#0b0c10', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 10, displayColors: false };
 
 function useChart(ref, config, deps) {
   useEffect(() => {

@@ -24,8 +24,8 @@ const KEY = 'focus_state';
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
 export const DEF_SET = {
   threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
-  pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 'noir',
-  amb: 'p12', ambLevel: 2,
+  pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 't-obsidienne',
+  amb: 't-obsidienne', ambLevel: 2,
   remind: false, remindAt: '20:00', pomoNotif: false, push: false, pushUrl: '',
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
@@ -109,19 +109,23 @@ export function migrate(raw) {
     };
   }
   const keys = Object.keys(hist).sort();
+  // Thème Obsidienne (v3) : remplace une seule fois l'ancienne ambiance par défaut « Forêt sombre »
+  const set0 = { ...DEF_SET, ...(o.set && typeof o.set === 'object' ? o.set : {}) };
+  const seen0 = o.seen && typeof o.seen === 'object' ? { ...o.seen } : {};
+  if (!seen0.thm) { if (set0.amb === 'p12') set0.amb = 't-obsidienne'; seen0.thm = 1; }
   return {
     ...base(), ...o,
     version: VERSION, tasks, rec, hist, last, off,
     tags: arr(o.tags).filter((x) => x && x.id).map((x, i) => ({ id: String(x.id), name: String(x.name ?? 'Étiquette'), color: x.color || PASTELS[i % PASTELS.length] })),
     anim: o.anim !== false,
     confetti: o.confetti !== false,
-    set: { ...DEF_SET, ...(o.set && typeof o.set === 'object' ? o.set : {}) },
+    set: set0,
     badges: o.badges && typeof o.badges === 'object' ? o.badges : {},
     doneTotal: Number.isFinite(o.doneTotal) ? o.doneTotal : keys.reduce((s, k) => s + hist[k].d, 0) + tasks.filter((t) => t.done).length,
     fmDay: o.fmDay && typeof o.fmDay.d === 'string' ? { d: o.fmDay.d, m: Math.max(0, +o.fmDay.m || 0) } : { d: '', m: 0 },
     lastExport: isKey(o.lastExport) ? o.lastExport : '',
     since: isKey(o.since) ? o.since : keys[0] || last || today,
-    seen: o.seen && typeof o.seen === 'object' ? o.seen : {},
+    seen: seen0,
     pomo: o.pomo && typeof o.pomo === 'object' && Number.isFinite(o.pomo.start)
       ? { tid: o.pomo.tid || null, phase: ['work', 'short', 'long'].includes(o.pomo.phase) ? o.pomo.phase : 'short', start: o.pomo.start, dur: Number.isFinite(+o.pomo.dur) ? +o.pomo.dur : 1500, flow: !!o.pomo.flow,
           paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0 }

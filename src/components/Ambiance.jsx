@@ -26,7 +26,7 @@ export default function Ambiance({ S }) {
   }
   const k = [0.82, 0.68, 0.52][lvl - 1] ?? 0.68;
   return (
-    <div className="amb" aria-hidden="true" style={{ background: '#050505' }}>
+    <div className="amb" aria-hidden="true" style={{ background: '#050608' }}>
       {b.img ? <img src={ambOf(b)} alt="" decoding="async" /> : <div className="amb-c" style={{ background: b.amb || b.css }} />}
       <div className="amb-shade" style={{ background: `linear-gradient(180deg, rgba(5,5,5,${k - 0.12}) 0%, rgba(5,5,5,${k}) 45%, rgba(5,5,5,${Math.min(0.96, k + 0.16)}) 100%)` }} />
     </div>

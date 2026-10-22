@@ -9,7 +9,7 @@ export default function Sheet({ title, sub, onClose, children, wide, top, xl }) 
   }, []);
   return (
     <div
-      className={'fixed inset-0 z-70 flex justify-center bg-black/70 p-4 backdrop-blur-sm ' + (top ? 'items-start pt-[max(16px,env(safe-area-inset-top))]' : 'items-center')}
+      className={'fixed inset-0 z-70 flex justify-center bg-black/75 p-4 ' + (top ? 'items-start pt-[max(16px,env(safe-area-inset-top))]' : 'items-center')}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div ref={card} role="dialog" aria-label={title} className={'card m-0! max-h-[88vh] w-full overflow-auto overscroll-contain bg-cont! ' + (xl ? 'sheet-xl' : wide ? 'max-w-[620px]' : 'max-w-[480px]')}>

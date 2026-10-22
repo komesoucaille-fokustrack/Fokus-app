@@ -87,7 +87,7 @@ function Stage({ full, onFull, onExit }) {
   const toggle = () => { unlockAudio(); pomoToggle(); };
 
   return (
-    <div className={'stage ' + (full ? 'full ' : '') + (full && idle ? 'idle' : '')} style={{ background: bg.back || bg.css || '#050505', color: bg.ink }}>
+    <div className={'stage ' + (full ? 'full ' : '') + (full && idle ? 'idle' : '')} style={{ background: bg.back || bg.css || '#050608', color: bg.ink }}>
       {bg.img && (
         <picture key={bg.id}>
           {bg.portrait && <source media="(orientation: portrait)" srcSet={bg.portrait} />}

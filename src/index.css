@@ -3,11 +3,11 @@
 
 @theme {
   --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
-  --color-ink: #050505;
-  --color-cont: #0c0c0e;
-  --color-card: #121215;
-  --color-hov: #1a1a1f;
-  --color-mut: #a0a0a0;
+  --color-ink: #050608;
+  --color-cont: #0b0c10;
+  --color-card: #121318;
+  --color-hov: #1a1b21;
+  --color-mut: #a7abb4;
   --color-line: rgba(255, 255, 255, 0.1);
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   /* Palette v3 « verre fumé » (contraste du texte ≥ 4,5:1 sur tous les fonds) */
@@ -433,7 +433,7 @@
     background: radial-gradient(closest-side, color-mix(in srgb, var(--aura) 55%, transparent) 0%, color-mix(in srgb, var(--aura) 18%, transparent) 45%, transparent 100%);
     opacity: 0.34; transition: opacity 0.8s ease; }
   .aura.off { opacity: 0; }
-  #pcard { background: #121215; }
+  #pcard { background: #121215; } /* = face de la carte 3D (Card3D.jsx), ne pas changer */
 
   /* Navigation : pastille qui glisse */
   .navseg { position: relative; order: 3; width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 4px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
@@ -552,8 +552,12 @@
   #pcard { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 0 0.5px rgba(255, 255, 255, 0.05), 0 24px 60px -24px rgba(0, 0, 0, 0.9); }
   .text-mut { color: var(--color-text-2); }
   #hdr { background: rgba(10, 11, 14, 0.72); }
+  /* backdrop-filter : seulement sur de petits éléments (en-tête, toasts, boutons du minuteur), coupé si l'utilisateur le demande */
+  @media (prefers-reduced-transparency: reduce), (prefers-reduced-motion: reduce) {
+    #hdr, .sbtn, .backdrop-blur-sm, .backdrop-blur, .backdrop-blur-md { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+    #hdr { background: rgba(11, 12, 16, 0.96); }
+  }
   @media (prefers-reduced-transparency: reduce) {
-    #hdr, .backdrop-blur-sm, .backdrop-blur, .backdrop-blur-md { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     #hdr { background: #0b0c10; }
     .task, .card:not(#pcard), .tl-loose, .daystrip { background: var(--color-bg-3) !important; }
   }
