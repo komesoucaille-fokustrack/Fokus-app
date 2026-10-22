@@ -83,6 +83,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   (œil au centre de l'écran) et le groupe 3D reçoit la même matrice CSS que la carte. Utiliser `scale3d` (jamais `scale`, qui n'agrandit pas z).
   Pas d'effet de profondeur de champ WebGL (il rend le canevas opaque) : le flou d'arrière-plan est fait en CSS sur la page.
 - **Carte** (`Card3D.jsx`) : dalle extrudée biseautée, face en texture haute définition, gel bleu, halo, ombre et sol mat (pose B).
+  Halo pastel sous la barre = copie douce du `#glow` DOM, à z = 1,5 au-dessus de la face (jamais au ras : scintillement de profondeur),
+  effacé en fondu pendant l'allumage du bleu ; le gel pastel devient mat pendant ce fondu (pas de reflet ponctuel de la lumière du front).
 - **Arche d'arrivée gonflable** (`Arch.jsx`) réaliste, comme sur une vraie course (pas de néon) : boudin en toile à coussins
   (tube déformé entre les coutures, matériau `sheen`), socles lestés, bannière imprimée « FOKUS · FINISH 100% » (logo `.fokus-logo`),
   cordes d'ancrage ; elle se gonfle avec un rebond élastique. `Bloom` (postprocessing) réservé au gel bleu et aux étincelles.

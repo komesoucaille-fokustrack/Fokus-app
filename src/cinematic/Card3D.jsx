@@ -237,6 +237,10 @@ export default function Card3D() {
     const tx = G.x0 - C.x0, ty = -G.y - (-(C.y0 + C.h)) - G.bh / 2; // coin bas-gauche de la piste dans le repère carte
     pastel.current.position.set(tx, ty, 0.2);
     mats.pastel.opacity = fx.pastel;
+    // pendant que le bleu s'allume, le gel pastel devient mat : la lumière bleue du front n'y fait plus
+    // de reflet ponctuel « détaché » devant la barre (au repos, blue = 0 : aspect inchangé)
+    mats.pastel.roughness = 0.16 + 0.6 * fx.blue;
+    mats.pastel.clearcoatRoughness = 0.04 + 0.7 * fx.blue;
     pastel.current.visible = fx.pastel > 0.01 && fx.old > 0;
     const len = Math.max(0, b.head - b.x0);
     const barKey = `${Math.round(G.barW)}x${Math.round(G.bh)}`;
@@ -254,11 +258,14 @@ export default function Card3D() {
     mats.blue.opacity = Math.min(1, fx.blue * 1.5);
     blue.current.visible = fx.blue > 0.01 && fx.p > 0.3;
 
-    /* Halo lumineux du gel sur la face, et reflet bleu sous la tête */
-    const gl = Math.max(fx.blue > 0.5 ? len : (fx.old / 100) * G.barW, G.bh);
-    glow.current.position.set(tx + gl / 2, ty + G.bh / 2, 0.15);
-    glow.current.scale.set(gl + G.bh * 2.2, G.bh * 3.4, 1);
-    glow.current.material.opacity = fx.old > 0 ? 0.55 * (fx.blue > 0.5 ? 0 : fx.pastel) : 0; // à 0 % : pas de halo (point bleu à la place)
+    /* Halo pastel du gel sur la face (copie du #glow de la carte DOM), et reflet bleu sous la tête.
+       Bien décollé de la face (z = 1,5 : pas de scintillement de profondeur), doux, et il s'efface
+       en fondu pendant que le bleu s'allume (jamais de coupure nette). */
+    const gl = Math.max((fx.old / 100) * G.barW, G.bh);
+    glow.current.position.set(tx + gl / 2, ty + G.bh * 0.35, 1.5);
+    glow.current.scale.set(gl + G.bh * 2, G.bh * 2, 1);
+    glow.current.material.opacity = fx.old > 0 ? 0.17 * fx.pastel * (1 - fx.blue) : 0; // à 0 % : pas de halo (point bleu à la place)
+    glow.current.visible = glow.current.material.opacity > 0.004;
     pool.current.position.set(tx + len, ty + G.bh / 2, 0.1);
     pool.current.scale.set(G.bh * 5, G.bh * 2.6, 1);
     pool.current.material.opacity = 0.45 * fx.blue;
