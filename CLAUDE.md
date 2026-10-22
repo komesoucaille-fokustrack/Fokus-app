@@ -125,8 +125,9 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   noir et blanc, brume, voitures, horloges à palettes). Jamais de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
   v3 : mode **Libre** (Flowtime, `set.pomoMode`, pause = 1/`flowRatio` du temps fait), **aucune punition** (pause, réinitialisation,
-  fermeture : le temps fait est toujours crédité), **temps estimé** en minutes (`Estimate.jsx` : puce sablier « fait / estimé » sur la tâche, un tap ouvre un petit panneau
-  − / + et préréglages 15 min → 4 h ; même éditeur dans le panneau d'options), **sons d'ambiance** (`lib/ambient.js` :
+  fermeture : le temps fait est toujours crédité), **temps estimé** en minutes (`Estimate.jsx` : puce sablier sur la tâche = estimation seule, jamais le temps déjà fait ;
+  un tap ouvre un petit panneau avec heures + minutes **saisies librement** (aucun pas imposé) et préréglages 15 min → 4 h ;
+  même éditeur dans le panneau d'options), **sons d'ambiance** (`lib/ambient.js` :
   bruits brun/blanc générés, pluie/café/forêt en boucles libres `public/sounds/*.m4a`, fondus, coupure en pause), **idées notées**
   pendant la session (revues à la pause), statistiques de concentration (`FocusStats.jsx`).
 - **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui

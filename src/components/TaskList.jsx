@@ -139,7 +139,7 @@ export function Details({ t, today }) {
         <span className="dlab">Temps estimé</span>
         <div className="segs items-center">
           <EstEditor t={t} />
-          <span className="text-[13px] text-mut">{t.focus >= 1 ? `Déjà fait : ${fmtMin(t.focus)}` : '« ~45 » ou « ~1h30 » à la saisie'}</span>
+          <span className="text-[13px] text-mut">« ~45 » ou « ~1h30 » à la saisie</span>
         </div>
       </div>
       <div className="drow">
@@ -213,7 +213,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
               </span>
             )}
             {t.time && <span className="chip">🕑 {t.time}</span>}
-            {(t.est > 0 || t.focus >= 1 || !t.done) && <EstChip t={t} />}
+            {(t.est > 0 || !t.done) && <EstChip t={t} />}
             {t.rid && <span className="chip">↻</span>}
           </span>
         </button>
