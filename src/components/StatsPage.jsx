@@ -6,7 +6,6 @@ import { getColorForPercentage } from '../lib/colors';
 import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
 import { fmtMin } from './TaskList';
 import FocusStats from './FocusStats';
-import Icon from './Icons';
 import Medal from './Medal';
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -101,7 +100,7 @@ function Heatmap({ S }) {
         {h && h.t > 0 ? (
           <span className="text-mut tabular-nums">
             <b style={{ color: getColorForPercentage(h.p) }}>{h.p} %</b> · {h.d}/{h.t} tâches · {h.pd ?? h.d}/{h.pt ?? h.t} pts
-            {h.prt > 0 && ` · Priorités ${h.pr}/${h.prt}`}{h.fm > 0 && ` · concentration ${fmtMin(h.fm)}`}{h.jk && ' · joker utilisé'}
+            {h.prt > 0 && ` · Priorités ${h.pr}/${h.prt}`}{h.fm > 0 && ` · ⏱ ${fmtMin(h.fm)}`}{h.jk && ' · 🃏 joker utilisé'}
           </span>
         ) : <span className="text-mut">Aucune donnée ce jour-là.</span>}
       </div>
@@ -123,7 +122,7 @@ function Badges({ S }) {
   const c = useMemo(() => badgeCtx(S), [S]);
   // badges en minutes (concentration) : affichés en heures
   const fmt = (b, v) => (/^(focus\d|day\dh|week\d+h|deep)/.test(b.id) ? `${fmtMin(v)} / ${fmtMin(b.goal)}` : `${v} / ${b.goal}`);
-  const info = (b, d, v) => toast(d ? `${b.name} — ${TIERS[b.tier]}, obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : `${b.name} — ${TIERS[b.tier]} · ${fmt(b, v)}`, null, 3800, 'medal');
+  const info = (b, d, v) => toast(d ? `🏅 ${b.name} — ${TIERS[b.tier]}, obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : `${b.name} — ${TIERS[b.tier]} · ${fmt(b, v)}`, null, 3800);
   return (
     <div className="card">
       <div className="mb-1 flex items-baseline justify-between"><b className="text-[15px]">Badges</b><span className="text-[12px] text-mut tabular-nums">{n} / {BADGES.length}</span></div>
@@ -227,8 +226,8 @@ export default function StatsPage({ S }) {
         >{avg}%</div>
         <div className="relative h-[340px]"><canvas ref={canvas} /></div>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-mut tabular-nums">
-          <span className="inline-flex items-center gap-1.5"><Icon name="focus" size={14} />Concentration : <b className="text-white">{fmtMin(fm)}</b></span>
-          {S.set.showStreak && <span className="inline-flex items-center gap-1.5"><Icon name="flame" size={14} />Série : <b className="text-white">{z.cur} j</b> (record {z.best} j)</span>}
+          <span>⏱ Concentration : <b className="text-white">{fmtMin(fm)}</b></span>
+          {S.set.showStreak && <span>🔥 Série : <b className="text-white">{z.cur} j</b> (record {z.best} j)</span>}
           {S.set.showStreak && <span>Semaines réussies d’affilée : <b className="text-white">{z.wcur}</b> (record {z.wbest})</span>}
         </div>
       </div>

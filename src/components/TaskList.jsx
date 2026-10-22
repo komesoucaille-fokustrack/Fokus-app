@@ -6,7 +6,6 @@ import {
 } from '../store';
 import { addDays, dayLabel } from '../lib/dates';
 import { EstChip, EstEditor, fmtMin } from './Estimate';
-import Icon from './Icons';
 
 export { fmtMin };
 
@@ -81,7 +80,7 @@ export function Details({ t, today }) {
             <button type="button" className={'seg ' + (t.date && t.date <= today ? 'on' : '')} onClick={() => setDate(t.id, today)}>Aujourd’hui</button>
             <button type="button" className={'seg ' + (t.date === tomorrow ? 'on' : '')} onClick={() => setDate(t.id, tomorrow)}>Demain</button>
             <label className={'seg relative ' + (picked ? 'on' : '')}>
-              <Icon name="calendar" /> {picked ? dayLabel(t.date, today) : 'Choisir une date'}
+              📅 {picked ? dayLabel(t.date, today) : 'Choisir une date'}
               <input
                 type="date" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" min={today} value={t.date || ''}
                 onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* non supporté */ } }}
@@ -213,9 +212,9 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
                 {subsDone}/{t.subs.length}
               </span>
             )}
-            {t.time && <span className="chip"><Icon name="clock" size={12} />{t.time}</span>}
+            {t.time && <span className="chip">🕑 {t.time}</span>}
             {(t.est > 0 || !t.done) && <EstChip t={t} />}
-            {t.rid && <span className="chip" title="Tâche récurrente"><Icon name="repeat" size={12} /></span>}
+            {t.rid && <span className="chip" title="Tâche récurrente">↻</span>}
           </span>
         </button>
       )}
@@ -223,7 +222,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
         {t.done
           ? <button className="ic undo" onClick={() => uncheck(t.id)} title="Décocher (remettre à faire)" aria-label="Décocher" disabled={busy}>↺</button>
           : <button className="ic pen" onClick={() => setEditing(true)} title="Modifier" aria-label="Modifier"><Pen /></button>}
-        <button className="ic" onClick={del} title="Supprimer" aria-label="Supprimer"><Icon name="trash" /></button>
+        <button className="ic" onClick={del} title="Supprimer" aria-label="Supprimer">🗑</button>
         <button
           className="grip"
           title={auto ? 'Ordre automatique : passe en ordre manuel (Réglages) pour déplacer' : 'Rester appuyé et glisser pour déplacer'}

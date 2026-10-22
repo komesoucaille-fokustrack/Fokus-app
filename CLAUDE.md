@@ -166,8 +166,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   `tier` (1 bronze, 2 argent, 3 or, 4 émeraude Fokus). Affichés en **médailles Fokus** (`Medal.jsx` : anneau du logo autour d'une icône ;
   verrouillé = l'anneau se remplit avec la progression ; obtenu = anneau fermé aux couleurs du palier) ; tap = détail en toast.
   Les `id` ne changent jamais (badges déjà obtenus conservés). Plus de 2 badges d'un coup → un seul toast récapitulatif.
-- **Icônes** : `Icons.jsx` (trait fin arrondi, `currentColor`) — **aucun emoji coloré dans l'interface** (seuls ★ ✓ ✕ et les flèches,
-  typographiques, restent) ; `toast(msg, action, ms, icon)` accepte une icône ; notifications système en texte simple.
+- **Emojis** : l'interface garde ses emojis (📅 🕑 🌙 💡 🔊 🔥 🏅 🃏 🗑 ⚠️…) **sauf la tomate 🍅, bannie** (⏱️ à la place, ⌛ pour l'estimation).
+  `Icons.jsx` (icônes au trait) sert aux médailles, à la mini-fenêtre et aux boutons sans emoji ; `toast(msg, action, ms, icon)` accepte une icône.
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build par le plugin de `vite.config.js` (injecte `const VERSION` / `const ASSETS` ;
   le build **échoue** si un nom reste non remplacé — sinon le service worker plante : plus de hors ligne ni de notifications) ;
   cache consulté avec `ignoreVary` ; rechargement automatique seulement lors d'une mise à jour ; bandeau « Nouvelle version ».

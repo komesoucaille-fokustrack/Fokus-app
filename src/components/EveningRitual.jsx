@@ -5,7 +5,6 @@ import { TagChip, fmtMin } from './TaskList';
 import { addDays } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
 import { canPrio, deleteTask, markSeen, setDate, setSetting, stats, taskDur, todayKey, todayTasks, togglePrio, toast, useStore } from '../store';
-import Icon from './Icons';
 
 /* =====================================================================
    RITUEL DU SOIR « FERMER MA JOURNÉE » — 3 écrans rapides, au pouce :
@@ -28,7 +27,7 @@ export default function EveningRitual({ onClose }) {
     markSeen('evening');
     // tout est trié : pas de tri du matin demain
     if (!todayTasks().some((t) => !t.done)) markSeen('morning', tomorrow);
-    toast('Journée fermée. Bonne soirée.', null, null, 'moon');
+    toast('Journée fermée. Bonne soirée 🌙');
     onClose();
   };
   const next = (fn) => {
@@ -82,7 +81,7 @@ export default function EveningRitual({ onClose }) {
               {tmr.length ? tmr.map((x) => (
                 <li key={x.id} className={'task ' + (x.prio ? 'prio' : '')}>
                   <button className={'seg gold ' + (x.prio ? 'on' : '')} onClick={() => (x.prio || canPrio(x.date, x.id) ? togglePrio(x.id) : toast('3 priorités maximum.'))} aria-label="Priorité">★</button>
-                  <span className="t"><span className="tt">{x.text}</span><span className="meta">{x.time && <span className="chip"><Icon name="clock" size={12} />{x.time}</span>}{(x.est || x.time) ? <span className="chip">{fmtMin(taskDur(x, S))}</span> : null}</span></span>
+                  <span className="t"><span className="tt">{x.text}</span><span className="meta">{x.time && <span className="chip">🕑 {x.time}</span>}{(x.est || x.time) ? <span className="chip">{fmtMin(taskDur(x, S))}</span> : null}</span></span>
                 </li>
               )) : <li className="py-4 text-center text-mut">Rien de prévu demain pour l’instant.</li>}
             </ul>

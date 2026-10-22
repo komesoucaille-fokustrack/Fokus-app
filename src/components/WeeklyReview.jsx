@@ -5,7 +5,6 @@ import { fmtMin } from './TaskList';
 import { getColorForPercentage } from '../lib/colors';
 import { addDays, dayLabel, parseK } from '../lib/dates';
 import { todayKey, useStore, weekReview } from '../store';
-import Icon from './Icons';
 
 const short = (k) => parseK(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
@@ -38,7 +37,7 @@ export default function WeeklyReview({ onClose, current }) {
         </div>
         <div className="stat">
           <span className="slab">Série</span>
-          <b className="inline-flex items-center gap-1.5 text-lg"><Icon name="flame" size={18} />{r.z.cur} j</b>
+          <b className="text-lg">🔥 {r.z.cur} j</b>
           <span className="text-[13px] text-mut">Record {r.z.best} j · {r.z.wcur} sem.</span>
         </div>
         <div className="stat">

@@ -77,7 +77,7 @@ function usePomodoro() {
         buzz(200);
         const msg = ended === 'work' ? 'Session terminée, place à la pause.' : 'Pause terminée, on s’y remet ?';
         if (S.set.pomoNotif && document.hidden && !S.set.push) notify('Fokus — Pomodoro', msg);
-        else toast(msg, null, null, ended === 'work' ? 'focus' : 'pause');
+        else toast((ended === 'work' ? '⏱️ ' : '☕ ') + msg);
       }
       const p = getState().pomo;
       if (p && p.paused == null) {
@@ -132,7 +132,7 @@ function CarriedBar() {
         <span className="flex flex-wrap gap-1.5">
           <button className="seg" onClick={() => { moveCarried(addDays(today, 1)); setOpenBar(false); }}>Demain</button>
           <button className="seg" onClick={() => { moveCarried(null); setOpenBar(false); }}>Plus tard</button>
-          <label className="seg relative"><Icon name="calendar" /> Choisir une date
+          <label className="seg relative">📅 Choisir une date
             <input type="date" min={addDays(today, 1)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* non supporté */ } }}
               onChange={(e) => { if (e.target.value) { moveCarried(e.target.value); setOpenBar(false); } }} />
@@ -286,7 +286,7 @@ export default function App() {
                 <span className="viewseg ml-auto" role="group" aria-label="Affichage">
                   <button className={S.set.planView !== 'timeline' ? 'on' : ''} onClick={() => setSetting('planView', 'list')}>Liste</button>
                   <button className={S.set.planView === 'timeline' ? 'on' : ''} onClick={() => setSetting('planView', 'timeline')}>Chronologie</button>
-                  <button onClick={() => setModal('evening')} title="Fermer ma journée" aria-label="Fermer ma journée"><Icon name="moon" /></button>
+                  <button onClick={() => setModal('evening')} title="Fermer ma journée" aria-label="Fermer ma journée">🌙</button>
                 </span>
               </div>
               {S.set.planView === 'timeline'
@@ -326,7 +326,7 @@ export default function App() {
 
       <div id="dim" ref={dim} />
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}
-      <button className="b" id="skip" ref={skipBtn} onClick={(e) => { skip(); e.currentTarget.classList.remove('on'); }}>Passer l’animation <Icon name="skip" size={14} /></button>
+      <button className="b" id="skip" ref={skipBtn} onClick={(e) => { skip(); e.currentTarget.classList.remove('on'); }}>Passer l’animation ⏭</button>
 
       <div
         className={'fixed left-1/2 z-[200] flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-line bg-cont/95 py-2 pr-2 pl-5 text-sm shadow-2xl backdrop-blur transition-all duration-500 ease-spring '

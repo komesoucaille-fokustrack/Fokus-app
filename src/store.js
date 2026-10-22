@@ -275,7 +275,7 @@ export function cardText(St = S) {
   if (s.prt) parts.push((typeof innerWidth !== 'undefined' && innerWidth < 480 ? '★ ' : 'Priorités : ') + `${s.pr}/${s.prt}`);
   if (St.set.showStreak) {
     const z = streaks(St);
-    if (z.cur || z.best) parts.push(`Série ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
+    if (z.cur || z.best) parts.push(`🔥 ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
   }
   const tasks = `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}`;
   return {
@@ -719,8 +719,8 @@ export function checkBadges() {
   set({ badges });
   if (!S.set.showBadges) return;
   // plusieurs badges d'un coup (import, données test) : un seul message
-  if (fresh.length > 2) toast(`${fresh.length} nouveaux badges débloqués !`, null, null, 'medal');
-  else fresh.forEach((b) => toast(`Nouveau badge : ${b.name}`, null, null, 'medal'));
+  if (fresh.length > 2) toast(`🏅 ${fresh.length} nouveaux badges débloqués !`);
+  else fresh.forEach((b) => toast(`🏅 Nouveau badge : ${b.name}`));
 }
 
 /* ---------- Pomodoro — calcul par horodatages (juste même écran verrouillé) ----------
@@ -884,7 +884,7 @@ export function checkDay() {
   rest = rest.map((t) => (t.prio && isToday(t, tk) ? (++pc > 3 ? { ...t, prio: false } : t) : t));
   UI = { ...UI, sel: new Set(), open: null };
   set({ hist, last: tk, ...spawn(rest, S.rec, tk) });
-  if (jk) toast(jk > 1 ? `${jk} jokers utilisés, ta série continue.` : 'Joker utilisé, ta série continue.', null, 4500, 'joker');
+  if (jk) toast(jk > 1 ? `${jk} jokers utilisés, ta série continue 🔥` : 'Joker utilisé, ta série continue 🔥', null, 4500);
   checkBadges();
   return true;
 }
