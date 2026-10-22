@@ -1,32 +1,17 @@
-import font from '../assets/inter-black.typeface.json';
 import { LOGO_URL } from '../brand';
 
-/* Convertit un glyphe « typeface » (y vers le haut) en chemin SVG (y vers le bas) */
-function glyphPath(ch, x0, base, size) {
-  const g = font.glyphs[ch], s = size / font.resolution, o = g.o.split(' ');
-  const X = (v) => (x0 + v * s).toFixed(2), Y = (v) => (base - v * s).toFixed(2);
-  let d = '';
-  for (let i = 0; i < o.length;) {
-    const c = o[i++];
-    if (c === 'm' || c === 'l') { d += (c === 'm' ? 'M' : 'L') + X(+o[i++]) + ' ' + Y(+o[i++]); }
-    else if (c === 'q') { const x = +o[i++], y = +o[i++], cx = +o[i++], cy = +o[i++]; d += `Q${X(cx)} ${Y(cy)} ${X(x)} ${Y(y)}`; }
-    else if (c === 'b') { const x = +o[i++], y = +o[i++], a = +o[i++], b = +o[i++], e = +o[i++], f = +o[i++]; d += `C${X(a)} ${Y(b)} ${X(e)} ${Y(f)} ${X(x)} ${Y(y)}`; }
-    else if (c === 'z') d += 'Z';
-  }
-  return { d, adv: g.ha * s };
-}
-
-function word(text, x, base, size, spacing) {
-  const paths = [];
-  for (const ch of text) { const g = glyphPath(ch, x, base, size); paths.push(g.d); x += g.adv + spacing; }
-  return paths.join('');
-}
-
-const F_W = font.glyphs.F.ha * (20 / font.resolution);
+/* Logo Fokus (kit dans `brand/`) : anneau de progression vert + logotype « FOKUS » dont le O est l'anneau.
+   Tracés partagés avec la bannière de l'arche 3D (Arch.jsx). */
 export const LOGO_SVG = {
-  badgeF: glyphPath('F', 16 - F_W / 2 + 1, 23, 20).d,
-  word: word('FOKUS', 40, 23, 20, 2.4),
+  // logotype seul, viewBox « 4.7 -1.1 341.6 75 »
+  track: 'M60.40 36.40a37.50 37.50 0 1 0 75.00 0a37.50 37.50 0 1 0 -75.00 0ZM77.40 36.40a20.50 20.50 0 1 0 41.00 0a20.50 20.50 0 1 0 -41.00 0Z',
+  arc: 'M97.90 -1.10A37.50 37.50 0 1 1 60.47 34.05A8.50 8.50 0 0 1 77.44 35.11A20.50 20.50 0 1 0 97.90 15.90A8.50 8.50 0 0 1 97.90 -1.10Z',
+  word: 'M24.40 72.80L4.70 72.80L4.70 0.00L55.90 0.00L55.90 16.00L24.40 16.00L24.40 32.40L52.70 32.40L52.70 47.90L24.40 47.90L24.40 72.80ZM161.80 72.80L142.10 72.80L142.10 0.00L161.80 0.00L161.80 15.70L161.50 34.20Q163.20 30.90 165.50 27.60L165.50 27.60Q168.00 23.80 171.90 18.70L171.90 18.70L186.30 0.00L209.70 0.00L184.30 31.30L211.10 72.80L187.80 72.80L170.80 44.30L161.80 54.60L161.80 72.80ZM247.80 73.70L247.80 73.70Q238.50 73.70 231.40 70.40Q224.30 67.10 220.40 61.00Q216.50 54.90 216.50 46.60L216.50 46.60L216.50 0.00L236.20 0.00L236.20 45.00Q236.20 48.40 237.70 51.00Q239.20 53.60 241.90 55.10Q244.50 56.60 247.80 56.60L247.80 56.60Q251.30 56.60 253.90 55.10Q256.50 53.60 258.00 51.00Q259.60 48.40 259.60 45.00L259.60 45.00L259.60 0.00L279.30 0.00L279.30 46.60Q279.30 54.90 275.30 61.00Q271.40 67.10 264.30 70.40Q257.20 73.70 247.80 73.70ZM316.80 73.70L316.80 73.70Q307.30 73.70 300.20 70.90Q293.20 68.10 289.30 62.20Q285.40 56.30 285.30 47.20L285.30 47.20L304.10 47.20Q304.30 50.50 305.80 52.80Q307.30 55.10 310.00 56.30Q312.70 57.50 316.50 57.50L316.50 57.50Q319.70 57.50 321.80 56.70Q324.00 55.90 325.10 54.50Q326.20 53.10 326.20 51.30L326.20 51.30Q326.20 49.70 325.10 48.40Q324.10 47.20 321.70 46.10Q319.30 45.10 315.20 44.30L315.20 44.30L307.90 42.70Q298.30 40.70 292.70 35.70Q287.20 30.80 287.20 22.20L287.20 22.20Q287.20 15.30 290.90 10.10Q294.70 4.90 301.30 2.00Q307.90 -0.90 316.60 -0.90L316.60 -0.90Q325.40 -0.90 331.80 2.00Q338.30 5.00 341.80 10.30Q345.20 15.70 345.30 22.80L345.30 22.80L326.30 22.80Q326.10 19.20 323.70 17.30Q321.40 15.30 316.60 15.30L316.60 15.30Q313.60 15.30 311.60 16.00Q309.60 16.70 308.70 18.00Q307.80 19.20 307.80 20.80L307.80 20.80Q307.80 22.60 308.80 23.80Q309.80 25.10 312.00 26.10Q314.10 27.00 317.60 27.80L317.60 27.80L323.50 29.00Q329.50 30.30 333.80 32.40Q338.20 34.50 340.90 37.30Q343.70 40.10 345.00 43.60Q346.30 47.20 346.30 51.30L346.30 51.30Q346.30 58.50 342.70 63.50Q339.20 68.50 332.60 71.10Q326.00 73.70 316.80 73.70Z',
+  // pastille de l'en-tête (viewBox 0 0 100 100)
+  badgeTrack: 'M16.50 50.00a33.50 33.50 0 1 0 67.00 0a33.50 33.50 0 1 0 -67.00 0ZM29.50 50.00a20.50 20.50 0 1 0 41.00 0a20.50 20.50 0 1 0 -41.00 0Z',
+  badgeArc: 'M50.00 16.50A33.50 33.50 0 1 1 16.57 47.90A6.50 6.50 0 0 1 29.54 48.71A20.50 20.50 0 1 0 50.00 29.50A6.50 6.50 0 0 1 50.00 16.50Z',
 };
+export const RING = [['0', '#059669'], ['0.45', '#10b981'], ['1', '#86efac']];
 
 /* Emplacement .fokus-logo — recopié automatiquement sur l'arche 3D */
 export default function FokusLogo({ className = '' }) {
@@ -35,10 +20,22 @@ export default function FokusLogo({ className = '' }) {
       {LOGO_URL ? (
         <img src={LOGO_URL} alt="Fokus" />
       ) : (
-        <svg viewBox="0 0 132 32" role="img" aria-label="Fokus">
-          <rect x="1" y="1" width="30" height="30" rx="8" fill="#fff" />
-          <path d={LOGO_SVG.badgeF} fill="#000" />
-          <path d={LOGO_SVG.word} fill="#fff" />
+        <svg viewBox="0 0 114.73 32" role="img" aria-label="Fokus">
+          <defs>
+            <linearGradient id="fk-ring" x1="1" y1="0.3" x2="0" y2="0.7">{RING.map(([o, c]) => <stop key={o} offset={o} stopColor={c} />)}</linearGradient>
+            <linearGradient id="fk-bg" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stopColor="#1a1a1f" /><stop offset="1" stopColor="#08080a" /></linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="7.2" fill="url(#fk-bg)" />
+          <rect x="0.25" y="0.25" width="31.5" height="31.5" rx="7" fill="none" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.5" />
+          <g transform="scale(0.32)">
+            <path d={LOGO_SVG.badgeTrack} fill="#fff" fillOpacity="0.12" fillRule="evenodd" />
+            <path d={LOGO_SVG.badgeArc} fill="url(#fk-ring)" />
+          </g>
+          <g transform="translate(41 8.25) scale(0.21291)">
+            <path d={LOGO_SVG.track} fill="#fff" fillOpacity="0.14" fillRule="evenodd" />
+            <path d={LOGO_SVG.arc} fill="url(#fk-ring)" />
+            <path d={LOGO_SVG.word} fill="#fff" />
+          </g>
         </svg>
       )}
     </div>

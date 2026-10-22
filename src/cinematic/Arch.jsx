@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { LOGO_URL } from '../brand';
-import { LOGO_SVG } from '../components/FokusLogo';
+import { LOGO_SVG, RING } from '../components/FokusLogo';
 import { TRACK_Z, barGeo, fx } from './shared';
 import { additive, checkerTexture, glowTexture } from './textures';
 import { clamp } from '../lib/colors';
@@ -73,16 +73,18 @@ function bannerTexture(img) {
     const h = 110, w = (h * img.width) / img.height;
     x.drawImage(img, 512 - w / 2, 40, w, h);
   } else {
-    // logo vectoriel (badge « F » + FOKUS), mêmes tracés que l'en-tête
+    // logotype vectoriel (FOKUS, le O = anneau vert), mêmes tracés que l'en-tête
+    const s = 1.47;
     x.save();
-    x.translate(512 - 66 * 3.4, 38);
-    x.scale(3.4, 3.4);
-    x.fillStyle = '#ffffff';
-    x.beginPath();
-    x.roundRect(1, 1, 30, 30, 8);
-    x.fill();
-    x.fillStyle = '#0d0d10';
-    x.fill(new Path2D(LOGO_SVG.badgeF));
+    x.translate(512 - (4.7 + 341.6 / 2) * s, 40 + 1.1 * s);
+    x.scale(s, s);
+    x.fillStyle = 'rgba(255,255,255,.16)';
+    x.fill(new Path2D(LOGO_SVG.track), 'evenodd');
+    // dégradé de l'anneau (boîte 60.4 → 135.4, -1.1 → 73.9)
+    const g = x.createLinearGradient(135.4, -1.1 + 0.3 * 75, 60.4, -1.1 + 0.7 * 75);
+    RING.forEach(([o, c]) => g.addColorStop(+o, c));
+    x.fillStyle = g;
+    x.fill(new Path2D(LOGO_SVG.arc));
     x.fillStyle = '#ffffff';
     x.fill(new Path2D(LOGO_SVG.word));
     x.restore();

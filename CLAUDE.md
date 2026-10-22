@@ -76,20 +76,25 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Respecter `prefers-reduced-motion` et les paramètres (barre coupée → simple flash bleu de la barre). Bouton « Passer l'animation ».
 - Test visuel : `?slow=0.3` ralentit toute l'animation.
 
-## Logique métier v2 (à préserver)
+## Logique métier v3 (à préserver)
 
-- **Modèle de données** (`src/store.js`, `version: 2`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
-  les sauvegardes de l'ancien `index.html` restent compatibles) :
-  - tâche `{ id, text, done, date ('YYYY-MM-DD' | null = Plus tard), weight 1|2|3, prio, tags[], subs[{id,text,done}], carried, focus (min), rid? }` ;
+- **Modèle de données** (`src/store.js`, `version: 3`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
+  les sauvegardes v2 et de l'ancien `index.html` restent compatibles ; toute évolution passe par `migrate()`) :
+  - tâche `{ id, text, done, date ('YYYY-MM-DD' | null = Plus tard), weight 1|2|3, prio, tags[], subs[{id,text,done}], carried, focus (min),
+    est (pomodoros), time ('HH:MM' | null), dur (min | null), rid? }` ;
+  - `sessions` = journal compact `[début s, durée s, tâche, 'c'|'f', terminée, [étiquettes], titre]` (purge > 2 ans) ;
+    `ideas` = bloc-notes de distractions ; `pushId` = identifiant aléatoire de l'appareil pour le serveur de notifications ;
   - récurrence `{ id, text, rule {type: daily|weekdays(days)|interval(every)|monthday(day)}, start, weight, tags, prio, last }` —
     `last` + « pas de nouvelle occurrence tant que la précédente n'est pas faite » = jamais de doublon ;
-  - historique `hist[jour] = { p, d, t, pd, pt, pr, prt, fm, tg, jk? }` ; réglages `S.set` (`DEF_SET`) ; `badges`, `doneTotal`, `fmDay`,
+  - historique `hist[jour] = { p, d, t, pd, pt, pr, prt, fm, ps, tg, jk?, ea? }` (ea = [min estimées, min réelles]) ; réglages `S.set` (`DEF_SET`) ; `badges`, `doneTotal`, `fmDay`,
     `lastExport`, `since`, `seen` (tri du matin, bilan, rappels), `pomo` (minuteur en cours, calculé par horodatages).
+- **Ordre des tâches** : réglage `set.order` « Manuel » (défaut : seul l'ordre choisi compte, partout ; ★ propose « Remonter en tête »)
+  ou « Automatique » (`sortTasks` : priorités puis 3 > 2 > 1 pt ; poignée désactivée avec explication).
 - **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). Réglage `set.scoreMode` :
   `'pct'` (pourcentage, défaut) ou `'pts'` (« 7 pts », sous-titre « sur 10 pts », bouton « +3 pts ») — `scoreFmt()` sert aussi au compteur
   de l'animation (`race(..., { fmt })`, seul ajout fait au moteur, visuel inchangé). La Page 1 n'affiche que les tâches du jour, triées par
   `sortTasks` : priorités ★ en **or** (`--gold`, 3 max par jour) en tête, puis 3 pts > 2 pts > 1 pt, puis l'ordre choisi (tri stable ;
-  même tri dans « À venir »). Filtre par étiquette au-dessus de la liste.
+  même tri dans « À venir », en mode Automatique). Filtre par étiquette au-dessus de la liste.
 - **Ajout** (`QuickAdd`) : points 1/2/3 et ★ Priorité choisis directement sous le champ ; bouton « ↻ Récurrence » à côté d'« Ajouter »
   (tous les jours / tous les X jours / certains jours / un jour du mois + liste des récurrences). Plus d'onglet « Récurrentes » dans l'en-tête.
 - **Onglet Pomodoro** (`Pomodoro.jsx`, page 4) : concentration / pause courte / pause longue (tous les N cycles), démarrage auto,
@@ -103,6 +108,17 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   portrait 1290×2796 recadré (`-P`, via `<picture>`), vignette `-mini.jpg` ; même DA (intérieurs mid-century chauds, vert profond,
   noir et blanc, brume, voitures, horloges à palettes). Jamais de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
+  v3 : mode **Libre** (Flowtime, `set.pomoMode`, pause = 1/`flowRatio` du temps fait), **aucune punition** (pause, réinitialisation,
+  fermeture : le temps fait est toujours crédité), estimation en pomodoros (« ~3 », « 🍅 2/3 »), **sons d'ambiance** (`lib/ambient.js` :
+  bruits brun/blanc générés, pluie/café/forêt en boucles libres `public/sounds/*.m4a`, fondus, coupure en pause), **idées notées**
+  pendant la session (revues à la pause), statistiques de concentration (`FocusStats.jsx`).
+- **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui
+  long, redimensionnables, « À caser », chevauchements), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
+  `Overload.jsx`), **rituel du soir** `EveningRitual.jsx` (3 écrans ; tri du matin sauté si tout est trié ; `set.evening`, `eveningAt`).
+- **Saisie rapide** v3 : « de demain », « le lundi » et les fractions (1/2, 3/4) ne sont pas des dates ; `~3` = estimation ;
+  `14h30`, `14:30`, `à 9h` = heure ; un tap sur un mot surligné annule sa détection.
+- **Notifications Web Push** (`lib/push.js`, `lib/pushSync.js`, `pwa/sw.js`) : fin de phase programmée quand l'app passe en arrière-plan
+  et annulée à son retour (jamais de doublon), rappel du soir quotidien mis à jour à chaque changement de liste ; serveur `server/`.
 - Validation : gros bouton flottant (gain par points en vert pastel `#86efac`), puis toast « X tâche(s) validée(s) — Annuler » (6 s, après
   l'animation) ; ↺ décoche une tâche terminée ; « Annuler » après suppression. Textes de la carte : `cardText()` (partagé avec la face 3D :
   `subText` + mise à jour du nœud texte du libellé avant `race`). Si la carte est hors écran, la page remonte avant l'animation.
@@ -116,9 +132,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points, couleur de la moyenne
   de la période (Semaine / Mois / Année) ; concentration et série ; répartition par étiquette ; calendrier de chaleur 12 mois ; vitrine de badges.
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build (liste des fichiers + version) par le plugin de `vite.config.js` ; bandeau « Nouvelle version ».
-- Mode test : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
-  + tâches d'exemple).
-- Réglages (`Settings.jsx`) : rubriques (Score et affichage, Série et motivation, Pomodoro, Animations, Rappels, Étiquettes, Données)
+- Mode test (à garder tel quel, en bas de la page Tâches) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
+  + sessions, estimations, heures, idées notées et tâches d'exemple).
+- Réglages (`Settings.jsx`) : rubriques (Apparence, Score et affichage, Ma journée, Série et motivation, Pomodoro, Animations, Rappels,
+  Étiquettes, Données)
   en colonne à gauche (iPad) ou en puces (téléphone), listes groupées façon iOS (`.sg`, `.si`).
 - Fluidité : grain = petite texture `public/noise.png` en mosaïque (jamais de filtre SVG plein écran), animations des décors
   par `transform` (composité), pas de transition sur les tracés SVG.
@@ -128,12 +145,19 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
-  `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks`, `StatsPage`, `Sheet` (modale).
-- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `backgrounds`.
+  `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Sheet` (modale).
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`.
+- `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
+  au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).
+  Déployé par `.github/workflows/push-server.yml` (secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).
+  Adresse dans `src/push-config.js` (ou Réglages → Rappels → Avancé). Ne stocke que l'abonnement, l'heure et le texte.
 - `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Outline.jsx`, `Arch.jsx`, `Sparks.jsx`,
   `SpeedLines.jsx` — scène 3D (**l'utilisateur a validé l'animation : ne plus la modifier**).
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
 - `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
+
+- **Gratuit et sans limite** : aucune durée maximale, aucune fonction bloquée, aucune publicité.
 
 ## Idées pour plus tard (à rediscuter avec l'utilisateur)
 
