@@ -138,6 +138,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   navigateur ne décode pas l'AAC, fondus, coupure en pause ; aperçu de 6 s au choix d'un son minuteur arrêté ; contexte audio relancé à
   chaque geste (touchend/click : déblocage iPad, reprise après arrière-plan) par `lib/sound.js`), **idées notées**
   pendant la session (revues à la pause), statistiques de concentration (`FocusStats.jsx`).
+- **Mini-fenêtre** (`lib/pip.js`, Picture-in-Picture) : bouton en-tête + bouton sous le chrono ; le contenu (minuteur avec anneau qui se vide,
+  ou progression du jour) est dessiné sur un canevas diffusé en vidéo (`captureStream`) → fenêtre flottante qui reste à l'écran hors de l'app,
+  déplaçable et redimensionnable ; lecture/pause de la fenêtre = pause/reprise du minuteur ; réglage `set.pipMode` (auto / timer / day).
+  Les vrais widgets d'écran d'accueil iOS sont réservés aux apps de l'App Store (impossible pour une web app).
 - **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui
   long, redimensionnables, « À caser », chevauchements), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
   `Overload.jsx`), **rituel du soir** `EveningRitual.jsx` (3 écrans ; tri du matin sauté si tout est trié ; `set.evening`, `eveningAt`).
@@ -182,7 +186,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
   `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Icons`, `Medal`, `Sheet` (modale).
-- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`.
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`.
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
   au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).
   Déployé par `.github/workflows/push-server.yml` (secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).

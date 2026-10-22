@@ -145,6 +145,11 @@ function Pomo({ S }) {
         <Item title="Relancer la concentration après la pause"><Switch label="Concentration automatique" checked={st.autoWork} onChange={(v) => setSetting('autoWork', v)} /></Item>
         <Item title="Son de fin" desc="Un carillon doux à la fin de chaque phase"><Switch label="Son de fin" checked={st.sound} onChange={(v) => setSetting('sound', v)} /></Item>
       </Group>
+      <Group title="Mini-fenêtre" foot="Bouton « mini-fenêtre » (en haut ou sous le chrono) : une petite fenêtre flottante qui reste à l’écran quand tu quittes Fokus. Pince-la pour l’agrandir ou la réduire, glisse-la où tu veux ; son bouton lecture / pause met le minuteur en pause.">
+        <Item title="Contenu">
+          {[['auto', 'Automatique'], ['timer', 'Minuteur'], ['day', 'Ma journée']].map(([k, l]) => <Seg key={k} on={(st.pipMode || 'auto') === k} onClick={() => setSetting('pipMode', k)}>{l}</Seg>)}
+        </Item>
+      </Group>
       <Group title="Apparence">
         <Item title="Style du chrono" desc="Ignoré par les fonds « Concepts », qui ont leur propre chrono">
           {CLOCKS.map(([k, l]) => <Seg key={k} on={st.clock === k} onClick={() => setSetting('clock', k)}>{l}</Seg>)}

@@ -12,6 +12,8 @@ import {
   setSetting, sortTasks, todayKey, todayTasks, useStore,
 } from '../store';
 import Ico from './Icons';
+import { usePip } from './Header';
+import { pipSupported } from '../lib/pip';
 
 const two = (n) => String(n).padStart(2, '0');
 
@@ -52,6 +54,7 @@ const I = {
 /* Scène : fond choisi + chrono + commandes (dans la page ou en plein écran) */
 function Stage({ full, onFull, onExit }) {
   const { S } = useStore();
+  const [pipOn, togglePip] = usePip();
   const p = pomoState();
   const running = p.paused == null;
   const [hour, setHour] = useState(false);
@@ -131,6 +134,7 @@ function Stage({ full, onFull, onExit }) {
           {full
             ? <button className="sbtn" onClick={onExit} aria-label="Quitter le plein écran" title="Quitter le plein écran (Échap)"><Icon d={I.exit} /></button>
             : <button className="sbtn" onClick={onFull} aria-label="Plein écran" title="Plein écran (F)"><Icon d={I.full} /></button>}
+          {pipSupported() && <button className={'sbtn ' + (pipOn ? 'on' : '')} onClick={togglePip} aria-label="Mini-fenêtre" title="Mini-fenêtre : le minuteur reste à l’écran quand tu quittes Fokus"><Ico name="pip" size={20} /></button>}
         </div>
       </div>
     </div>

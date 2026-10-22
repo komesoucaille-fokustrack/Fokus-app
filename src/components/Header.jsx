@@ -2,7 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { Gear } from './Settings';
-import { pomoElapsed, setModal, setPage, useStore } from '../store';
+import { pomoElapsed, setModal, setPage, toast, useStore } from '../store';
+import Icon from './Icons';
+import { openPip, pipActive, pipSupported } from '../lib/pip';
 
 /* Plein écran (Safari iPad : API préfixée webkit) */
 const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -95,9 +97,27 @@ export default function Header() {
       </nav>
       <div className="flex items-center gap-2 sm:order-none">
         <button className="b icon-b" onClick={() => open('search')} aria-label="Rechercher" title="Rechercher (/)"><Loupe /></button>
+        <PipButton />
         {canFull && <button className={'b icon-b ' + (full ? 'on' : '')} onClick={toggleFullscreen} aria-label="Plein écran"><FullIcon exit={full} /><span className="ml-1.5 hidden sm:inline">{full ? 'Quitter le plein écran' : 'Plein écran'}</span></button>}
         <button className={'b icon-b ' + (UI.modal === 'settings' ? 'on' : '')} onClick={() => open('settings')} aria-label="Réglages" title="Réglages"><Gear /></button>
       </div>
     </header>
+  );
+}
+
+/* Mini-fenêtre flottante (Picture-in-Picture) : reste à l'écran quand on quitte l'app */
+export function usePip() {
+  const [on, setOn] = useState(pipActive());
+  useEffect(() => { const f = () => setOn(pipActive()); addEventListener('fokuspip', f); return () => removeEventListener('fokuspip', f); }, []);
+  const toggle = () => openPip().catch(() => toast('La mini-fenêtre n’est pas disponible sur cet appareil.', null, 4000));
+  return [on, toggle];
+}
+function PipButton() {
+  const [on, toggle] = usePip();
+  if (!pipSupported()) return null;
+  return (
+    <button className={'b icon-b ' + (on ? 'on' : '')} onClick={toggle} aria-label={on ? 'Fermer la mini-fenêtre' : 'Mini-fenêtre'} title="Mini-fenêtre : reste à l’écran quand tu quittes Fokus">
+      <Icon name="pip" size={18} />
+    </button>
   );
 }

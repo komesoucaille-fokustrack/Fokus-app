@@ -26,7 +26,8 @@ fonctionne hors ligne et peut recevoir des notifications.
 - **Design** : thème « Obsidienne » (noir profond aux reflets bleu nuit, émeraude et ambre), cartes en verre fumé, lumière
   colorée par la progression derrière la carte du jour ; fonds pré-calculés pour rester parfaitement fluide (60 i/s).
   Autres ambiances au choix (Graphite lunaire, Ambre fumé, photos, dégradés).
-- **Motivation** : 51 badges en 5 rubriques avec progression, séries et jokers, bilan de la semaine.
+- **Motivation** : 87 badges en médailles Fokus (anneau du logo, paliers bronze → émeraude) avec progression, séries et jokers, bilan de la semaine.
+- **Mini-fenêtre** : le minuteur ou la progression du jour restent à l'écran dans une petite fenêtre flottante redimensionnable quand on quitte Fokus.
 - **Notifications** même app fermée : fin de phase du Pomodoro et rappel du soir (voir ci-dessous).
 
 ## Notifications
