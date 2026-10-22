@@ -163,7 +163,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build par le plugin de `vite.config.js` (injecte `const VERSION` / `const ASSETS` ;
   le build **échoue** si un nom reste non remplacé — sinon le service worker plante : plus de hors ligne ni de notifications) ;
   cache consulté avec `ignoreVary` ; rechargement automatique seulement lors d'une mise à jour ; bandeau « Nouvelle version ».
-- Mode test (à garder tel quel, en bas de la page Tâches) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
+- Mode test (à garder tel quel, en bas de la page Tâches ; masquable par l'utilisateur : Réglages → Données → « Afficher les outils de test », `set.testTools`, visible par défaut) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
   + sessions, estimations, heures, idées notées et tâches d'exemple).
 - Réglages (`Settings.jsx`) : rubriques (Apparence, Score et affichage, Ma journée, Série et motivation, Pomodoro, Animations, Rappels,
   Étiquettes, Données)

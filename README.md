@@ -26,9 +26,16 @@ fonctionne hors ligne et peut recevoir des notifications.
 - **Design** : thème « Obsidienne » (noir profond aux reflets bleu nuit, émeraude et ambre), cartes en verre fumé, lumière
   colorée par la progression derrière la carte du jour ; fonds pré-calculés pour rester parfaitement fluide (60 i/s).
   Autres ambiances au choix (Graphite lunaire, Ambre fumé, photos, dégradés).
+- **Motivation** : 51 badges en 5 rubriques avec progression, séries et jokers, bilan de la semaine.
 - **Notifications** même app fermée : fin de phase du Pomodoro et rappel du soir (voir ci-dessous).
 
-## Notifications : mise en place (une seule fois, depuis l'iPad, sans terminal)
+## Notifications
+
+**En service** : serveur `https://fokus-push.kome-soucaille.workers.dev` (Cloudflare Workers, déployé par GitHub Actions).
+Sur l'iPad : ouvrir Fokus depuis l'icône de l'écran d'accueil → Réglages → Rappels → activer → « Envoyer une notification de test ».
+En cas de souci : Réglages → Rappels → **Diagnostic** (vérifie chaque étape).
+
+### Mise en place (déjà faite — pour mémoire, depuis l'iPad, sans terminal)
 
 Les notifications sont envoyées par un petit serveur gratuit (Cloudflare Workers, dossier [`server/`](server/)).
 Il ne garde que l'abonnement de l'appareil, l'heure et le texte des notifications — aucune tâche, aucun historique.

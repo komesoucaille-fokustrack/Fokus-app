@@ -293,8 +293,12 @@ export default function App() {
                 : <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />}
             </div>
             <div ref={tools} className="mt-[30px] flex flex-wrap items-center justify-center gap-2">
-              <button className="b text-[13px] text-mut" onClick={() => { simulateMidnight(); setTimeout(prompts, 400); }}>Simuler minuit / Jour suivant (Mode Test)</button>
-              <button className="b text-[13px] text-mut" onClick={generateTestData}>Générer données test</button>
+              {S.set.testTools !== false && (
+                <>
+                  <button className="b text-[13px] text-mut" onClick={() => { simulateMidnight(); setTimeout(prompts, 400); }}>Simuler minuit / Jour suivant (Mode Test)</button>
+                  <button className="b text-[13px] text-mut" onClick={generateTestData}>Générer données test</button>
+                </>
+              )}
               <button className="b text-[13px] text-mut" onClick={() => setModal('weekly')}>Bilan de la semaine</button>
             </div>
           </section>

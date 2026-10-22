@@ -315,6 +315,11 @@ function Data({ S, close }) {
           <input ref={file} type="file" accept=".json,application/json" hidden onChange={onFile} />
         </Item>
       </Group>
+      <Group title="Mode test" foot="« Simuler minuit » et « Générer données test », en bas de la page Tâches. Masque-les quand tes essais sont finis : tes données ne changent pas.">
+        <Item title="Afficher les outils de test" desc="Le bouton « Bilan de la semaine » reste toujours visible">
+          <Switch label="Afficher les outils de test" checked={S.set.testTools !== false} onChange={(v) => setSetting('testTools', v)} />
+        </Item>
+      </Group>
       <Group title="Zone sensible">
         <Item title="Tout effacer" desc="Tâches, historique, badges et réglages. Pense à exporter avant.">
           {reset === 0 && <button type="button" className="b" onClick={() => setReset(1)}>Réinitialiser…</button>}
