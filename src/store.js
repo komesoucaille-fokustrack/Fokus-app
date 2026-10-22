@@ -5,10 +5,11 @@ import { scheduleBackup } from './lib/backup';
 import { buzz } from './lib/notify';
 
 /* =====================================================================
-   MODÈLE DE DONNÉES (version 3) — clé localStorage « focus_state »
+   MODÈLE DE DONNÉES (version 4) — clé localStorage « focus_state »
    Tâche      { id, text, done, date: 'YYYY-MM-DD' | null (= Plus tard), weight: 1|2|3, prio, tags: [tagId],
                 subs: [{ id, text, done }], carried (nombre de reports), focus (minutes), rid? (récurrence d'origine),
-                est (estimation en pomodoros, 0 = aucune), time ('HH:MM' | null, heure de début), dur (minutes | null, durée ajustée) }
+                est (temps estimé en minutes, 0 = aucun ; = durée du bloc en chronologie), time ('HH:MM' | null, heure de début) }
+              v4 : l'estimation passe de pomodoros à minutes (migrate : est × durée du pomodoro, ou ancienne durée ajustée `dur`)
    Journal    sessions = [[début (s), durée (s), tâche | null, 'c' (classique) | 'f' (libre), terminée 0|1, [étiquettes], titre]] — purgé au-delà de 2 ans
    Historique (v3) hist[jour].ea = [minutes estimées, minutes réelles] des tâches estimées terminées (précision des estimations)
    Idées      ideas = [{ id, text, at }] — bloc-notes de distractions du minuteur
@@ -19,7 +20,7 @@ import { buzz } from './lib/notify';
               tg = tâches validées par étiquette, jk = joker utilisé ce jour-là
    Réglages   set = DEF_SET
    ===================================================================== */
-export const VERSION = 3;
+export const VERSION = 4;
 const KEY = 'focus_state';
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
 export const DEF_SET = {
@@ -64,6 +65,9 @@ export function migrate(raw) {
   const off = Number.isFinite(+o.off) ? +o.off : 0;
   const today = K(new Date(Date.now() + off * 864e5));
   const last = isKey(o.last) ? o.last : '';
+  // v4 : estimation en minutes (avant : en pomodoros de `set.pomo` minutes, durée ajustée dans `dur`)
+  const v0 = +o.version || 0, pm = clamp(Math.round(+(o.set && o.set.pomo)) || 25, 1, 180);
+  const estMin = (x) => clamp(Math.round(v0 < 4 ? (+x.dur >= 5 ? +x.dur : (+x.est || 0) * pm) : +x.est) || 0, 0, 1440);
   const tasks = arr(o.tasks).filter((t) => t && typeof t === 'object').map((t) => ({
     ...t,
     id: String(t.id || uid()),
@@ -76,10 +80,10 @@ export function migrate(raw) {
     subs: arr(t.subs).filter((x) => x && typeof x === 'object').map((x) => ({ id: String(x.id || uid()), text: String(x.text ?? ''), done: !!x.done })),
     carried: Math.max(0, Math.round(+t.carried) || 0),
     focus: Math.max(0, +t.focus || 0),
-    est: clamp(Math.round(+t.est) || 0, 0, 40),
+    est: estMin(t),
     time: isHM(t.time) ? t.time : null,
-    dur: Number.isFinite(+t.dur) && +t.dur >= 5 ? Math.round(+t.dur) : null,
   }));
+  tasks.forEach((t) => delete t.dur);
   const rec = arr(o.rec).filter((r) => r && typeof r === 'object').map((r) => {
     const id = String(r.id || uid());
     return {
@@ -90,7 +94,7 @@ export function migrate(raw) {
       weight: W(r.weight),
       tags: arr(r.tags).map(String),
       prio: !!r.prio,
-      est: clamp(Math.round(+r.est) || 0, 0, 40),
+      est: clamp(Math.round(v0 < 4 ? (+r.est || 0) * pm : +r.est) || 0, 0, 1440),
       // ancienne récurrence déjà présente aujourd'hui → considérée comme générée (pas de doublon)
       last: isKey(r.last) ? r.last : tasks.some((t) => t.rid === id) ? last : '',
     };
@@ -368,23 +372,21 @@ export function addTask({ text, date, weight, prio, tags = [], est = 0, time = n
   if (UI.tag && d && d <= todayKey() && !r.ids.includes(UI.tag)) r.ids.push(UI.tag);
   let p = !!prio;
   if (p && !canPrio(d)) { p = false; toast('3 priorités maximum par jour.'); }
-  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0, est: est | 0, time: isHM(time) ? time : null, dur: null };
+  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0, est: clamp(est | 0, 0, 1440), time: isHM(time) ? time : null };
   set({ tasks: [...S.tasks, t], tags: r.tags });
   return t;
 }
 const patch = (id, f) => set({ tasks: S.tasks.map((t) => (t.id === id ? { ...t, ...(typeof f === 'function' ? f(t) : f) } : t)) });
 export const editTask = (id, text) => patch(id, { text });
 export const setTaskField = (id, f) => patch(id, f);
-/* Pomodoros faits sur une tâche, calculés depuis le temps de concentration crédité */
-export const pomosDone = (t, St = S) => Math.floor((t.focus || 0) / Math.max(1, St.set.pomo) + 0.05);
-/* Durée d'une tâche (chronologie, surcharge) : durée ajustée, sinon estimation, sinon durée par défaut */
-export const taskDur = (t, St = S) => t.dur || (t.est ? t.est * St.set.pomo : St.set.defDur);
+/* Durée d'une tâche (chronologie, surcharge) : temps estimé, sinon durée par défaut */
+export const taskDur = (t, St = S) => t.est || St.set.defDur;
 /* Total estimé du jour (tâches restantes ou faites) et temps fait */
 export function dayLoad(St = S, k = K(new Date(Date.now() + St.off * 864e5))) {
   let est = 0, done = 0, any = false;
   for (const t of St.tasks) {
     if (!isToday(t, k)) continue;
-    if (t.est) { any = true; est += t.est * St.set.pomo; }
+    if (t.est) { any = true; est += t.est; }
     done += t.focus || 0;
   }
   return { est, done, any };
@@ -538,7 +540,7 @@ function spawn(tasks, rec, k) {
     if (!out.some((t) => t.rid === r.id && !t.done)) {
       const p = r.prio && pc < 3;
       if (p) pc++;
-      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, est: r.est | 0, time: null, dur: null, rid: r.id });
+      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, est: r.est | 0, time: null, rid: r.id });
     }
     return { ...r, last: k };
   });
@@ -547,7 +549,7 @@ function spawn(tasks, rec, k) {
 /* tags = noms d'étiquettes (créées si besoin) */
 export function addRec({ text, rule, weight, tags = [], prio, est = 0 }) {
   const t = resolveTags(tags, S.tags);
-  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, est: est | 0, last: '' };
+  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, est: clamp(est | 0, 0, 1440), last: '' };
   set({ tags: t.tags, ...spawn(S.tasks, [...S.rec, r], todayKey()) });
   toast(`Récurrence ajoutée : ${describeRule(r.rule).toLowerCase()}.`);
 }
@@ -733,7 +735,7 @@ function entry(tasks, k, St) {
   for (const t of tasks) {
     if (!t.done || !isToday(t, k)) continue;
     for (const g of t.tags) tg[g] = (tg[g] || 0) + 1;
-    if (t.est) { ea[0] += t.est * St.set.pomo; ea[1] += r1(t.focus || 0); }
+    if (t.est) { ea[0] += t.est; ea[1] += r1(t.focus || 0); }
   }
   const e = { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
   if (ea[0]) e.ea = ea;
@@ -809,17 +811,17 @@ export function generateTestData() {
   }
   applyJokers(hist, keys, S.set);
   const g = (n) => tags.find((x) => x.name === n)?.id;
-  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, est: 0, time: null, dur: null, ...more });
+  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, est: 0, time: null, ...more });
   const pc = prioCount(S.tasks, tk);
   const samples = [
     ex('Séance de sport', tk, 2, pc < 3, [g('Sport')], {
-      subs: [{ id: uid(), text: 'Échauffement', done: true }, { id: uid(), text: 'Course 5 km', done: false }, { id: uid(), text: 'Étirements', done: false }], focus: 25, est: 2, time: '18:30',
+      subs: [{ id: uid(), text: 'Échauffement', done: true }, { id: uid(), text: 'Course 5 km', done: false }, { id: uid(), text: 'Étirements', done: false }], focus: 25, est: 45, time: '18:30',
     }),
-    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { carried: 3, est: 1, time: '09:00' }),
-    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { carried: 1, est: 1 }),
-    ex('Rapport trimestriel', tk, 3, false, [g('Travail')], { est: 4, focus: 40, time: '10:00' }),
+    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { carried: 3, est: 20, time: '09:00' }),
+    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { carried: 1, est: 30 }),
+    ex('Rapport trimestriel', tk, 3, false, [g('Travail')], { est: 90, focus: 40, time: '10:00' }),
     ex('Appeler le plombier', tk, 1, false, [g('Maison')], { time: '10:30' }),
-    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')], { est: 3, time: '14:00' }),
+    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')], { est: 60, time: '14:00' }),
     ex('Rendez-vous dentiste', addDays(tk, 3), 1, false, []),
     ex('Ranger le garage', null, 3, false, [g('Maison')]),
   ];

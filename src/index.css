@@ -562,3 +562,22 @@
     .task, .card:not(#pcard), .tl-loose, .daystrip { background: var(--color-bg-3) !important; }
   }
 }
+
+/* Temps estimé : puce « sablier » modifiable d'un tap + petit panneau flottant (Estimate.jsx) */
+@layer components {
+  .chip.est { cursor: pointer; gap: 5px; color: #c7d2fe; border-color: rgba(165, 180, 252, 0.3); background: rgba(165, 180, 252, 0.07); font-variant-numeric: tabular-nums;
+    position: relative; transition: background 0.2s, border-color 0.2s; }
+  .chip.est::after { content: ''; position: absolute; inset: -9px -4px; } /* zone de toucher agrandie */
+  .chip.est.empty { color: var(--color-mut); border-style: dashed; border-color: rgba(255, 255, 255, 0.16); background: transparent; opacity: 0.75; }
+  .chip.est.over { color: #86efac; border-color: rgba(134, 239, 172, 0.35); background: rgba(134, 239, 172, 0.07); }
+  .chip.est.on, .chip.est:active { background: rgba(165, 180, 252, 0.16); border-color: rgba(165, 180, 252, 0.55); }
+  .est-pop { position: fixed; z-index: 80; padding: 14px; border-radius: 16px; border: 1px solid var(--color-edge-hi);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%), #101116;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 24px 60px -16px rgba(0, 0, 0, 0.9); }
+  .est-ed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .est-ed.compact { flex-direction: column; align-items: stretch; }
+  .est-ed.compact .minf { justify-content: space-between; }
+  .est-pre { display: flex; flex-wrap: wrap; gap: 6px; }
+  .est-ed.compact .est-pre { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .est-pre .seg { min-height: 40px; padding: 0 10px; font-variant-numeric: tabular-nums; }
+}

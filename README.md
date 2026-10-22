@@ -11,8 +11,8 @@ fonctionne hors ligne et peut recevoir des notifications.
 
 ## Fonctionnalités
 
-- **Tâches** : saisie rapide intelligente (« Sport demain 18h30 #santé !! * ~2 »), points 1/2/3, 3 priorités ★ (or),
-  étiquettes, sous-tâches, estimation en pomodoros, heure facultative, récurrences fines (tous les jours, tous les X jours,
+- **Tâches** : saisie rapide intelligente (« Sport demain 18h30 #santé !! * ~45 »), points 1/2/3, 3 priorités ★ (or),
+  étiquettes, sous-tâches, temps estimé modifiable d'un tap (⌛), heure facultative, récurrences fines (tous les jours, tous les X jours,
   certains jours, un jour du mois), ordre manuel ou automatique, glisser-déposer, annulation après validation ou suppression.
 - **Ma journée** : vue Liste ou Chronologie (6 h → 24 h, blocs à glisser et redimensionner au doigt, « À caser »),
   alerte douce de surcharge, rituel du soir « Fermer ma journée », tri du matin, bilan de la semaine.

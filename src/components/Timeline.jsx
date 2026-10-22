@@ -124,7 +124,7 @@ export default function Timeline({ tasks, sel, busy }) {
     cleanup();
     drag.current = null;
     if (!d) return;
-    if (d.kind === 'resize') { if (d.moved && d.dur) setTaskField(d.t.id, { dur: d.dur }); else toggleSel(d.t.id); return; }
+    if (d.kind === 'resize') { if (d.moved && d.dur) setTaskField(d.t.id, { est: d.dur }); else toggleSel(d.t.id); return; }
     if (!d.moved) { if (d.kind === 'block') toggleSel(d.t.id); return; }
     const time = ghost.current.dataset.time;
     if (d.inside && time) setTaskField(d.t.id, { time });

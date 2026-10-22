@@ -93,10 +93,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 ## Logique métier v3 (à préserver)
 
-- **Modèle de données** (`src/store.js`, `version: 3`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
-  les sauvegardes v2 et de l'ancien `index.html` restent compatibles ; toute évolution passe par `migrate()`) :
+- **Modèle de données** (`src/store.js`, `version: 4`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
+  les sauvegardes v2/v3 et de l'ancien `index.html` restent compatibles ; toute évolution passe par `migrate()`) :
   - tâche `{ id, text, done, date ('YYYY-MM-DD' | null = Plus tard), weight 1|2|3, prio, tags[], subs[{id,text,done}], carried, focus (min),
-    est (pomodoros), time ('HH:MM' | null), dur (min | null), rid? }` ;
+    est (temps estimé en **minutes**, 0 = aucun ; sert aussi de durée en chronologie), time ('HH:MM' | null), rid? }` ;
+    v4 : `migrate()` convertit l'ancienne estimation en pomodoros (× `set.pomo`) et l'ancienne durée ajustée `dur` en `est` ;
   - `sessions` = journal compact `[début s, durée s, tâche, 'c'|'f', terminée, [étiquettes], titre]` (purge > 2 ans) ;
     `ideas` = bloc-notes de distractions ; `pushId` = identifiant aléatoire de l'appareil pour le serveur de notifications ;
   - récurrence `{ id, text, rule {type: daily|weekdays(days)|interval(every)|monthday(day)}, start, weight, tags, prio, last }` —
@@ -124,13 +125,14 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   noir et blanc, brume, voitures, horloges à palettes). Jamais de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
   v3 : mode **Libre** (Flowtime, `set.pomoMode`, pause = 1/`flowRatio` du temps fait), **aucune punition** (pause, réinitialisation,
-  fermeture : le temps fait est toujours crédité), estimation en pomodoros (« ~3 », « 🍅 2/3 »), **sons d'ambiance** (`lib/ambient.js` :
+  fermeture : le temps fait est toujours crédité), **temps estimé** en minutes (`Estimate.jsx` : puce sablier « fait / estimé » sur la tâche, un tap ouvre un petit panneau
+  − / + et préréglages 15 min → 4 h ; même éditeur dans le panneau d'options), **sons d'ambiance** (`lib/ambient.js` :
   bruits brun/blanc générés, pluie/café/forêt en boucles libres `public/sounds/*.m4a`, fondus, coupure en pause), **idées notées**
   pendant la session (revues à la pause), statistiques de concentration (`FocusStats.jsx`).
 - **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui
   long, redimensionnables, « À caser », chevauchements), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
   `Overload.jsx`), **rituel du soir** `EveningRitual.jsx` (3 écrans ; tri du matin sauté si tout est trié ; `set.evening`, `eveningAt`).
-- **Saisie rapide** v3 : « de demain », « le lundi » et les fractions (1/2, 3/4) ne sont pas des dates ; `~3` = estimation ;
+- **Saisie rapide** v3 : « de demain », « le lundi » et les fractions (1/2, 3/4) ne sont pas des dates ; `~45`, `~1h30`, `~2h` = temps estimé (`~2` sans unité ≤ 9 = heures) ;
   `14h30`, `14:30`, `à 9h` = heure ; un tap sur un mot surligné annule sa détection.
 - **Notifications Web Push** (`lib/push.js`, `lib/pushSync.js`, `pwa/sw.js`) : fin de phase programmée quand l'app passe en arrière-plan
   et annulée à son retour (jamais de doublon), rappel du soir quotidien mis à jour à chaque changement de liste ; serveur `server/`.
@@ -161,7 +163,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Sheet` (modale).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Sheet` (modale).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`.
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
   au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).

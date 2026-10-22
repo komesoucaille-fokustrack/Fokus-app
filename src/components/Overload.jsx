@@ -10,7 +10,7 @@ export default function Overload({ onClose }) {
   const { S } = useStore();
   const list = todayTasks(S.tasks).filter((t) => !t.done);
   const [sel, setSel] = useState(() => new Set());
-  const gain = list.filter((t) => sel.has(t.id)).reduce((n, t) => n + (t.est || t.time || t.dur ? taskDur(t, S) : 0), 0);
+  const gain = list.filter((t) => sel.has(t.id)).reduce((n, t) => n + (t.est || t.time ? taskDur(t, S) : 0), 0);
   const left = planned(S) - gain;
   const go = () => {
     const k = addDays(todayKey(), 1);
@@ -25,7 +25,7 @@ export default function Overload({ onClose }) {
           <li key={t.id} className={'task cursor-pointer ' + (sel.has(t.id) ? 'sel' : '')} onClick={() => setSel((s) => { const n = new Set(s); n.has(t.id) ? n.delete(t.id) : n.add(t.id); return n; })}>
             <span className="ck" aria-hidden="true" />
             <span className="t"><span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
-              <span className="meta"><span className="chip">{t.est || t.time || t.dur ? fmtMin(taskDur(t, S)) : 'non estimée'}</span></span></span>
+              <span className="meta"><span className="chip">{t.est || t.time ? fmtMin(taskDur(t, S)) : 'non estimée'}</span></span></span>
           </li>
         ))}
       </ul>

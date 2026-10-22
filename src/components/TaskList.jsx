@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
-  addSub, addTag, getState, toast, setTaskField, pomosDone, taskDur, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
+  addSub, addTag, getState, toast, setTaskField, taskDur, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
   todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore,
 } from '../store';
 import { addDays, dayLabel } from '../lib/dates';
+import { EstChip, EstEditor, fmtMin } from './Estimate';
+
+export { fmtMin };
 
 /* Transitions fluides de liste (FLIP) : compare les positions avant/après chaque rendu.
    Après un glisser-déposer, seule la tâche lâchée glisse jusqu'à sa place (les autres y sont déjà). */
@@ -46,11 +49,6 @@ function Pen() {
     </svg>
   );
 }
-
-export const fmtMin = (m) => {
-  const v = Math.round(m);
-  return v >= 60 ? `${Math.floor(v / 60)} h${v % 60 ? ' ' + String(v % 60).padStart(2, '0') : ''}` : `${v} min`;
-};
 
 export function TagChip({ tag, on, onClick, small }) {
   const style = { '--tc': tag.color };
@@ -138,14 +136,10 @@ export function Details({ t, today }) {
         </div>
       </div>
       <div className="drow">
-        <span className="dlab">Estimation</span>
+        <span className="dlab">Temps estimé</span>
         <div className="segs items-center">
-          <span className="minf">
-            <button type="button" onClick={() => setTaskField(t.id, { est: Math.max(0, (t.est || 0) - 1) })} aria-label="Moins un pomodoro" disabled={!t.est}>−</button>
-            <b className="grid min-w-[62px] place-items-center text-[15px] tabular-nums">🍅 {t.est || 0}</b>
-            <button type="button" onClick={() => setTaskField(t.id, { est: Math.min(40, (t.est || 0) + 1) })} aria-label="Plus un pomodoro">+</button>
-          </span>
-          <span className="text-[13px] text-mut">{t.est ? `≈ ${fmtMin(t.est * S.set.pomo)} · ${pomosDone(t, S)} fait${pomosDone(t, S) > 1 ? 's' : ''}` : 'en pomodoros (« ~3 » à la saisie)'}</span>
+          <EstEditor t={t} />
+          <span className="text-[13px] text-mut">{t.focus >= 1 ? `Déjà fait : ${fmtMin(t.focus)}` : '« ~45 » ou « ~1h30 » à la saisie'}</span>
         </div>
       </div>
       <div className="drow">
@@ -153,7 +147,7 @@ export function Details({ t, today }) {
         <div className="segs items-center">
           <input type="time" className="field mini w-[120px]! flex-none!" value={t.time || ''} aria-label="Heure de début"
             onChange={(e) => setTaskField(t.id, { time: e.target.value || null })} />
-          {t.time && <button type="button" className="seg" onClick={() => setTaskField(t.id, { time: null, dur: null })}>Sans heure</button>}
+          {t.time && <button type="button" className="seg" onClick={() => setTaskField(t.id, { time: null })}>Sans heure</button>}
           <span className="text-[13px] text-mut">{t.time ? `Durée ${fmtMin(taskDur(t, S))}` : 'facultative (« 14h30 » à la saisie)'}</span>
         </div>
       </div>
@@ -219,7 +213,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
               </span>
             )}
             {t.time && <span className="chip">🕑 {t.time}</span>}
-            {t.est > 0 ? <span className="chip">🍅 {pomosDone(t, S)}/{t.est}</span> : t.focus >= 1 && <span className="chip">⏱ {fmtMin(t.focus)}</span>}
+            {(t.est > 0 || t.focus >= 1 || !t.done) && <EstChip t={t} />}
             {t.rid && <span className="chip">↻</span>}
           </span>
         </button>

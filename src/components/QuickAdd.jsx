@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { parseQuick } from '../lib/quickAdd';
 import { JOURS_COURTS, dayLabel } from '../lib/dates';
-import { TagChip } from './TaskList';
+import { TagChip, fmtMin } from './TaskList';
 import { addRec, addTask, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
 
 const KIND = { date: 'hl-date', tag: 'hl-tag', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
@@ -143,7 +143,7 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
         <button type="button" className={'seg gold ' + (pr ? 'on' : '')} onClick={() => setPrio((p) => !p)} aria-pressed={pr}>★ Priorité</button>
         {q.tokens.filter((t) => t.kind !== 'off' && t.kind !== 'weight' && t.kind !== 'prio' && !(rec && t.kind === 'date')).map((t) => {
           const w0 = text.slice(t.start, t.end);
-          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '🍅 ' + w0.slice(1) : w0;
+          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '⌛ ' + fmtMin(q.est) : w0;
           return <button type="button" key={t.key} className={'chip ' + KIND[t.kind]} onClick={() => toggle(t.key)} title="Annuler la détection">{label} ✕</button>;
         })}
       </div>

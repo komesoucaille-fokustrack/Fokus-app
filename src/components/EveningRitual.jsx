@@ -38,7 +38,7 @@ export default function EveningRitual({ onClose }) {
   };
   const t = S.tasks.find((x) => x.id === left[i]);
   const tmr = S.tasks.filter((x) => !x.done && x.date === tomorrow);
-  const load = tmr.reduce((n, x) => n + (x.est || x.time || x.dur ? taskDur(x, S) : 0), 0);
+  const load = tmr.reduce((n, x) => n + (x.est || x.time ? taskDur(x, S) : 0), 0);
 
   return (
     <Sheet title="Fermer ma journée" sub={['Ce qui est fait aujourd’hui', 'Ce qui reste', 'Préparer demain'][step] + ` · ${step + 1}/3`} onClose={close}>

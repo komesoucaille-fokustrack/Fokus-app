@@ -4,7 +4,7 @@ import { JOURS, K, addDays, parseK } from './dates';
    SAISIE RAPIDE INTELLIGENTE
    « demain », « aujourd'hui », « lundi »… « dimanche », « 25/10 » → date
    « #sport » → étiquette · « ! », « !! », « !!! » → points 1, 2, 3 · « * » → priorité
-   « ~3 » → estimation en pomodoros · « 14h30 », « 14:30 », « à 9h » → heure de début
+   « ~45 », « ~1h30 », « ~2h » → temps estimé (« ~2 » = 2 h, « ~20 » = 20 min) · « 14h30 », « 14:30 », « à 9h » → heure de début
    Les mots reconnus sont surlignés pendant la frappe et retirés du titre.
    Un tap sur un mot surligné annule sa détection (il redevient du texte normal).
    Garde-fous : « le monde de demain » garde « demain », « 1/2 pizza » n'est pas une date.
@@ -42,6 +42,18 @@ function dateOf(word, today, prev) {
   return null;
 }
 
+/* Temps estimé en minutes : « ~45 », « ~45min », « ~1h », « ~1h30 », « ~2 » (≤ 9 sans unité = heures) */
+export function estOf(word) {
+  const w = word.toLowerCase().replace(/[.,;!?]+$/, '');
+  let m = w.match(/^~(\d{1,2})h([0-5]\d)?$/);
+  if (m) return +m[1] * 60 + (+m[2] || 0) || null;
+  m = w.match(/^~(\d{1,3})(m|mn|min)?$/);
+  if (!m) return null;
+  const n = +m[1];
+  if (!n) return null;
+  return !m[2] && n <= 9 ? n * 60 : n <= 1440 ? n : null;
+}
+
 /* « 14h30 », « 14:30 » ; « 9h » seulement après « à » (sinon c'est souvent une durée : « courir 1h ») */
 function timeOf(word, prev) {
   const w = word.toLowerCase().replace(/[.,;!?]+$/, '');
@@ -66,12 +78,12 @@ export function parseQuick(text, today, ignore = new Set()) {
     const w = m[0], start = m.index, end = start + w.length, prev = i ? raw[i - 1][0] : null;
     seen[w] = (seen[w] || 0) + 1;
     const key = w + '#' + seen[w];
-    let kind = null, d, t;
+    let kind = null, d, t, e;
     if ((d = dateOf(w, today, prev))) kind = 'date';
     else if (/^#[\p{L}\p{N}_-]+$/u.test(w)) kind = 'tag';
     else if (/^!{1,3}$/.test(w)) kind = 'weight';
     else if (w === '*') kind = 'prio';
-    else if (/^~([1-9]|[1-3]\d|40)$/.test(w)) kind = 'est';
+    else if ((e = estOf(w))) kind = 'est';
     else if ((t = timeOf(w, prev))) kind = 'time';
     if (kind && ignore.has(key)) { out.tokens.push({ start, end, kind: 'off', key }); words.push(w); return; }
     if (!kind) { words.push(w); return; }
@@ -80,7 +92,7 @@ export function parseQuick(text, today, ignore = new Set()) {
     else if (kind === 'tag') out.tags.push(w.slice(1));
     else if (kind === 'weight') out.weight = w.length;
     else if (kind === 'prio') out.prio = true;
-    else if (kind === 'est') out.est = +w.slice(1);
+    else if (kind === 'est') out.est = e;
     else if (kind === 'time') {
       out.time = t;
       // « à 14h30 » : le « à » disparaît aussi du titre
