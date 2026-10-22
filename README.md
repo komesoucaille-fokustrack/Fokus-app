@@ -1,7 +1,7 @@
 # Fokus
 
 Application de tâches quotidiennes, de concentration et de suivi de performance : design noir et blanc premium, animation 3D
-cinématographique à chaque validation (arche d'arrivée « FOKUS 100% », gel bleu électrique, étincelles 3D).
+cinématographique à chaque validation (arche gonflable « FINISH 100% », gel bleu électrique, étincelles 3D).
 Gratuite, sans limite, sans publicité, sans fonction bloquée.
 
 **Ouvrir l'application :** https://komesoucaille-fokustrack.github.io/Fokus-app/
