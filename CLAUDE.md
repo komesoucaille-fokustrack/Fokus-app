@@ -85,9 +85,12 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Carte** (`Card3D.jsx`) : dalle extrudée biseautée, face en texture haute définition, gel bleu, halo, ombre et sol mat (pose B).
   Halo pastel sous la barre = copie douce du `#glow` DOM, à z = 1,5 au-dessus de la face (jamais au ras : scintillement de profondeur),
   effacé en fondu pendant l'allumage du bleu ; le gel pastel devient mat pendant ce fondu (pas de reflet ponctuel de la lumière du front).
-- **Arche d'arrivée gonflable** (`Arch.jsx`) réaliste, comme sur une vraie course (pas de néon) : boudin en toile à coussins
-  (tube déformé entre les coutures, matériau `sheen`), socles lestés, bannière imprimée « FOKUS · FINISH 100% » (logo `.fokus-logo`),
+- **Arche d'arrivée gonflable** (`Arch.jsx`) sur le modèle de la photo fournie par l'utilisateur (arche de course classique) :
+  jambes droites, **angles coupés à 45°**, poutre plate (axe = polyligne à raccords arrondis, `TubeGeometry`), gros boudin brillant
+  **violet** qui fonce jusqu'au **noir** vers les pieds, **rayures diagonales** sur le bas des jambes (texture canvas), pieds noirs arrondis,
+  **« FINISH 100% » vert fluo** (Oswald) imprimé sur la poutre entre **deux emblèmes** (anneau Fokus dans un cercle pointillé blanc),
   cordes d'ancrage ; elle se gonfle avec un rebond élastique. `Bloom` (postprocessing) réservé au gel bleu et aux étincelles.
+  Aperçu isolé pour le développement : `.preview/arch.html` (non versionné).
 - **Étincelles 3D** (`Sparks.jsx`) jaillissant du front de la barre. À 100 % : flash, onde de choc, gerbe d'étincelles et confettis.
 - Éléments additifs : toujours le mélange `additive` de `textures.js` (n'écrit pas d'alpha → pas de traînées noires sur le canevas transparent).
 - Respecter `prefers-reduced-motion` et les paramètres (barre coupée → simple flash bleu de la barre). Bouton « Passer l'animation ».

@@ -17,7 +17,7 @@ export default function Ambiance({ S }) {
       <div className="amb" aria-hidden="true" style={{ background: b.avg }}>
         <picture>
           <source media="(orientation: portrait)" srcSet={`theme/${b.theme}-P.webp`} />
-          <img src={`theme/${b.theme}-L.webp`} alt="" decoding="async" fetchpriority="high" />
+          <img src={`theme/${b.theme}-L.webp`} alt="" decoding="async" fetchPriority="high" />
         </picture>
         {dim > 0 && <div className="amb-shade" style={{ background: `rgba(5,5,6,${dim})` }} />}
         {lvl === 3 && <div className="amb-shade amb-boost" />}
