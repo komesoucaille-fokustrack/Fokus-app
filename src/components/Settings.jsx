@@ -7,7 +7,7 @@ import {
   PASTELS, addTag, deleteTag, exportJSON, importJSON, jokersLeft, recolorTag, renameTag, resetAll, setAnim, setConfetti, setModal,
   setSetting, toast, todayKey, useStore, ensurePushId, getState,
 } from '../store';
-import { configurePush, disablePush, enablePush, pushStatus, testPush } from '../lib/push';
+import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testPush } from '../lib/push';
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
 
@@ -168,6 +168,7 @@ const REASONS = {
   unsupported: 'Cet appareil ne propose pas les notifications web (iPadOS / iOS 16.4 ou plus requis).',
   denied: 'Notifications refusées : autorise-les dans Réglages de l’iPad → Notifications → Fokus.',
   server: 'Serveur de notifications injoignable (ou pas encore configuré).',
+  sw: 'Le service de fond de Fokus n’est pas prêt : ferme complètement Fokus puis rouvre-le.',
   off: 'Notifications désactivées.',
 };
 
@@ -175,6 +176,9 @@ function Notif({ S }) {
   const st = S.set;
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [fail, setFail] = useState(null);
+  const [diag, setDiag] = useState(null);
+  const runDiag = async () => { setDiag('…'); ensurePushId(); configurePush(getState().set.pushUrl, getState().pushId); setDiag(await pushDiagnose()); };
   const refresh = () => pushStatus().then(setStatus);
   useEffect(() => { refresh(); }, [st.push, st.pushUrl, S.pushId]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = async (on) => {
@@ -183,8 +187,18 @@ function Notif({ S }) {
       ensurePushId();
       configurePush(getState().set.pushUrl, getState().pushId);
       const r = await enablePush();
-      if (r.ok) { setSetting('push', true); toast('Notifications actives ✓'); }
-      else { setSetting('push', false); toast(REASONS[r.reason] || 'Activation impossible.', null, 6000); }
+      if (r.ok) {
+        setFail(null);
+        setSetting('push', true);
+        // première activation : fin de phase et rappel du soir allumés (désactivables ci-dessous)
+        if (!getState().set.pomoNotif && !getState().set.remind) { setSetting('pomoNotif', true); setSetting('remind', true); }
+        toast('Notifications actives ✓');
+      }
+      else {
+        setSetting('push', false);
+        setFail(r);
+        toast(REASONS[r.reason] || 'Activation impossible.', null, 6000);
+      }
     } else { await disablePush(); setSetting('push', false); }
     setBusy(false);
     refresh();
@@ -208,10 +222,23 @@ function Notif({ S }) {
         <Item title="Notifications (même app fermée)" desc="Fin de phase du Pomodoro et rappel du soir">
           <Switch label="Activer les notifications" checked={!!st.push} onChange={(v) => !busy && toggle(v)} />
         </Item>
+        {fail && !st.push && (
+          <p className="push-fail">Échec à l’étape « {fail.step || REASONS[fail.reason]} »{fail.detail ? ` : ${fail.detail}` : ''}</p>
+        )}
         {st.push && (
           <Item title="Tester" desc="Une notification arrive dans quelques secondes">
             <button type="button" className="b" onClick={test}>Envoyer une notification de test</button>
           </Item>
+        )}
+      </Group>
+      <Group title="Diagnostic" foot="Si les notifications ne s’activent pas : lance le diagnostic et envoie une capture d’écran de cette liste.">
+        <Item title="Vérifier chaque étape" desc="Écran d’accueil, permission, service de fond, serveur, abonnement">
+          <button type="button" className="b" onClick={runDiag} disabled={diag === '…'}>{diag === '…' ? 'Vérification…' : 'Lancer le diagnostic'}</button>
+        </Item>
+        {Array.isArray(diag) && (
+          <ul className="pdiag">
+            {diag.map((d) => <li key={d.label} className={d.ok ? 'ok' : 'ko'}><b>{d.ok ? '✓' : '✗'}</b><span>{d.label}</span>{d.detail && <em>{d.detail}</em>}</li>)}
+          </ul>
         )}
       </Group>
       <Group title="Quoi et quand">

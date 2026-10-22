@@ -598,3 +598,14 @@
   .bprog i { display: block; height: 100%; border-radius: 99px; background: #86efac; }
   .bprog em { font-style: normal; font-size: 10.5px; font-variant-numeric: tabular-nums; color: #d4d4d8; }
 }
+
+/* Notifications : message d'échec détaillé et diagnostic pas à pas */
+@layer components {
+  .push-fail { margin: 6px 14px 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; color: #fca5a5; background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
+  .pdiag { list-style: none; margin: 4px 0 8px; padding: 0 14px; }
+  .pdiag li { display: grid; grid-template-columns: 22px 1fr; column-gap: 6px; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 14px; }
+  .pdiag li b { grid-row: span 2; font-size: 15px; }
+  .pdiag li.ok b { color: #86efac; }
+  .pdiag li.ko b, .pdiag li.ko span { color: #fca5a5; }
+  .pdiag li em { grid-column: 2; font-style: normal; font-size: 12.5px; color: var(--color-mut); word-break: break-word; }
+}
