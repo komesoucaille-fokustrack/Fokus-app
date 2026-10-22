@@ -3,7 +3,7 @@ import { JOURS, K, addDays, parseK } from './dates';
 /* =====================================================================
    SAISIE RAPIDE INTELLIGENTE
    « demain », « aujourd'hui », « lundi »… « dimanche », « 25/10 » → date
-   « #sport » → étiquette · « ! », « !! », « !!! » → points 1, 2, 3 · « * » → priorité
+   « @sport » → catégorie (si elle existe) · « #sport » → étiquette · « ! », « !! », « !!! » → points 1, 2, 3 · « * » → priorité
    « ~45 », « ~1h30 », « ~2h » → temps estimé (« ~2 » = 2 h, « ~20 » = 20 min) · « 14h30 », « 14:30 », « à 9h » → heure de début
    Les mots reconnus sont surlignés pendant la frappe et retirés du titre.
    Un tap sur un mot surligné annule sa détection (il redevient du texte normal).
@@ -66,11 +66,12 @@ function timeOf(word, prev) {
 
 /**
  * @param {Set<string>} ignore clés de mots à ne pas interpréter (voir `tokenKey`)
+ * @param {(word: string) => string | null} catOf « @mot » → id de catégorie (ou null : le mot reste du texte)
  * @returns {{ title, date, tags: string[], weight, prio, est, time, tokens: {start,end,kind,key}[] }}
- *   kind : 'date' | 'tag' | 'weight' | 'prio' | 'est' | 'time' | 'off' (détection annulée)
+ *   kind : 'date' | 'tag' | 'cat' | 'weight' | 'prio' | 'est' | 'time' | 'off' (détection annulée)
  */
-export function parseQuick(text, today, ignore = new Set()) {
-  const out = { title: '', date: undefined, tags: [], weight: undefined, prio: false, est: undefined, time: undefined, tokens: [] };
+export function parseQuick(text, today, ignore = new Set(), catOf = () => null) {
+  const out = { title: '', date: undefined, tags: [], weight: undefined, prio: false, est: undefined, time: undefined, cat: undefined, tokens: [] };
   const raw = [...text.matchAll(/\S+/g)];
   const seen = {};
   const words = [];
@@ -78,9 +79,10 @@ export function parseQuick(text, today, ignore = new Set()) {
     const w = m[0], start = m.index, end = start + w.length, prev = i ? raw[i - 1][0] : null;
     seen[w] = (seen[w] || 0) + 1;
     const key = w + '#' + seen[w];
-    let kind = null, d, t, e;
+    let kind = null, d, t, e, c;
     if ((d = dateOf(w, today, prev))) kind = 'date';
     else if (/^#[\p{L}\p{N}_-]+$/u.test(w)) kind = 'tag';
+    else if (/^@[\p{L}\p{N}_-]+$/u.test(w) && (c = catOf(w.slice(1)))) kind = 'cat';
     else if (/^!{1,3}$/.test(w)) kind = 'weight';
     else if (w === '*') kind = 'prio';
     else if ((e = estOf(w))) kind = 'est';
@@ -90,6 +92,7 @@ export function parseQuick(text, today, ignore = new Set()) {
     out.tokens.push({ start, end, kind, key });
     if (kind === 'date') out.date = d;
     else if (kind === 'tag') out.tags.push(w.slice(1));
+    else if (kind === 'cat') out.cat = c;
     else if (kind === 'weight') out.weight = w.length;
     else if (kind === 'prio') out.prio = true;
     else if (kind === 'est') out.est = e;

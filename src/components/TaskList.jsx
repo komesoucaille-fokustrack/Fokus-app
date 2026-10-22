@@ -2,10 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
   addSub, addTag, getState, toast, setTaskField, taskDur, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
-  todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore,
+  todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore, catOf,
 } from '../store';
 import { addDays, dayLabel } from '../lib/dates';
 import { EstChip, EstEditor, fmtMin } from './Estimate';
+import { CatChip } from './Categories';
 
 export { fmtMin };
 
@@ -106,6 +107,12 @@ export function Details({ t, today }) {
         </div>
       </div>
       <div className="drow">
+        <span className="dlab">Catégorie</span>
+        <div className="segs">
+          {S.cats.map((c) => <CatChip key={c.id} cat={c} on={t.cat === c.id} onClick={() => setTaskField(t.id, { cat: t.cat === c.id ? null : c.id })} />)}
+        </div>
+      </div>
+      <div className="drow">
         <span className="dlab">Étiquettes</span>
         <div className="segs">
           {S.tags.map((g) => <TagChip key={g.id} tag={g} on={t.tags.includes(g.id)} onClick={() => toggleTaskTag(t.id, g.id)} />)}
@@ -203,6 +210,7 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
         <button type="button" className="t tbtn" onClick={() => setOpen(t.id)} aria-expanded={open} title="Options de la tâche">
           <span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
           <span className="meta">
+            {t.cat && <CatChip cat={catOf(t.cat, S)} small />}
             <span className={'chip pts w' + t.weight}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>
             {t.carried >= 2 && <span className="chip warn">reportée {t.carried}×</span>}
             {tags.map((g) => <TagChip key={g.id} tag={g} small />)}

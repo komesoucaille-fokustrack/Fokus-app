@@ -2,9 +2,10 @@ import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { parseQuick } from '../lib/quickAdd';
 import { JOURS_COURTS, dayLabel } from '../lib/dates';
 import { TagChip, fmtMin } from './TaskList';
-import { addRec, addTask, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
+import { addRec, addTask, catByName, catOf, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
+import { CatSelect } from './Categories';
 
-const KIND = { date: 'hl-date', tag: 'hl-tag', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
+const KIND = { date: 'hl-date', tag: 'hl-tag', cat: 'hl-cat', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
 const TYPES = [['daily', 'Tous les jours'], ['interval', 'Tous les X jours'], ['weekdays', 'Certains jours'], ['monthday', 'Un jour du mois']];
 const ORDER = [1, 2, 3, 4, 5, 6, 0]; // lundi → dimanche
 
@@ -71,10 +72,11 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
   useImperativeHandle(ref, () => inp.current);
   const [weight, setWeight] = useState(null);
   const [prio, setPrio] = useState(false);
+  const [cat, setCat] = useState(null);
   const [rec, setRec] = useState(false);
   const [rule, setRule] = useState({ type: 'daily', days: [1, 2, 3, 4, 5], every: 2, day: 1 });
   const today = todayKey();
-  const q = parseQuick(text, today, ignore);
+  const q = parseQuick(text, today, ignore, (w) => catByName(w)?.id || null);
   const w = q.weight ?? weight ?? S.set.defWeight;
   const pr = q.prio || prio;
 
@@ -103,10 +105,10 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
     if (!q.title) { toast('Ajoute un titre à la tâche.'); return; }
     if (rec) {
       if (rule.type === 'weekdays' && !rule.days.length) { toast('Choisis au moins un jour.'); return; }
-      addRec({ text: q.title, rule, weight: w, tags: q.tags, prio: pr, est: q.est });
+      addRec({ text: q.title, rule, weight: w, tags: q.tags, prio: pr, est: q.est, cat: q.cat ?? cat });
     } else {
       const date = q.date === undefined ? defaultDate : q.date;
-      addTask({ text: q.title, date, weight: w, prio: pr, tags: q.tags, est: q.est, time: q.time });
+      addTask({ text: q.title, date, weight: w, prio: pr, tags: q.tags, est: q.est, time: q.time, cat: q.cat ?? cat });
       if (date !== defaultDate) toast(`Ajoutée : ${dayLabel(date, today)}`);
     }
     setText('');
@@ -114,6 +116,7 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
     setScroll(0);
     setPrio(false);
     setWeight(null);
+    setCat(null);
   };
 
   return (
@@ -141,9 +144,11 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
           <button type="button" key={n} className={'seg pts ' + (w === n ? 'on' : '')} onClick={() => setWeight(n)} aria-pressed={w === n}>{n} pt{n > 1 ? 's' : ''}</button>
         ))}
         <button type="button" className={'seg gold ' + (pr ? 'on' : '')} onClick={() => setPrio((p) => !p)} aria-pressed={pr}>★ Priorité</button>
+        {!q.cat && <CatSelect value={cat} onChange={setCat} />}
         {q.tokens.filter((t) => t.kind !== 'off' && t.kind !== 'weight' && t.kind !== 'prio' && !(rec && t.kind === 'date')).map((t) => {
           const w0 = text.slice(t.start, t.end);
-          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '⌛ ' + fmtMin(q.est) : w0;
+          const cc = t.kind === 'cat' && catOf(q.cat, S);
+          const label = t.kind === 'date' ? '📅 ' + dayLabel(q.date, today) : t.kind === 'time' ? '🕑 ' + q.time : t.kind === 'est' ? '⌛ ' + fmtMin(q.est) : cc ? `${cc.emoji} ${cc.name}` : w0;
           return <button type="button" key={t.key} className={'chip ' + KIND[t.kind]} onClick={() => toggle(t.key)} title="Annuler la détection">{label} ✕</button>;
         })}
       </div>

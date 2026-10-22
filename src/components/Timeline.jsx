@@ -49,7 +49,8 @@ export default function Timeline({ tasks, sel, busy }) {
   const openT = UI.open && S.tasks.find((x) => x.id === UI.open);
   const grid = useRef(null), ghost = useRef(null), drag = useRef(null);
   const nowM = useNowMin();
-  const color = (t) => S.tags.find((g) => g.id === t.tags[0])?.color || '#9ca3af';
+  // couleur du bloc : catégorie, sinon première étiquette
+  const color = (t) => S.cats.find((c) => c.id === t.cat)?.color || S.tags.find((g) => g.id === t.tags[0])?.color || '#9ca3af';
   const blocks = useMemo(() => layout(tasks.filter((t) => t.time).map((t) => {
     const s = toMin(t.time), d = taskDur(t, S);
     return { t, s, e: s + d, d };
@@ -187,7 +188,7 @@ export default function Timeline({ tasks, sel, busy }) {
             onPointerDown={(e) => onBlockDown(e, b.t)}
             onDoubleClick={() => setOpen(b.t.id)}
           >
-            <b>{b.t.prio && '★ '}{b.t.text}</b>
+            <b>{b.t.prio && '★ '}{b.t.cat && S.cats.find((c) => c.id === b.t.cat)?.emoji + ' '}{b.t.text}</b>
             <span>{b.t.time} – {toHM(Math.min(b.e, 1440))}{b.over && ' · chevauche'}</span>
             <i className="tl-resize" onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); begin(e, 'resize', b.t, e.currentTarget.parentElement); }} aria-label="Redimensionner" />
           </div>

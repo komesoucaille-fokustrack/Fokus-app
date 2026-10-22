@@ -9,7 +9,7 @@ import { CREDITS, SOUNDS, previewAmbient, stopAmbient } from '../lib/ambient';
 import { parseQuick } from '../lib/quickAdd';
 import {
   PHASES, addIdea, flowStop, removeIdea, setPomoMode, toast, addTask, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
-  setSetting, sortTasks, todayKey, todayTasks, useStore,
+  setSetting, sortTasks, catByName, todayKey, todayTasks, useStore,
 } from '../store';
 import Ico from './Icons';
 import { usePip } from './Header';
@@ -209,7 +209,7 @@ export default function Pomodoro() {
           <div className="segs min-w-0 flex-1">
             <select className="field mini min-w-0 flex-1" value={t ? t.id : ''} onChange={(e) => pomoTask(e.target.value || null)} aria-label="Tâche liée au minuteur">
               <option value="">Aucune (session libre)</option>
-              {today.map((x) => <option key={x.id} value={x.id}>{x.prio ? '★ ' : ''}{x.text}</option>)}
+              {today.map((x) => <option key={x.id} value={x.id}>{x.prio ? '★ ' : ''}{x.cat ? (S.cats.find((c) => c.id === x.cat)?.emoji || '') + ' ' : ''}{x.text}</option>)}
               {t && !today.includes(t) && <option value={t.id}>{t.text}</option>}
             </select>
             {t && !t.done && <button className="seg on" onClick={finishFocusTask}>✓ Terminer la tâche</button>}
@@ -250,8 +250,8 @@ function Ideas() {
   const box = useRef(null);
   useLayoutEffect(() => { gsap.from(box.current, { y: 10, opacity: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity' }); }, []);
   const toTask = (x, later) => {
-    const q = parseQuick(x.text, todayKey());
-    addTask({ text: q.title || x.text, date: later ? null : q.date ?? todayKey(), weight: q.weight, prio: q.prio, tags: q.tags, est: q.est, time: q.time });
+    const q = parseQuick(x.text, todayKey(), new Set(), (w) => catByName(w)?.id || null);
+    addTask({ text: q.title || x.text, date: later ? null : q.date ?? todayKey(), weight: q.weight, prio: q.prio, tags: q.tags, est: q.est, time: q.time, cat: q.cat });
     removeIdea(x.id);
     toast(later ? 'Rangée dans « Plus tard ».' : 'Tâche ajoutée.');
   };

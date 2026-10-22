@@ -99,10 +99,12 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 ## Logique métier v3 (à préserver)
 
-- **Modèle de données** (`src/store.js`, `version: 4`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
-  les sauvegardes v2/v3 et de l'ancien `index.html` restent compatibles ; toute évolution passe par `migrate()`) :
+- **Modèle de données** (`src/store.js`, `version: 5`, fonction `migrate()` appliquée au chargement **et** à l'import JSON ;
+  les sauvegardes v2/v3/v4 et de l'ancien `index.html` restent compatibles ; toute évolution passe par `migrate()`) :
   - tâche `{ id, text, done, date ('YYYY-MM-DD' | null = Plus tard), weight 1|2|3, prio, tags[], subs[{id,text,done}], carried, focus (min),
-    est (temps estimé en **minutes**, 0 = aucun ; sert aussi de durée en chronologie), time ('HH:MM' | null), rid? }` ;
+    est (temps estimé en **minutes**, 0 = aucun ; sert aussi de durée en chronologie), time ('HH:MM' | null), cat (id de catégorie | null), rid? }` ;
+  - v5 : `cats = [{ id, name, emoji, color }]` (8 par défaut : 💼 Travail, 📚 Devoirs, 🏃 Sport, ❤️ Santé, 🏠 Maison, 🛒 Courses, ✨ Perso, 👥 Social),
+    `rec.cat`, `hist[jour].cg = { catId: n }`, `session[7]` = catégorie ;
     v4 : `migrate()` convertit l'ancienne estimation en pomodoros (× `set.pomo`) et l'ancienne durée ajustée `dur` en `est` ;
   - `sessions` = journal compact `[début s, durée s, tâche, 'c'|'f', terminée, [étiquettes], titre]` (purge > 2 ans) ;
     `ideas` = bloc-notes de distractions ; `pushId` = identifiant aléatoire de l'appareil pour le serveur de notifications ;
@@ -110,6 +112,12 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
     `last` + « pas de nouvelle occurrence tant que la précédente n'est pas faite » = jamais de doublon ;
   - historique `hist[jour] = { p, d, t, pd, pt, pr, prt, fm, ps, tg, jk?, ea? }` (ea = [min estimées, min réelles]) ; réglages `S.set` (`DEF_SET`) ; `badges`, `doneTotal`, `fmDay`,
     `lastExport`, `since`, `seen` (tri du matin, bilan, rappels), `pomo` (minuteur en cours, calculé par horodatages).
+- **Catégories** (`Categories.jsx`, séparées des étiquettes, choix de l'utilisateur) : **une par tâche** (le grand domaine), emoji + couleur ;
+  puce pleine teintée sur la tâche (les étiquettes restent au contour) ; choix à l'ajout (sélecteur natif « 📂 Catégorie ») ou « @sport »
+  dans la saisie rapide (nom sans accents, début du nom accepté ; mot inconnu = texte) ; ligne « Catégorie » du panneau d'options ;
+  filtre par catégorie au-dessus de la liste (avec les étiquettes) ; couleur des blocs de la chronologie ; carte « Par catégorie »
+  (tâches validées + temps de concentration) sur la Page 2 ; rubrique Réglages → Catégories (créer, renommer, emoji, couleur, supprimer) ;
+  badges Polyvalent / Touche-à-tout / Spécialiste.
 - **Ordre des tâches** : réglage `set.order` « Manuel » (défaut : seul l'ordre choisi compte, partout ; ★ propose « Remonter en tête »)
   ou « Automatique » (`sortTasks` : priorités puis 3 > 2 > 1 pt ; poignée désactivée avec explication).
 - **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). Réglage `set.scoreMode` :
@@ -161,7 +169,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   asynchrone dans `main.jsx`), rappel d'export tous les 7 jours. Notifications locales / pastille / vibration : `src/lib/notify.js`.
 - Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points, couleur de la moyenne
   de la période (Semaine / Mois / Année) ; concentration et série ; répartition par étiquette ; calendrier de chaleur 12 mois ; vitrine de badges.
-- **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 87 badges) en 6 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
+- **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 90 badges) en 6 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
   Concentration, Habitudes, Collection Fokus = badges « méta » comptant les autres) ; chaque badge : `icon` (nom d'icône), `goal`, `v(c)`,
   `tier` (1 bronze, 2 argent, 3 or, 4 émeraude Fokus). Affichés en **médailles Fokus** (`Medal.jsx` : anneau du logo autour d'une icône ;
   verrouillé = l'anneau se remplit avec la progression ; obtenu = anneau fermé aux couleurs du palier) ; tap = détail en toast.
@@ -185,7 +193,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Icons`, `Medal`, `Sheet` (modale).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`.
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
   au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).
@@ -200,7 +208,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 ## Idées pour plus tard (à rediscuter avec l'utilisateur)
 
-- Catégories de tâches (sport, travail, devoirs…), distinctes ou évoluées à partir des étiquettes.
+- Raccourcis Siri, récap de l'année, synchronisation iPad/iPhone (stockerait les tâches sur le serveur : à valider avec l'utilisateur).
 
 ## Workflow
 

@@ -27,10 +27,11 @@ import { keepAmbient, playAmbient, previewing, stopAmbient } from './lib/ambient
 import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
-  moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter,
+  moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter, setCatFilter,
   setSetting, simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
 } from './store';
 import Icon from './components/Icons';
+import { CatChip } from './components/Categories';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
 const StatsPage = lazy(() => import('./components/StatsPage'));
@@ -247,7 +248,8 @@ export default function App() {
   // Liste du jour : priorités en tête (liseré blanc), puis l'ordre choisi ; filtre par étiquette
   const today = todayTasks(S.tasks);
   const usedTags = S.tags.filter((g) => today.some((t) => t.tags.includes(g.id)));
-  const shown = sortTasks(UI.tag ? today.filter((t) => t.tags.includes(UI.tag)) : today);
+  const usedCats = S.cats.filter((c) => today.some((t) => t.cat === c.id));
+  const shown = sortTasks(today.filter((t) => (!UI.tag || t.tags.includes(UI.tag)) && (!UI.cat || t.cat === UI.cat)));
   const visibleSel = UI.page === 1 ? UI.sel.size : 0;
 
   return (
@@ -275,9 +277,11 @@ export default function App() {
               <QuickAdd ref={input} allowRec placeholder="Ajouter une tâche… (ex. « Sport demain #santé »)" />
             </div>
             <div ref={list}>
-              {usedTags.length > 0 && (
-                <div className="mb-3 flex flex-wrap items-center gap-1.5">
-                  <button className={'tag ' + (!UI.tag ? 'all on' : 'all')} onClick={() => setTagFilter(null)}>Toutes</button>
+              {usedCats.length + usedTags.length > 0 && (
+                <div className="filters mb-3 flex flex-wrap items-center gap-1.5">
+                  <button className={'tag ' + (!UI.tag && !UI.cat ? 'all on' : 'all')} onClick={() => { if (UI.tag) setTagFilter(UI.tag); if (UI.cat) setCatFilter(UI.cat); }}>Toutes</button>
+                  {usedCats.map((c) => <CatChip key={c.id} cat={c} count={today.filter((t) => t.cat === c.id && !t.done).length || null} on={!UI.cat || UI.cat === c.id} onClick={() => setCatFilter(c.id)} />)}
+                  {usedCats.length > 0 && usedTags.length > 0 && <i className="fsep" aria-hidden="true" />}
                   {usedTags.map((g) => <TagChip key={g.id} tag={g} on={!UI.tag || UI.tag === g.id} onClick={() => setTagFilter(g.id)} />)}
                 </div>
               )}
@@ -291,7 +295,7 @@ export default function App() {
               </div>
               {S.set.planView === 'timeline'
                 ? <Timeline tasks={shown} sel={UI.sel} busy={UI.busy} />
-                : <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />}
+                : <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.cat ? 'Aucune tâche de cette catégorie aujourd’hui.' : UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />}
             </div>
             <div ref={tools} className="mt-[30px] flex flex-wrap items-center justify-center gap-2">
               {S.set.testTools !== false && (

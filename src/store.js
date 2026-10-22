@@ -5,8 +5,10 @@ import { scheduleBackup } from './lib/backup';
 import { buzz } from './lib/notify';
 
 /* =====================================================================
-   MODÈLE DE DONNÉES (version 4) — clé localStorage « focus_state »
-   Tâche      { id, text, done, date: 'YYYY-MM-DD' | null (= Plus tard), weight: 1|2|3, prio, tags: [tagId],
+   MODÈLE DE DONNÉES (version 5) — clé localStorage « focus_state »
+   Catégories cats = [{ id, name, emoji, color }] (v5) — une par tâche au plus (tâche.cat / récurrence.cat), en plus des étiquettes ;
+              hist[jour].cg = { catId: tâches validées } ; session[7] = catégorie
+   Tâche      { id, text, done, date: 'YYYY-MM-DD' | null (= Plus tard), weight: 1|2|3, prio, tags: [tagId], cat: catId | null,
                 subs: [{ id, text, done }], carried (nombre de reports), focus (minutes), rid? (récurrence d'origine),
                 est (temps estimé en minutes, 0 = aucun ; = durée du bloc en chronologie), time ('HH:MM' | null, heure de début) }
               v4 : l'estimation passe de pomodoros à minutes (migrate : est × durée du pomodoro, ou ancienne durée ajustée `dur`)
@@ -20,9 +22,14 @@ import { buzz } from './lib/notify';
               tg = tâches validées par étiquette, jk = joker utilisé ce jour-là
    Réglages   set = DEF_SET
    ===================================================================== */
-export const VERSION = 4;
+export const VERSION = 5;
 const KEY = 'focus_state';
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
+/* Catégories (v5) : un grand domaine par tâche (emoji + couleur), en plus des étiquettes libres */
+export const DEF_CATS = [
+  ['c-travail', 'Travail', '💼', '#93c5fd'], ['c-devoirs', 'Devoirs', '📚', '#c4b5fd'], ['c-sport', 'Sport', '🏃', '#86efac'], ['c-sante', 'Santé', '❤️', '#fca5a5'],
+  ['c-maison', 'Maison', '🏠', '#fdba74'], ['c-courses', 'Courses', '🛒', '#fde68a'], ['c-perso', 'Perso', '✨', '#f9a8d4'], ['c-social', 'Social', '👥', '#5eead4'],
+].map(([id, name, emoji, color]) => ({ id, name, emoji, color }));
 export const DEF_SET = {
   threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
   pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 't-obsidienne',
@@ -33,7 +40,7 @@ export const DEF_SET = {
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: true, pipMode: 'auto',
 };
 const base = () => ({
-  version: VERSION, tasks: [], rec: [], hist: {}, tags: [], last: '', off: 0, anim: true, confetti: true,
+  version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
   set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
   sessions: [], ideas: [], pushId: '',
 });
@@ -67,6 +74,11 @@ export function migrate(raw) {
   const last = isKey(o.last) ? o.last : '';
   // v4 : estimation en minutes (avant : en pomodoros de `set.pomo` minutes, durée ajustée dans `dur`)
   const v0 = +o.version || 0, pm = clamp(Math.round(+(o.set && o.set.pomo)) || 25, 1, 180);
+  // v5 : catégories (liste par défaut si absente) ; tâche.cat / récurrence.cat = id de catégorie ou null
+  const cats = Array.isArray(o.cats)
+    ? o.cats.filter((c) => c && c.id).map((c, i) => ({ id: String(c.id), name: String(c.name ?? 'Catégorie').slice(0, 24), emoji: String(c.emoji ?? '📁').slice(0, 8), color: c.color || PASTELS[i % PASTELS.length] }))
+    : DEF_CATS.map((c) => ({ ...c }));
+  const catOk = (id) => (id && cats.some((c) => c.id === id) ? String(id) : null);
   const estMin = (x) => clamp(Math.round(v0 < 4 ? (+x.dur >= 5 ? +x.dur : (+x.est || 0) * pm) : +x.est) || 0, 0, 1440);
   const tasks = arr(o.tasks).filter((t) => t && typeof t === 'object').map((t) => ({
     ...t,
@@ -82,6 +94,7 @@ export function migrate(raw) {
     focus: Math.max(0, +t.focus || 0),
     est: estMin(t),
     time: isHM(t.time) ? t.time : null,
+    cat: catOk(t.cat),
   }));
   tasks.forEach((t) => delete t.dur);
   const rec = arr(o.rec).filter((r) => r && typeof r === 'object').map((r) => {
@@ -95,6 +108,7 @@ export function migrate(raw) {
       tags: arr(r.tags).map(String),
       prio: !!r.prio,
       est: clamp(Math.round(v0 < 4 ? (+r.est || 0) * pm : +r.est) || 0, 0, 1440),
+      cat: catOk(r.cat),
       // ancienne récurrence déjà présente aujourd'hui → considérée comme générée (pas de doublon)
       last: isKey(r.last) ? r.last : tasks.some((t) => t.rid === id) ? last : '',
     };
@@ -110,6 +124,7 @@ export function migrate(raw) {
       pd: Number.isFinite(+h.pd) ? +h.pd : d, pt: Number.isFinite(+h.pt) ? +h.pt : t,
       pr: Math.max(0, +h.pr || 0), prt: Math.max(0, +h.prt || 0), fm: Math.max(0, +h.fm || 0),
       tg: h.tg && typeof h.tg === 'object' ? h.tg : {},
+      ...(h.cg && typeof h.cg === 'object' ? { cg: h.cg } : {}),
     };
   }
   const keys = Object.keys(hist).sort();
@@ -121,6 +136,7 @@ export function migrate(raw) {
     ...base(), ...o,
     version: VERSION, tasks, rec, hist, last, off,
     tags: arr(o.tags).filter((x) => x && x.id).map((x, i) => ({ id: String(x.id), name: String(x.name ?? 'Étiquette'), color: x.color || PASTELS[i % PASTELS.length] })),
+    cats,
     anim: o.anim !== false,
     confetti: o.confetti !== false,
     set: set0,
@@ -136,7 +152,7 @@ export function migrate(raw) {
       : null,
     pomoDay: o.pomoDay && typeof o.pomoDay.d === 'string' ? { d: o.pomoDay.d, n: o.pomoDay.n | 0 } : { d: '', n: 0 },
     sessions: purgeSessions(arr(o.sessions).filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]))
-      .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c', x[4] ? 1 : 0, arr(x[5]).map(String), String(x[6] || '').slice(0, 40)])),
+      .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c', x[4] ? 1 : 0, arr(x[5]).map(String), String(x[6] || '').slice(0, 40), x[7] ? String(x[7]) : null])),
     ideas: arr(o.ideas).filter((x) => x && x.text).map((x) => ({ id: String(x.id || uid()), text: String(x.text), at: +x.at || Date.now() })),
     pushId: typeof o.pushId === 'string' ? o.pushId : '',
   };
@@ -357,6 +373,32 @@ export function deleteTag(id) {
   set({ tags: S.tags.filter((t) => t.id !== id), tasks: S.tasks.map(strip), rec: S.rec.map(strip) });
 }
 
+/* ---------- Catégories ---------- */
+export const catOf = (id, St = S) => (id ? St.cats.find((c) => c.id === id) || null : null);
+const fold = (x) => x.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+/* « @sport », « @sant » → catégorie (nom sans accents, début du nom accepté) */
+export function catByName(name, St = S) {
+  const n = fold(String(name).replace(/^@/, ''));
+  if (!n) return null;
+  return St.cats.find((c) => fold(c.name) === n) || St.cats.find((c) => fold(c.name).startsWith(n)) || null;
+}
+export function addCat(name, emoji = '📁') {
+  const n = name.trim();
+  if (!n) return null;
+  const same = catByName(n);
+  if (same && fold(same.name) === fold(n)) return same.id;
+  const c = { id: 'c-' + uid(), name: n.slice(0, 24), emoji: emoji.trim() || '📁', color: PASTELS[S.cats.length % PASTELS.length] };
+  set({ cats: [...S.cats, c] });
+  return c.id;
+}
+export const editCat = (id, f) => set({ cats: S.cats.map((c) => (c.id === id ? { ...c, ...f } : c)) });
+export function deleteCat(id) {
+  const strip = (x) => (x.cat === id ? { ...x, cat: null } : x);
+  if (UI.cat === id) UI = { ...UI, cat: null };
+  set({ cats: S.cats.filter((c) => c.id !== id), tasks: S.tasks.map(strip), rec: S.rec.map(strip) });
+}
+export const setCatFilter = (cat) => setUI({ cat: UI.cat === cat ? null : cat });
+
 /* ---------- Tâches ---------- */
 /* 3 priorités maximum par jour (aujourd'hui = toutes les tâches du jour, sinon la date exacte) */
 function prioCount(tasks, date, except) {
@@ -366,13 +408,15 @@ function prioCount(tasks, date, except) {
 }
 export const canPrio = (date, except) => !date || prioCount(S.tasks, date, except) < 3;
 
-export function addTask({ text, date, weight, prio, tags = [], est = 0, time = null }) {
+export function addTask({ text, date, weight, prio, tags = [], est = 0, time = null, cat = null }) {
   const d = date === undefined ? todayKey() : date;
   const r = resolveTags(tags, S.tags);
   if (UI.tag && d && d <= todayKey() && !r.ids.includes(UI.tag)) r.ids.push(UI.tag);
   let p = !!prio;
   if (p && !canPrio(d)) { p = false; toast('3 priorités maximum par jour.'); }
-  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0, est: clamp(est | 0, 0, 1440), time: isHM(time) ? time : null };
+  // filtre de catégorie actif sur la page du jour : la nouvelle tâche du jour en hérite
+  const c = catOf(cat) ? cat : UI.cat && d && d <= todayKey() ? UI.cat : null;
+  const t = { id: uid(), text, done: false, date: d, weight: W(weight ?? S.set.defWeight), prio: p, tags: r.ids, subs: [], carried: 0, focus: 0, est: clamp(est | 0, 0, 1440), time: isHM(time) ? time : null, cat: c };
   set({ tasks: [...S.tasks, t], tags: r.tags });
   return t;
 }
@@ -540,16 +584,16 @@ function spawn(tasks, rec, k) {
     if (!out.some((t) => t.rid === r.id && !t.done)) {
       const p = r.prio && pc < 3;
       if (p) pc++;
-      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, est: r.est | 0, time: null, rid: r.id });
+      out.push({ id: uid(), text: r.text, done: false, date: k, weight: r.weight, prio: p, tags: [...r.tags], subs: [], carried: 0, focus: 0, est: r.est | 0, time: null, cat: r.cat || null, rid: r.id });
     }
     return { ...r, last: k };
   });
   return { tasks: out, rec: rec2 };
 }
 /* tags = noms d'étiquettes (créées si besoin) */
-export function addRec({ text, rule, weight, tags = [], prio, est = 0 }) {
+export function addRec({ text, rule, weight, tags = [], prio, est = 0, cat = null }) {
   const t = resolveTags(tags, S.tags);
-  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, est: clamp(est | 0, 0, 1440), last: '' };
+  const r = { id: uid(), text, rule: normRule(rule), start: todayKey(), weight: W(weight ?? S.set.defWeight), tags: t.ids, prio: !!prio, est: clamp(est | 0, 0, 1440), cat: catOf(cat) ? cat : null, last: '' };
   set({ tags: t.tags, ...spawn(S.tasks, [...S.rec, r], todayKey()) });
   toast(`Récurrence ajoutée : ${describeRule(r.rule).toLowerCase()}.`);
 }
@@ -649,6 +693,9 @@ export const BADGES = [
   B('habit', 'estim', 'target', 'Bonne estimation : à 10 % près sur au moins 1 h', 1, (c) => c.estim, 1),
   B('habit', 'estim10', 'target', '10 journées bien estimées', 10, (c) => c.estim, 3),
   B('habit', 'tags5', 'tag', '5 étiquettes', 5, (c) => c.tags, 1),
+  B('habit', 'cats5', 'layers', 'Polyvalent : des tâches validées dans 5 catégories', 5, (c) => c.catsUsed, 1),
+  B('habit', 'catDay3', 'sparkle', 'Touche-à-tout : 3 catégories en une journée', 3, (c) => c.catDay, 2),
+  B('task', 'cat100', 'target', 'Spécialiste : 100 tâches dans une même catégorie', 100, (c) => c.catMax, 3),
   B('habit', 'rec3', 'repeat', '3 tâches récurrentes', 3, (c) => c.recs, 1),
   B('habit', 'planner', 'clock', 'Planificateur : 5 tâches à heure fixe', 5, (c) => c.timed, 1),
   B('habit', 'backup', 'save', 'Première sauvegarde exportée', 1, (c) => c.backup, 1),
@@ -669,10 +716,12 @@ const META = new Set(['fokus10', 'fokus25', 'fokus50', 'fokus75']);
 export function badgeCtx(St = S) {
   const tk = K(new Date(Date.now() + St.off * 864e5)), s = stats(St.tasks, tk);
   const days = Object.keys(St.hist).filter((k) => k < tk).sort().map((k) => [k, St.hist[k]]);
-  if (s.n) days.push([tk, { p: s.p, d: s.c, t: s.n, pd: s.pd, pr: s.pr, prt: s.prt, fm: focusToday(St) }]);
+  const cgToday = {};
+  St.tasks.forEach((t) => { if (t.done && t.cat && isToday(t, tk)) cgToday[t.cat] = (cgToday[t.cat] || 0) + 1; });
+  if (s.n) days.push([tk, { p: s.p, d: s.c, t: s.n, pd: s.pd, pr: s.pr, prt: s.prt, fm: focusToday(St), cg: cgToday }]);
   let perfect = 0, row = 0, perfectRow = 0, comeback = 0, weekend = 0, dayMax = 0, ptsMax = 0, prio = 0, prioAll = 0, fmMax = 0, estim = 0, joker = 0, active = 0;
-  let prev = null;
-  const months = {}, weeks = {};
+  let prev = null, catDay = 0;
+  const months = {}, weeks = {}, catTot = {};
   for (const [k, h] of days) {
     const act = h.t > 0, full = act && h.p >= 100;
     if (act) active++;
@@ -680,6 +729,7 @@ export function badgeCtx(St = S) {
     if (full && prev && prev[1].t > 0 && prev[1].p < 50 && daysBetween(prev[0], k) === 1) comeback++;
     if (full && parseK(k).getDay() === 0 && prev && prev[1].t > 0 && prev[1].p >= 100 && daysBetween(prev[0], k) === 1) weekend++;
     dayMax = Math.max(dayMax, h.d || 0);
+    if (h.cg) { catDay = Math.max(catDay, Object.keys(h.cg).length); for (const [id, n] of Object.entries(h.cg)) catTot[id] = (catTot[id] || 0) + n; }
     ptsMax = Math.max(ptsMax, h.pd || 0);
     prio += h.pr || 0;
     if (h.prt > 0 && h.pr >= h.prt) prioAll++;
@@ -705,6 +755,7 @@ export function badgeCtx(St = S) {
     aesthete: St.set.amb && St.set.amb !== DEF_SET.amb ? 1 : 0, music: St.set.ambient && St.set.ambient !== 'none' ? 1 : 0,
     since: daysBetween([St.since, ...Object.keys(St.hist)].filter(Boolean).sort()[0] || tk, tk) + 1,
     count: BADGES.filter((b) => !META.has(b.id) && St.badges[b.id]).length,
+    catsUsed: Object.keys(catTot).length, catMax: Math.max(0, ...Object.values(catTot)), catDay,
   };
 }
 export function checkBadges() {
@@ -740,7 +791,7 @@ function credit(tid, sec, done, flow) {
   const m = sec / 60, k = todayKey(), now = Math.round(Date.now() / 1000);
   // journal compact : [début (s), durée (s), tâche, mode, terminée, étiquettes, titre] (titre et étiquettes gardés pour les stats)
   const tk = tid && S.tasks.find((t) => t.id === tid);
-  const log = sec >= 60 ? [...S.sessions, [now - Math.round(sec), Math.round(sec), tid || null, flow ? 'f' : 'c', done ? 1 : 0, tk ? tk.tags : [], tk ? tk.text.slice(0, 40) : '']] : S.sessions;
+  const log = sec >= 60 ? [...S.sessions, [now - Math.round(sec), Math.round(sec), tid || null, flow ? 'f' : 'c', done ? 1 : 0, tk ? tk.tags : [], tk ? tk.text.slice(0, 40) : '', tk?.cat || null]] : S.sessions;
   set({
     tasks: tid ? S.tasks.map((t) => (t.id === tid ? { ...t, focus: r1(t.focus + m) } : t)) : S.tasks,
     fmDay: { d: k, m: r1((S.fmDay.d === k ? S.fmDay.m : 0) + m) },
@@ -858,14 +909,16 @@ export const removeIdea = (id) => set({ ideas: S.ideas.filter((x) => x.id !== id
    récurrences du jour ajoutées ; jokers appliqués ; badges vérifiés.
    Les jours sans ouverture de l'app sont enregistrés avec les tâches restantes (0 %). */
 function entry(tasks, k, St) {
-  const s = stats(tasks, k), tg = {}, ea = [0, 0];
+  const s = stats(tasks, k), tg = {}, cg = {}, ea = [0, 0];
   for (const t of tasks) {
     if (!t.done || !isToday(t, k)) continue;
     for (const g of t.tags) tg[g] = (tg[g] || 0) + 1;
+    if (t.cat) cg[t.cat] = (cg[t.cat] || 0) + 1;
     if (t.est) { ea[0] += t.est; ea[1] += r1(t.focus || 0); }
   }
   const e = { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
   if (ea[0]) e.ea = ea;
+  if (Object.keys(cg).length) e.cg = cg;
   return e;
 }
 export function checkDay() {
@@ -910,18 +963,21 @@ export function generateTestData() {
     const pt = ws.reduce((a, b) => a + b, 0);
     const target = clamp(62 + 28 * Math.sin(i / 9) + (Math.random() - 0.5) * 50, 0, 100) / 100;
     let pd = 0, d = 0;
-    const tg = {};
+    const tg = {}, cg = {};
+    const cats = S.cats.length ? S.cats : DEF_CATS;
     ws.forEach((w) => {
       if (Math.random() < target) {
         pd += w; d++;
         const g = tags[Math.floor(Math.random() * tags.length)].id;
         tg[g] = (tg[g] || 0) + 1;
+        const c = cats[Math.floor(Math.random() ** 1.6 * cats.length)].id; // surtout Travail, Devoirs, Sport
+        cg[c] = (cg[c] || 0) + 1;
       }
     });
     const prt = Math.min(3, t, Math.floor(Math.random() * 4));
     const pr = Math.min(prt, Math.round(prt * target + (Math.random() - 0.5)));
     const fm = Math.random() < 0.7 ? Math.round(15 + Math.random() * 110) : 0;
-    hist[k] = { p: Math.round((pd / pt) * 100), d, t, pd, pt, pr: Math.max(0, pr), prt, fm, tg, ps: Math.round(fm / 25) };
+    hist[k] = { p: Math.round((pd / pt) * 100), d, t, pd, pt, pr: Math.max(0, pr), prt, fm, tg, ps: Math.round(fm / 25), ...(d ? { cg } : {}) };
     if (fm && Math.random() < 0.5) hist[k].ea = [Math.round(fm * (0.75 + Math.random() * 0.4)), fm];
     // journal de sessions cohérent avec les minutes du jour (pics le matin et en début d'après-midi)
     const day0 = parseK(k).getTime() / 1000 - S.off * 864e2;
@@ -930,7 +986,8 @@ export function generateTestData() {
       const h = [8, 9, 9, 10, 10, 11, 14, 14, 15, 16, 17, 20, 21][Math.floor(Math.random() * 13)];
       const gids = Object.keys(tg), g1 = gids.length ? [gids[Math.floor(Math.random() * gids.length)]] : [];
       const title = ['Rapport trimestriel', 'Réviser l’anglais', 'Lecture', 'Préparer la présentation', 'Code du projet', 'Mails'][Math.floor(Math.random() * 6)];
-      sess.push([Math.round(day0 + h * 3600 + Math.random() * 1800), len * 60, null, len > 25 ? 'f' : 'c', 1, g1, title]);
+      const cids = Object.keys(cg), c1 = cids.length ? cids[Math.floor(Math.random() * cids.length)] : null;
+      sess.push([Math.round(day0 + h * 3600 + Math.random() * 1800), len * 60, null, len > 25 ? 'f' : 'c', 1, g1, title, c1]);
       left -= len;
     }
     keys.push(k);
@@ -938,21 +995,22 @@ export function generateTestData() {
   }
   applyJokers(hist, keys, S.set);
   const g = (n) => tags.find((x) => x.name === n)?.id;
-  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, est: 0, time: null, ...more });
+  const ex = (text, date, weight, prio, tg, more = {}) => ({ id: uid(), text, done: false, date, weight, prio, tags: tg.filter(Boolean), subs: [], carried: 0, focus: 0, est: 0, time: null, cat: null, ...more });
   const pc = prioCount(S.tasks, tk);
   const samples = [
-    ex('Séance de sport', tk, 2, pc < 3, [g('Sport')], {
+    ex('Séance de sport', tk, 2, pc < 3, [g('Sport')], { cat: 'c-sport',
       subs: [{ id: uid(), text: 'Échauffement', done: true }, { id: uid(), text: 'Course 5 km', done: false }, { id: uid(), text: 'Étirements', done: false }], focus: 25, est: 45, time: '18:30',
     }),
-    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { carried: 3, est: 20, time: '09:00' }),
-    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { carried: 1, est: 30 }),
-    ex('Rapport trimestriel', tk, 3, false, [g('Travail')], { est: 90, focus: 40, time: '10:00' }),
-    ex('Appeler le plombier', tk, 1, false, [g('Maison')], { time: '10:30' }),
-    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')], { est: 60, time: '14:00' }),
-    ex('Rendez-vous dentiste', addDays(tk, 3), 1, false, []),
-    ex('Ranger le garage', null, 3, false, [g('Maison')]),
+    ex('Répondre aux mails importants', tk, 1, false, [g('Travail')], { cat: 'c-travail', carried: 3, est: 20, time: '09:00' }),
+    ex('Lire 20 pages', tk, 1, false, [g('Lecture')], { cat: 'c-perso', carried: 1, est: 30 }),
+    ex('Rapport trimestriel', tk, 3, false, [g('Travail')], { cat: 'c-travail', est: 90, focus: 40, time: '10:00' }),
+    ex('Appeler le plombier', tk, 1, false, [g('Maison')], { cat: 'c-maison', time: '10:30' }),
+    ex('Préparer la réunion', addDays(tk, 1), 3, true, [g('Travail')], { cat: 'c-travail', est: 60, time: '14:00' }),
+    ex('Rendez-vous dentiste', addDays(tk, 3), 1, false, [], { cat: 'c-sante' }),
+    ex('Ranger le garage', null, 3, false, [g('Maison')], { cat: 'c-maison' }),
   ];
   const ideas = [...S.ideas, { id: uid(), text: 'Acheter des piles demain #maison', at: Date.now() }, { id: uid(), text: 'Idée d’article sur la concentration', at: Date.now() }];
+  samples.forEach((x) => { if (!catOf(x.cat)) x.cat = null; });
   set({ hist, tags, tasks: [...S.tasks, ...samples], doneTotal: S.doneTotal + added, sessions: purgeSessions([...S.sessions, ...sess].sort((a, b) => a[0] - b[0])), ideas });
   checkBadges();
   toast('Données de test générées : 365 jours, sessions, estimations, heures et idées. Ouvrez « Ma Progression ».');

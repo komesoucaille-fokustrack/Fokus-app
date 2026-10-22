@@ -17,7 +17,7 @@ function buildPeriod(view, S) {
   const n = now(), Y = n.getFullYear(), tk = K(n);
   const dayData = (d) => {
     const k = K(d);
-    if (k === tk) { const s = stats(S.tasks); return { p: s.p, d: s.c, t: s.n, fm: focusToday(S), tg: todayTags(S) }; }
+    if (k === tk) { const s = stats(S.tasks); return { p: s.p, d: s.c, t: s.n, fm: focusToday(S), tg: todayTags(S), cg: todayCats(S) }; }
     return k < tk ? S.hist[k] || null : null;
   };
   let groups, labels, titles;
@@ -46,9 +46,20 @@ function buildPeriod(view, S) {
   // tâches validées par étiquette sur la période
   const tg = {};
   all.forEach((h) => Object.entries(h.tg || {}).forEach(([id, c]) => { tg[id] = (tg[id] || 0) + c; }));
-  return { labels, titles, pts, avg, fm: sumF(all), tg };
+  // par catégorie : tâches validées (historique) et temps de concentration (journal des sessions)
+  const cg = {}, cm = {};
+  all.forEach((h) => Object.entries(h.cg || {}).forEach(([id, c]) => { cg[id] = (cg[id] || 0) + c; }));
+  const g0 = groups[0][0], g1 = groups[groups.length - 1].at(-1);
+  const t0 = new Date(g0.getFullYear(), g0.getMonth(), g0.getDate()) / 1000, t1 = new Date(g1.getFullYear(), g1.getMonth(), g1.getDate() + 1) / 1000;
+  S.sessions.forEach((x) => { if (x[7] && x[0] >= t0 && x[0] < t1) cm[x[7]] = (cm[x[7]] || 0) + x[1] / 60; });
+  return { labels, titles, pts, avg, fm: sumF(all), tg, cg, cm };
 }
 const sumF = (a) => a.reduce((s, x) => s + (x.fm || 0), 0);
+function todayCats(S) {
+  const cg = {}, tk = todayKey();
+  S.tasks.forEach((t) => { if (t.done && t.cat && t.date && t.date <= tk) cg[t.cat] = (cg[t.cat] || 0) + 1; });
+  return cg;
+}
 function todayTags(S) {
   const tg = {}, tk = todayKey();
   S.tasks.forEach((t) => { if (t.done && t.date && t.date <= tk) t.tags.forEach((g) => { tg[g] = (tg[g] || 0) + 1; }); });
@@ -156,7 +167,9 @@ function Badges({ S }) {
 export default function StatsPage({ S }) {
   const [view, setView] = useState('w');
   const canvas = useRef(null);
-  const { labels, titles, pts, avg, fm, tg } = buildPeriod(view, S);
+  const { labels, titles, pts, avg, fm, tg, cg, cm } = buildPeriod(view, S);
+  const cats = S.cats.map((c) => ({ c, n: cg[c.id] || 0, m: cm[c.id] || 0 })).filter((x) => x.n || x.m).sort((a, b) => b.n - a.n || b.m - a.m);
+  const catMax = Math.max(1, ...cats.map((x) => x.n));
   const z = streaks(S);
   const tags = Object.entries(tg).map(([id, c]) => ({ g: S.tags.find((x) => x.id === id), c })).filter((x) => x.g).sort((a, b) => b.c - a.c);
   const tagMax = Math.max(1, ...tags.map((x) => x.c));
@@ -230,6 +243,22 @@ export default function StatsPage({ S }) {
           {S.set.showStreak && <span>🔥 Série : <b className="text-white">{z.cur} j</b> (record {z.best} j)</span>}
           {S.set.showStreak && <span>Semaines réussies d’affilée : <b className="text-white">{z.wcur}</b> (record {z.wbest})</span>}
         </div>
+      </div>
+      <div className="card">
+        <b className="text-[15px]">Par catégorie</b>
+        {cats.length ? (
+          <div className="mt-3 flex flex-col gap-2.5">
+            {cats.map(({ c, n, m }) => (
+              <div key={c.id} className="flex items-center gap-3 text-[13px]">
+                <span className="flex w-28 items-center gap-1.5 truncate"><span className="text-[16px]">{c.emoji}</span>{c.name}</span>
+                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/5"><i className="block h-full rounded-full" style={{ width: (n / catMax) * 100 + '%', background: c.color }} /></span>
+                <b className="w-8 text-right tabular-nums">{n}</b>
+                <span className="w-16 text-right text-mut tabular-nums">{m >= 1 ? fmtMin(m) : '–'}</span>
+              </div>
+            ))}
+            <p className="text-[12px] text-mut">Tâches validées · temps de concentration sur la période.</p>
+          </div>
+        ) : <p className="mt-2 text-[13px] text-mut">Aucune tâche classée validée sur la période. Choisis une catégorie en ajoutant une tâche, ou tape « @sport ».</p>}
       </div>
       <div className="card">
         <b className="text-[15px]">Tâches validées par étiquette</b>

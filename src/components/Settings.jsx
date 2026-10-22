@@ -10,6 +10,7 @@ import {
 import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testPush } from '../lib/push';
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
+import { CatsSettings } from './Categories';
 
 /* Rouage (icône paramètres) */
 export function Gear() {
@@ -30,12 +31,13 @@ const ICONS = {
   pomo: 'M12 8v5l3 2 M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M9 2h6',
   anim: 'M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z M19 17l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
   notif: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  cats: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
   tags: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z M7.5 7.5h.01',
   data: 'M12 3v12 M7 10l5 5 5-5 M4 21h16',
 };
 const SECTIONS = [
   ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
-  ['notif', 'Rappels'], ['tags', 'Étiquettes'], ['data', 'Données'],
+  ['notif', 'Rappels'], ['cats', 'Catégories'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
 const Ico = ({ k }) => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ICONS[k]} /></svg>
@@ -388,7 +390,8 @@ function Day({ S }) {
   );
 }
 
-const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, tags: Tags, data: Data };
+const Cats = ({ S }) => <CatsSettings S={S} Group={Group} />;
+const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {

@@ -11,7 +11,8 @@ fonctionne hors ligne et peut recevoir des notifications.
 
 ## Fonctionnalités
 
-- **Tâches** : saisie rapide intelligente (« Sport demain 18h30 #santé !! * ~45 »), points 1/2/3, 3 priorités ★ (or),
+- **Tâches** : saisie rapide intelligente (« Footing demain 18h30 @sport #santé !! * ~45 »), **catégories** (💼 Travail, 📚 Devoirs, 🏃 Sport…,
+  une par tâche, filtre et statistiques), points 1/2/3, 3 priorités ★ (or),
   étiquettes, sous-tâches, temps estimé modifiable d'un tap (⌛), heure facultative, récurrences fines (tous les jours, tous les X jours,
   certains jours, un jour du mois), ordre manuel ou automatique, glisser-déposer, annulation après validation ou suppression.
 - **Ma journée** : vue Liste ou Chronologie (6 h → 24 h, blocs à glisser et redimensionner au doigt, « À caser »),
@@ -26,7 +27,7 @@ fonctionne hors ligne et peut recevoir des notifications.
 - **Design** : thème « Obsidienne » (noir profond aux reflets bleu nuit, émeraude et ambre), cartes en verre fumé, lumière
   colorée par la progression derrière la carte du jour ; fonds pré-calculés pour rester parfaitement fluide (60 i/s).
   Autres ambiances au choix (Graphite lunaire, Ambre fumé, photos, dégradés).
-- **Motivation** : 87 badges en médailles Fokus (anneau du logo, paliers bronze → émeraude) avec progression, séries et jokers, bilan de la semaine.
+- **Motivation** : 90 badges en médailles Fokus (anneau du logo, paliers bronze → émeraude) avec progression, séries et jokers, bilan de la semaine.
 - **Mini-fenêtre** : le minuteur ou la progression du jour restent à l'écran dans une petite fenêtre flottante redimensionnable quand on quitte Fokus.
 - **Notifications** même app fermée : fin de phase du Pomodoro et rappel du soir (voir ci-dessous).
 
