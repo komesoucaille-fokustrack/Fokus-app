@@ -12,8 +12,12 @@ export const pushServer = () => cfg.url;
 export const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined';
 
-// attend le service worker, sans bloquer plus de 4 s (première ouverture, navigation privée…)
-const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('sw')), 4000))]);
+// attend le service worker (première installation : il télécharge l'app pour le hors ligne → jusqu'à 25 s)
+const swReady = async () => {
+  const reg = await navigator.serviceWorker.getRegistration();
+  const wait = reg && !reg.active ? 25000 : 6000;
+  return Promise.race([navigator.serviceWorker.ready, new Promise((_, rej) => setTimeout(() => rej(new Error('service worker pas encore installé')), wait))]);
+};
 const keyBytes = (b64) => {
   const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((b64.length + 3) % 4));
   return Uint8Array.from(s, (c) => c.charCodeAt(0));

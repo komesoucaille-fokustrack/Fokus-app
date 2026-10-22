@@ -18,7 +18,9 @@ async function boot() {
 function registerSW(onUpdate) {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+  // rechargement seulement lors d'une mise à jour (pas à la toute première installation)
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloading) { reloading = true; location.reload(); } });
   navigator.serviceWorker.register('./sw.js').then((reg) => {
     const watch = (w) => w && w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) onUpdate(reg); });
     if (reg.waiting && navigator.serviceWorker.controller) onUpdate(reg);

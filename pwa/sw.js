@@ -1,5 +1,5 @@
 /* Service worker Fokus — fonctionnement hors ligne.
-   Généré au build (vite.config.js) : __VERSION__ et __ASSETS__ sont remplacés par la version et la liste des fichiers. */
+   Généré au build (vite.config.js) : la version et la liste des fichiers sont injectées dans VERSION et ASSETS. */
 const VERSION = __VERSION__;
 const CACHE = 'fokus-' + VERSION;
 const ASSETS = __ASSETS__;
@@ -28,13 +28,14 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./', copy)); return res; })
-        .catch(() => caches.match('./').then((r) => r || caches.match('./index.html'))),
+        .catch(() => caches.match('./', { ignoreVary: true }).then((r) => r || caches.match('./index.html', { ignoreVary: true }))),
     );
     return;
   }
   // fichiers (noms avec empreinte) : cache d'abord
   e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+    // ignoreVary : les fichiers mis en cache à l'installation servent aussi aux requêtes de modules (en-tête Origin)
+    caches.match(req, { ignoreVary: true }).then((hit) => hit || fetch(req).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     })),

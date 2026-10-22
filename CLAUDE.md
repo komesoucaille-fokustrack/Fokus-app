@@ -159,7 +159,9 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 51 badges) en 5 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
   Concentration, Habitudes) ; chaque badge a un `goal` et une valeur `v(c)` → barre « 12 / 30 » tant qu'il est verrouillé. Les `id`
   ne changent jamais (badges déjà obtenus conservés). Plus de 2 badges d'un coup → un seul toast récapitulatif.
-- PWA : `pwa/sw.js` → `dist/sw.js` généré au build (liste des fichiers + version) par le plugin de `vite.config.js` ; bandeau « Nouvelle version ».
+- PWA : `pwa/sw.js` → `dist/sw.js` généré au build par le plugin de `vite.config.js` (injecte `const VERSION` / `const ASSETS` ;
+  le build **échoue** si un nom reste non remplacé — sinon le service worker plante : plus de hors ligne ni de notifications) ;
+  cache consulté avec `ignoreVary` ; rechargement automatique seulement lors d'une mise à jour ; bandeau « Nouvelle version ».
 - Mode test (à garder tel quel, en bas de la page Tâches) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
   + sessions, estimations, heures, idées notées et tâches d'exemple).
 - Réglages (`Settings.jsx`) : rubriques (Apparence, Score et affichage, Ma journée, Série et motivation, Pomodoro, Animations, Rappels,
