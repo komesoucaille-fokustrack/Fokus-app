@@ -48,15 +48,18 @@ function EnergyHead() {
   useFrame(() => {
     const b = barGeo(), a = fx.blue;
     const on = a > 0.01; // point bleu au départ de la barre, même à 0 %
-    head.current.position.set(b.head - b.h * 0.25, b.y, b.z);
+    // tant que le gel est vide ou très court, le point reste posé DANS le départ de la barre (au ras de la carte) ;
+    // il ne monte au sommet du gel qu'à mesure que le gel s'allonge (course inchangée)
+    const len = b.head - b.x0, grow = Math.min(1, Math.max(0, len / (b.h * 0.8)));
+    head.current.position.set(Math.max(b.head - b.h * 0.25, b.x0 + b.h * 0.42), b.y, 2.5 + (b.z - 2.5) * grow);
     head.current.scale.set(b.h * 0.26, b.h * 0.26, b.h * 0.2);
     head.current.material.color.setRGB(4 * a, 4.4 * a, 5 * a);
     head.current.visible = on;
     halo.current.position.copy(head.current.position);
     halo.current.material.opacity = 0.85 * a * (fx.moving ? 1 : 0.55);
-    halo.current.scale.setScalar(b.h * 2.6 * (1 + 0.08 * Math.sin(performance.now() / 60)));
+    halo.current.scale.setScalar(b.h * 2.6 * (fx.moving ? 1 + 0.08 * Math.sin(performance.now() / 60) : 1)); // immobile hors course
     halo.current.visible = on;
-    light.current.position.set(b.head, b.y, b.z + 40);
+    light.current.position.set(head.current.position.x, b.y, head.current.position.z + 40);
     light.current.intensity = 9000 * a * (0.3 + 0.7 * fx.k);
   });
   return (

@@ -60,7 +60,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   1. **Détourage lumineux** (`Outline.jsx`, ~0,75 s, **blanc pur très lumineux**) : deux traits de lumière font vite le tour de la carte
      (pas de laser), puis elle **se décolle** de la page (relais instantané carte DOM → carte 3D identique au pixel près).
   2. Le gel s'allume en **bleu électrique** de 0 jusqu'à l'**ancien score** (aucune couleur pastel/rouge pendant l'animation ;
-     à 0 % un point bleu marque le départ de la barre).
+     à 0 % un point bleu marque le départ de la barre : posé **dans** le départ, au ras de la carte, il ne monte au sommet du gel
+     qu'à mesure que le gel s'allonge ; halo immobile hors course, pulsation légère seulement pendant la course).
   3. **Pose A** (visuel 1) : la carte flotte, inclinée, monte vers la droite ; la page s'enfonce et se floute ;
      l'arche gonflable se gonfle au bout de la barre ; puis **gros plan** sur le front de la barre (visuel 2).
   4. **Course** de l'ancien au nouveau score : la caméra **reste en gros plan sur le front** pendant quasiment toute la course
