@@ -130,7 +130,9 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   fermeture : le temps fait est toujours crédité), **temps estimé** en minutes (`Estimate.jsx` : puce sablier sur la tâche = estimation seule, jamais le temps déjà fait ;
   un tap ouvre un petit panneau avec heures + minutes **saisies librement** (aucun pas imposé) et préréglages 15 min → 4 h ;
   même éditeur dans le panneau d'options), **sons d'ambiance** (`lib/ambient.js` :
-  bruits brun/blanc générés, pluie/café/forêt en boucles libres `public/sounds/*.m4a`, fondus, coupure en pause), **idées notées**
+  bruits brun/blanc générés, pluie/café/forêt en boucles libres `public/sounds/*.m4a` + copie `*.mp3` de secours si le
+  navigateur ne décode pas l'AAC, fondus, coupure en pause ; aperçu de 6 s au choix d'un son minuteur arrêté ; contexte audio relancé à
+  chaque geste (touchend/click : déblocage iPad, reprise après arrière-plan) par `lib/sound.js`), **idées notées**
   pendant la session (revues à la pause), statistiques de concentration (`FocusStats.jsx`).
 - **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui
   long, redimensionnables, « À caser », chevauchements), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
@@ -151,6 +153,9 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   asynchrone dans `main.jsx`), rappel d'export tous les 7 jours. Notifications locales / pastille / vibration : `src/lib/notify.js`.
 - Page 2 « Ma Progression » : Chart.js, vraie courbe continue (`spanGaps: true`, `tension: 0.4`, `fill: true`) + points, couleur de la moyenne
   de la période (Semaine / Mois / Année) ; concentration et série ; répartition par étiquette ; calendrier de chaleur 12 mois ; vitrine de badges.
+- **Badges** (`BADGES` / `badgeCtx()` de `store.js`, 51 badges) en 5 rubriques (`BADGE_CATS` : Régularité, Journées parfaites, Tâches,
+  Concentration, Habitudes) ; chaque badge a un `goal` et une valeur `v(c)` → barre « 12 / 30 » tant qu'il est verrouillé. Les `id`
+  ne changent jamais (badges déjà obtenus conservés). Plus de 2 badges d'un coup → un seul toast récapitulatif.
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build (liste des fichiers + version) par le plugin de `vite.config.js` ; bandeau « Nouvelle version ».
 - Mode test (à garder tel quel, en bas de la page Tâches) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
   + sessions, estimations, heures, idées notées et tâches d'exemple).

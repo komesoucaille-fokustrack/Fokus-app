@@ -22,8 +22,8 @@ import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
 import { buzz, notify, setBadge } from './lib/notify';
-import { chime, unlockAudio } from './lib/sound';
-import { playAmbient, stopAmbient } from './lib/ambient';
+import { chime } from './lib/sound';
+import { keepAmbient, playAmbient, previewing, stopAmbient } from './lib/ambient';
 import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
@@ -95,14 +95,9 @@ function useAmbient(S) {
   const p = S.pomo, st = S.set;
   const on = st.ambient !== 'none' && p && p.paused == null && (p.phase === 'work' || !st.ambMute);
   useEffect(() => {
-    if (on) playAmbient(st.ambient, st.ambVol); else stopAmbient();
+    if (on) { keepAmbient(); playAmbient(st.ambient, st.ambVol); } else if (!previewing()) stopAmbient();
   }, [on, st.ambient, st.ambVol]);
-  // iPad : l'audio se débloque au premier tap
-  useEffect(() => {
-    const once = () => { unlockAudio(); removeEventListener('pointerdown', once); };
-    addEventListener('pointerdown', once);
-    return () => removeEventListener('pointerdown', once);
-  }, []);
+  // (iPad : l'audio est débloqué / relancé à chaque geste par lib/sound.js)
 }
 
 /* Changement de jour automatique à minuit (+ contrôle régulier et au retour sur l'app) */

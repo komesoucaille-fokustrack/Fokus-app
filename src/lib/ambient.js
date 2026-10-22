@@ -15,7 +15,8 @@ export const CREDITS = {
   cafe: 'Café : « Restaurant Ambiance », stephan (soundbible, domaine public)',
   forest: 'Forêt : kvgarlic (freesound, CC0), montage Porrumentzio / Blanket',
 };
-const FILES = { rain: 'sounds/pluie.m4a', cafe: 'sounds/cafe.m4a', forest: 'sounds/foret.m4a' };
+// AAC (.m4a, boucle sans couture, lu par Safari) puis MP3 en secours (lu partout)
+const FILES = { rain: 'sounds/pluie', cafe: 'sounds/cafe', forest: 'sounds/foret' };
 const buffers = {};
 let cur = null; // { kind, src, gain }
 
@@ -33,8 +34,28 @@ function noise(ctx, kind) {
 async function bufferOf(ctx, kind) {
   if (buffers[kind]) return buffers[kind];
   if (kind === 'white' || kind === 'brown') return (buffers[kind] = noise(ctx, kind));
-  const data = await fetch(FILES[kind]).then((r) => r.arrayBuffer());
-  return (buffers[kind] = await new Promise((res, rej) => ctx.decodeAudioData(data, res, rej)));
+  let last;
+  for (const ext of ['.m4a', '.mp3']) {
+    try {
+      const r = await fetch(FILES[kind] + ext);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.arrayBuffer();
+      const buf = await new Promise((res, rej) => { const p = ctx.decodeAudioData(data, res, rej); p?.catch?.(() => {}); });
+      return (buffers[kind] = trim(ctx, buf));
+    } catch (e) { last = e; }
+  }
+  throw last;
+}
+/* Retire le silence d'encodage en début et fin de fichier (MP3) : la boucle reste sans trou */
+function trim(ctx, buf) {
+  const d = buf.getChannelData(0), n = d.length, lim = Math.min(4096, n >> 2), eps = 1e-4;
+  let a = 0, z = n;
+  while (a < lim && Math.abs(d[a]) < eps) a++;
+  while (n - z < lim && Math.abs(d[z - 1]) < eps) z--;
+  if (a === 0 && z === n) return buf;
+  const out = ctx.createBuffer(buf.numberOfChannels, z - a, buf.sampleRate);
+  for (let c = 0; c < buf.numberOfChannels; c++) out.getChannelData(c).set(buf.getChannelData(c).subarray(a, z));
+  return out;
 }
 
 function fadeOut(c, secs = 1) {
@@ -52,6 +73,7 @@ export async function playAmbient(kind, vol) {
   if (!kind || kind === 'none') return stopAmbient();
   const ctx = audioCtx() || (unlockAudio(), audioCtx());
   if (!ctx) return;
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
   const v = Math.max(0, Math.min(1, vol)) ** 1.6 * 0.9;
   if (cur && cur.kind === kind) { cur.gain.gain.setTargetAtTime(v, ctx.currentTime, 0.25); return; }
   stopAmbient();
@@ -69,6 +91,21 @@ export async function playAmbient(kind, vol) {
   cur = { kind, src, gain };
 }
 export function stopAmbient() {
+  clearTimeout(preview);
+  preview = null;
   if (cur && !cur.pending) fadeOut(cur);
   cur = null;
 }
+/* Aperçu de quelques secondes quand on choisit un son (ou règle le volume) minuteur arrêté :
+   on entend tout de suite le son choisi ; il se lancera ensuite tout seul avec la concentration. */
+let preview = null;
+export function previewAmbient(kind, vol, secs = 6) {
+  if (!kind || kind === 'none') return stopAmbient();
+  clearTimeout(preview);
+  playAmbient(kind, vol);
+  preview = setTimeout(() => { preview = null; if (cur) { fadeOut(cur, 1.5); cur = null; } }, secs * 1000);
+}
+export const previewing = () => !!preview;
+/* La concentration démarre pendant un aperçu : le son continue, sans arrêt programmé */
+export function keepAmbient() { clearTimeout(preview); preview = null; }
+export const ambientPlaying = () => !!(cur && !cur.pending);

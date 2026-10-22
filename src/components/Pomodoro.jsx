@@ -5,7 +5,7 @@ import { fmtMin } from './TaskList';
 import Concept from './Concepts';
 import { BGS, BG_GROUPS, bgOf, thumbOf } from '../lib/backgrounds';
 import { unlockAudio } from '../lib/sound';
-import { CREDITS, SOUNDS } from '../lib/ambient';
+import { CREDITS, SOUNDS, previewAmbient, stopAmbient } from '../lib/ambient';
 import { parseQuick } from '../lib/quickAdd';
 import {
   PHASES, addIdea, flowStop, removeIdea, setPomoMode, toast, addTask, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
@@ -270,23 +270,31 @@ function Ideas() {
 /* Sons d'ambiance */
 function SoundCard() {
   const { S } = useStore();
-  const st = S.set;
+  const st = S.set, p = S.pomo;
+  // le son joue tout seul pendant la concentration ; minuteur arrêté, on fait entendre un aperçu de 6 s
+  const live = !!(p && p.paused == null && (p.phase === 'work' || !st.ambMute));
+  const pick = (k) => {
+    unlockAudio();
+    setSetting('ambient', k);
+    if (k === 'none') stopAmbient(); else if (!live) previewAmbient(k, st.ambVol);
+  };
   return (
     <div className="card mt-4">
       <div className="drow">
         <span className="dlab">Ambiance sonore</span>
         <div className="segs">
-          {SOUNDS.map(([k, l]) => <button key={k} className={'seg ' + (st.ambient === k ? 'on' : '')} onClick={() => { unlockAudio(); setSetting('ambient', k); }}>{l}</button>)}
+          {SOUNDS.map(([k, l]) => <button key={k} className={'seg ' + (st.ambient === k ? 'on' : '')} onClick={() => pick(k)}>{l}</button>)}
         </div>
       </div>
       {st.ambient !== 'none' && (
         <>
           <div className="drow mt-3">
             <span className="dlab">Volume</span>
-            <input type="range" className="vol" min="0" max="1" step="0.01" value={st.ambVol} onChange={(e) => setSetting('ambVol', +e.target.value)} aria-label="Volume de l’ambiance" />
+            <input type="range" className="vol" min="0" max="1" step="0.01" value={st.ambVol} onChange={(e) => setSetting('ambVol', +e.target.value)}
+              onPointerUp={(e) => { if (!live) previewAmbient(st.ambient, +e.currentTarget.value, 3); }} aria-label="Volume de l’ambiance" />
             <label className="flex items-center gap-2 text-[13px] text-mut"><span className="sw"><input type="checkbox" checked={st.ambMute} onChange={(e) => setSetting('ambMute', e.target.checked)} /><i /></span>Couper pendant les pauses</label>
           </div>
-          <p className="mt-2 text-[12px] text-mut">{pomoState().paused == null ? 'Le son joue pendant la concentration.' : 'Le son démarre avec le minuteur.'} {CREDITS[st.ambient] || 'Généré en direct, sans fichier.'}</p>
+          <p className="mt-2 text-[12px] text-mut">{live ? '🔊 En lecture pendant la concentration.' : 'Aperçu de quelques secondes ; le son se lance tout seul quand tu démarres la concentration.'} {CREDITS[st.ambient] || 'Généré en direct, sans fichier.'}</p>
         </>
       )}
     </div>

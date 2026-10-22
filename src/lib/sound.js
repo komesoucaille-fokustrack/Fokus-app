@@ -1,18 +1,26 @@
-/* Carillon doux de fin de phase (Web Audio, aucun fichier) — débloqué au premier tap (iOS) */
+/* Carillon doux de fin de phase (Web Audio, aucun fichier) — audio débloqué par un geste (iOS) */
 let ctx, unlocked = false;
+/* À appeler pendant un geste (tap, clic, touche) : crée / relance le contexte audio.
+   iPad / iPhone : Safari n'accepte souvent le déblocage qu'au relâchement du doigt (touchend / click),
+   et remet le contexte en pause (« interrupted ») quand l'app passe en arrière-plan → on relance à chaque geste. */
 export function unlockAudio() {
   try {
     // iPhone / iPad : jouer même si le bouton silencieux est activé (Safari 16.4+)
     if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
     ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
     if (!unlocked) {
-      // un son vide joué pendant le tap débloque définitivement l'audio sur iOS
+      // un son vide joué pendant le geste débloque l'audio sur iOS
       const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
       s.buffer = b; s.connect(ctx.destination); s.start(0);
-      unlocked = true;
+      if (ctx.state === 'running') unlocked = true;
     }
   } catch { /* audio indisponible */ }
+}
+/* Écoute permanente des gestes : relance le contexte s'il a été suspendu (arrière-plan, écran verrouillé, appel…) */
+if (typeof window !== 'undefined') {
+  const wake = () => { if (!ctx || ctx.state !== 'running' || !unlocked) unlockAudio(); };
+  ['touchend', 'pointerup', 'click', 'keydown'].forEach((ev) => addEventListener(ev, wake, { capture: true, passive: true }));
 }
 export const audioCtx = () => ctx;
 export function chime(kind = 'work') {

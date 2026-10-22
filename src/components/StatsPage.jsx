@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import gsap from 'gsap';
 import { K, dayLabel, parseK } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
-import { BADGES, clearNewBadge, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
+import { BADGES, BADGE_CATS, badgeCtx, clearNewBadge, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
 import { fmtMin } from './TaskList';
 import FocusStats from './FocusStats';
 
@@ -118,17 +118,30 @@ function Badges({ S }) {
     clearNewBadge();
   }, [UI.newBadge]);
   const n = BADGES.filter((b) => S.badges[b.id]).length;
+  const c = useMemo(() => badgeCtx(S), [S]);
+  const fmt = (b, v) => (b.id.startsWith('focus') || b.id === 'day4h' ? `${Math.floor(v / 60)} / ${b.goal / 60} h` : `${v} / ${b.goal}`);
   return (
     <div className="card">
-      <div className="mb-3 flex items-baseline justify-between"><b className="text-[15px]">Badges</b><span className="text-[12px] text-mut tabular-nums">{n} / {BADGES.length}</span></div>
-      <div ref={box} className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">
-        {BADGES.map((b) => {
-          const d = S.badges[b.id];
+      <div className="mb-1 flex items-baseline justify-between"><b className="text-[15px]">Badges</b><span className="text-[12px] text-mut tabular-nums">{n} / {BADGES.length}</span></div>
+      <div ref={box}>
+        {BADGE_CATS.map(([cat, label]) => {
+          const list = BADGES.filter((b) => b.cat === cat), got = list.filter((b) => S.badges[b.id]).length;
           return (
-            <div key={b.id} data-b={b.id} className={'badge ' + (d ? 'got' : '')} title={d ? `Obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : 'À débloquer'}>
-              <span className="text-[22px] leading-none">{b.icon}</span>
-              <span className="text-[11px] leading-tight">{b.name}</span>
-            </div>
+            <section key={cat} className="mt-3">
+              <div className="mb-2 flex items-baseline justify-between text-[12px] tracking-wide text-mut uppercase"><span>{label}</span><span className="tabular-nums">{got} / {list.length}</span></div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-7">
+                {list.map((b) => {
+                  const d = S.badges[b.id], v = Math.min(b.goal, Math.floor(b.v(c) || 0)), show = !d && b.goal > 1 && v > 0;
+                  return (
+                    <div key={b.id} data-b={b.id} className={'badge ' + (d ? 'got' : show ? 'part' : '')} title={d ? `Obtenu le ${parseK(d).toLocaleDateString('fr-FR')}` : 'À débloquer'}>
+                      <span className="text-[22px] leading-none">{b.icon}</span>
+                      <span className="text-[11px] leading-tight">{b.name}</span>
+                      {show && <span className="bprog" aria-label={`Progression ${fmt(b, v)}`}><b><i style={{ width: (v / b.goal) * 100 + "%" }} /></b><em>{fmt(b, v)}</em></span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           );
         })}
       </div>

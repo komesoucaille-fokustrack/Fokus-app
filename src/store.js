@@ -567,33 +567,114 @@ export function describeRule(rule) {
   return 'Tous les jours';
 }
 
-/* ---------- Badges ---------- */
+/* ---------- Badges ----------
+   Chaque badge : id (stable, déjà obtenu = gardé), cat (rubrique de la vitrine), icon, name, et
+   goal + v(c) (valeur actuelle) → progression « 12 / 30 » tant qu'il est verrouillé. */
+export const BADGE_CATS = [['reg', 'Régularité'], ['top', 'Journées parfaites'], ['task', 'Tâches'], ['focus', 'Concentration'], ['habit', 'Habitudes']];
+const B = (cat, id, icon, name, goal, v) => ({ cat, id, icon, name, goal, v });
 export const BADGES = [
-  { id: 'first100', icon: '💯', name: 'Première journée à 100 %' },
-  { id: 'streak7', icon: '🔥', name: '7 jours de série' },
-  { id: 'streak30', icon: '🔥', name: '30 jours de série' },
-  { id: 'streak100', icon: '🏆', name: '100 jours de série' },
-  { id: 'tasks100', icon: '✓', name: '100 tâches validées' },
-  { id: 'tasks500', icon: '✓✓', name: '500 tâches validées' },
-  { id: 'tasks1000', icon: '★', name: '1000 tâches validées' },
-  { id: 'week1', icon: '📅', name: 'Première semaine réussie' },
-  { id: 'focus10', icon: '⏱', name: '10 h de concentration' },
+  B('reg', 'streak3', '🌱', '3 jours de série', 3, (c) => c.z.best),
+  B('reg', 'streak7', '🔥', '7 jours de série', 7, (c) => c.z.best),
+  B('reg', 'streak14', '🔥', '14 jours de série', 14, (c) => c.z.best),
+  B('reg', 'streak30', '🔥', '30 jours de série', 30, (c) => c.z.best),
+  B('reg', 'streak60', '☄️', '60 jours de série', 60, (c) => c.z.best),
+  B('reg', 'streak100', '🏆', '100 jours de série', 100, (c) => c.z.best),
+  B('reg', 'streak365', '👑', 'Un an de série', 365, (c) => c.z.best),
+  B('reg', 'week1', '📅', 'Première semaine réussie', 1, (c) => c.z.weeksOk),
+  B('reg', 'week4', '🗓️', '4 semaines réussies', 4, (c) => c.z.weeksOk),
+  B('reg', 'week12', '🗓️', '12 semaines réussies', 12, (c) => c.z.weeksOk),
+  B('reg', 'comeback', '🔁', 'Retour en force : 100 % après une journée sous 50 %', 1, (c) => c.comeback),
+  B('top', 'first100', '💯', 'Première journée à 100 %', 1, (c) => c.perfect),
+  B('top', 'perfect10', '💯', '10 journées à 100 %', 10, (c) => c.perfect),
+  B('top', 'perfect50', '💎', '50 journées à 100 %', 50, (c) => c.perfect),
+  B('top', 'perfect3row', '✨', '3 journées à 100 % d’affilée', 3, (c) => c.perfectRow),
+  B('top', 'perfect7row', '🌟', '7 journées à 100 % d’affilée', 7, (c) => c.perfectRow),
+  B('top', 'weekend', '🏖️', 'Week-end au top : samedi et dimanche à 100 %', 1, (c) => c.weekend),
+  B('top', 'month80', '📈', 'Mois solide : 80 % de moyenne sur un mois', 1, (c) => c.month80),
+  B('task', 'tasks10', '✓', '10 tâches validées', 10, (c) => c.done),
+  B('task', 'tasks50', '✓', '50 tâches validées', 50, (c) => c.done),
+  B('task', 'tasks100', '✓', '100 tâches validées', 100, (c) => c.done),
+  B('task', 'tasks250', '✓✓', '250 tâches validées', 250, (c) => c.done),
+  B('task', 'tasks500', '✓✓', '500 tâches validées', 500, (c) => c.done),
+  B('task', 'tasks1000', '★', '1000 tâches validées', 1000, (c) => c.done),
+  B('task', 'tasks2500', '🚀', '2500 tâches validées', 2500, (c) => c.done),
+  B('task', 'day10', '⚡', '10 tâches en une journée', 10, (c) => c.dayMax),
+  B('task', 'pts20', '💪', '20 points en une journée', 20, (c) => c.ptsMax),
+  B('task', 'prio25', '⭐', '25 priorités tenues', 25, (c) => c.prio),
+  B('task', 'prio100', '🌠', '100 priorités tenues', 100, (c) => c.prio),
+  B('task', 'prioAll7', '🎯', '7 jours avec toutes les priorités tenues', 7, (c) => c.prioAll),
+  B('focus', 'pomo1', '🍅', 'Premier pomodoro terminé', 1, (c) => c.pomos),
+  B('focus', 'pomo25', '🍅', '25 pomodoros', 25, (c) => c.pomos),
+  B('focus', 'pomo100', '🍅', '100 pomodoros', 100, (c) => c.pomos),
+  B('focus', 'pomo500', '🏅', '500 pomodoros', 500, (c) => c.pomos),
+  B('focus', 'focus1', '⏱', '1 h de concentration', 60, (c) => c.focus),
+  B('focus', 'focus10', '⏱', '10 h de concentration', 600, (c) => c.focus),
+  B('focus', 'focus50', '⏳', '50 h de concentration', 3000, (c) => c.focus),
+  B('focus', 'focus100', '⌛', '100 h de concentration', 6000, (c) => c.focus),
+  B('focus', 'focus500', '🧠', '500 h de concentration', 30000, (c) => c.focus),
+  B('focus', 'deep90', '🧘', '90 min d’affilée en une session', 1, (c) => c.deep),
+  B('focus', 'flow1', '🌊', 'Premier chrono libre', 1, (c) => c.flow),
+  B('focus', 'day4h', '🔋', '4 h de concentration en un jour', 240, (c) => c.fmMax),
+  B('habit', 'early', '🌅', 'Lève-tôt : une session avant 7 h', 1, (c) => c.early),
+  B('habit', 'night', '🌙', 'Oiseau de nuit : une session après 22 h', 1, (c) => c.night),
+  B('habit', 'estim', '🎯', 'Bonne estimation : à 10 % près sur au moins 1 h', 1, (c) => c.estim),
+  B('habit', 'tags5', '🏷️', '5 étiquettes', 5, (c) => c.tags),
+  B('habit', 'rec3', '↻', '3 tâches récurrentes', 3, (c) => c.recs),
+  B('habit', 'backup', '💾', 'Première sauvegarde exportée', 1, (c) => c.backup),
+  B('habit', 'joker', '🃏', 'Premier joker utilisé', 1, (c) => c.joker),
+  B('habit', 'since30', '🎂', 'Un mois avec Fokus', 30, (c) => c.since),
+  B('habit', 'since365', '🎉', 'Un an avec Fokus', 365, (c) => c.since),
 ];
-export function checkBadges() {
-  const z = streaks(), s = stats();
-  const ok = {
-    first100: (s.n > 0 && s.p >= 100) || Object.values(S.hist).some((h) => h.t > 0 && h.p >= 100),
-    streak7: z.best >= 7, streak30: z.best >= 30, streak100: z.best >= 100,
-    tasks100: S.doneTotal >= 100, tasks500: S.doneTotal >= 500, tasks1000: S.doneTotal >= 1000,
-    week1: z.weeksOk > 0, focus10: focusTotal() >= 600,
+
+/* Valeurs utiles aux badges (historique + aujourd'hui + journal des sessions), calculées une fois */
+export function badgeCtx(St = S) {
+  const tk = K(new Date(Date.now() + St.off * 864e5)), s = stats(St.tasks, tk);
+  const days = Object.keys(St.hist).filter((k) => k < tk).sort().map((k) => [k, St.hist[k]]);
+  if (s.n) days.push([tk, { p: s.p, d: s.c, t: s.n, pd: s.pd, pr: s.pr, prt: s.prt, fm: focusToday(St) }]);
+  let perfect = 0, row = 0, perfectRow = 0, comeback = 0, weekend = 0, dayMax = 0, ptsMax = 0, prio = 0, prioAll = 0, fmMax = 0, estim = 0, joker = 0;
+  let prev = null;
+  const months = {};
+  for (const [k, h] of days) {
+    const act = h.t > 0, full = act && h.p >= 100;
+    if (full) { perfect++; row++; perfectRow = Math.max(perfectRow, row); } else if (act) row = 0;
+    if (full && prev && prev[1].t > 0 && prev[1].p < 50 && daysBetween(prev[0], k) === 1) comeback = 1;
+    if (full && parseK(k).getDay() === 0 && prev && prev[1].t > 0 && prev[1].p >= 100 && daysBetween(prev[0], k) === 1) weekend = 1;
+    dayMax = Math.max(dayMax, h.d || 0);
+    ptsMax = Math.max(ptsMax, h.pd || 0);
+    prio += h.pr || 0;
+    if (h.prt > 0 && h.pr >= h.prt) prioAll++;
+    fmMax = Math.max(fmMax, h.fm || 0);
+    if (h.ea && h.ea[0] >= 60 && Math.abs(h.ea[1] - h.ea[0]) <= h.ea[0] * 0.1) estim = 1;
+    if (h.jk) joker = 1;
+    if (act) { const m = (months[k.slice(0, 7)] ||= [0, 0]); m[0] += h.p; m[1]++; }
+    if (act) prev = [k, h];
+  }
+  const month80 = Object.values(months).some(([sum, n]) => n >= 20 && sum / n >= 80) ? 1 : 0;
+  let pomos = 0, deep = 0, flow = 0, early = 0, night = 0;
+  for (const x of St.sessions) {
+    if (x[3] === 'c' && x[4]) pomos++;
+    if (x[3] === 'f') flow = 1;
+    if (x[1] >= 5400) deep = 1;
+    if (x[1] >= 600) { const h = new Date(x[0] * 1000).getHours(); if (h >= 4 && h < 7) early = 1; if (h >= 22 || h < 2) night = 1; }
+  }
+  return {
+    z: streaks(St), perfect, perfectRow, comeback, weekend, month80, done: St.doneTotal, dayMax, ptsMax, prio, prioAll,
+    pomos, focus: focusTotal(St), deep, flow, fmMax, early, night, estim, tags: St.tags.length, recs: St.rec.length,
+    backup: St.lastExport ? 1 : 0, joker, since: daysBetween([St.since, ...Object.keys(St.hist)].filter(Boolean).sort()[0] || tk, tk) + 1,
   };
-  const fresh = BADGES.filter((b) => ok[b.id] && !S.badges[b.id]);
+}
+export function checkBadges() {
+  const c = badgeCtx();
+  const fresh = BADGES.filter((b) => !S.badges[b.id] && b.v(c) >= b.goal);
   if (!fresh.length) return;
   const badges = { ...S.badges };
   fresh.forEach((b) => { badges[b.id] = todayKey(); });
   UI = { ...UI, newBadge: fresh[fresh.length - 1].id };
   set({ badges });
-  if (S.set.showBadges) fresh.forEach((b) => toast(`🏅 Nouveau badge : ${b.name}`));
+  if (!S.set.showBadges) return;
+  // plusieurs badges d'un coup (import, données test) : un seul message
+  if (fresh.length > 2) toast(`🏅 ${fresh.length} nouveaux badges débloqués !`);
+  else fresh.forEach((b) => toast(`🏅 Nouveau badge : ${b.name}`));
 }
 
 /* ---------- Pomodoro — calcul par horodatages (juste même écran verrouillé) ----------
