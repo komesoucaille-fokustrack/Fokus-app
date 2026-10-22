@@ -12,16 +12,31 @@ Claude gère 100 % du code, des builds et du déploiement. Chaque push sur `main
 - Police **Inter** embarquée (`@fontsource-variable/inter`), chiffres toujours en `tabular-nums`.
 - `vite.config.js` garde `base: './'` (chemins relatifs, indispensable pour GitHub Pages).
 
-## Design Ultra-Premium Noir & Blanc
+## Design Ultra-Premium Noir & Blanc — thème « Obsidienne » (v3)
 
-- Fonds multicouches : `#050505` (page) → `#0c0c0e` (conteneurs) → `#121215` (cartes) → `#1a1a1f` (survol).
-- Bordures spéculaires brillantes : `rgba(255,255,255,0.1)` + reflet interne `inset 0 1px 0 rgba(255,255,255,.14)`.
+- **Palette en jetons** dans `@theme` (`src/index.css`) : fonds `--color-bg-1` `#050608` (page) → `bg-2` `#0b0c10` (conteneurs) →
+  `bg-3` `#121318` (cartes opaques) → `bg-4` `#1a1b21` (survol) ; verre `--color-glass` `rgba(14,15,19,.64)` / `glass-hi` ;
+  bordures `--color-edge` (`rgba(255,255,255,.09)`) / `edge-hi` ; texte `--color-text` `#f5f6f8` et `--color-text-2` `#a7abb4`
+  (= `--color-mut`) ; accents `#93c5fd` / `#86efac` ; or des priorités `--color-gold`. Les anciens jetons (`ink`, `cont`, `card`, `hov`, `mut`)
+  pointent sur ces valeurs. **Contraste du texte ≥ 4,5:1 partout** (mesuré : ≥ 6,9:1 au point le plus clair du fond).
+- **Ambiance par défaut « Obsidienne »** (`t-obsidienne`, `Ambiance.jsx`) : noir profond aux reflets bleu nuit, émeraude et ambre.
+  `migrate()` bascule une seule fois l'ancien défaut `p12` vers Obsidienne (`seen.thm`). Graphite lunaire et Ambre fumé + toutes les
+  ambiances photo / dégradé restent au choix (Réglages → Apparence). Pomodoro : fond par défaut Obsidienne aussi.
+- **Règle d'or « rien ne bouge »** : fonds = images **pré-calculées** (`public/theme/*-L.webp` / `-P.webp`, lumière diffuse et grain
+  rendus à l'avance par `scripts/make-themes.py` ; photos = vignettes déjà floutées `-amb.webp`). Calque `.amb` fixe,
+  `transform: translateZ(0)`, `contain: strict`, couleur moyenne posée en attendant l'image. **Jamais** de `filter: blur()`, de
+  `backdrop-filter` plein écran (voile des feuilles = simple noir 75 %), de dégradé animé, de parallaxe. `backdrop-filter` réservé à
+  l'en-tête, aux toasts et aux boutons du minuteur ; coupé sous `prefers-reduced-transparency` / `prefers-reduced-motion`.
+- **Cartes en verre fumé** (`.task`, `.card`, `.daystrip`…) : reflet en haut + liseré spéculaire `inset 0 1px 0 rgba(255,255,255,.13)`
+  + ombre fixe ; priorités : filet or à gauche. Carte du jour `#pcard` **toujours opaque `#121215`** (= face 3D de `Card3D.jsx`, relais pixel).
+- **Seule zone « wow »** : la lumière `.aura` derrière la carte du jour, dégradé radial (sans filtre) de la couleur de la progression.
+- **Logo** (kit source dans `brand/`) : anneau de progression vert (`#059669 → #10b981 → #86efac`) + logotype « FOKUS » dont le O est
+  l'anneau ; `FokusLogo.jsx` (en-tête) et bannière de l'arche (mêmes tracés `LOGO_SVG`) ; icônes `public/icon*.png`, `favicon*`.
+  `theme_color` / `background_color` `#050608` ; écrans de démarrage iPad/iPhone `public/splash/` (`scripts/make-splash.py`).
 - Typographie Inter, `tabular-nums` sur tous les chiffres. Accents de couleur : progression (pastels), animation (bleu électrique),
-  priorités (or), points (pastels discrets), et **ambiance** de l'app (`Ambiance.jsx` : photo/couleur choisie, très floutée et
-  assombrie, calque fixe derrière l'interface ; réglage Apparence, défaut « Forêt sombre » `p12`). Cartes de tâches en verre léger
-  (`rgba(18,18,21,.74)`), carte du jour `#pcard` toujours opaque (relais 3D). En-tête éditorial `Hello.jsx` (date, salutation, résumé),
-  halo `.aura` couleur de la progression, navigation en pastille glissante (`.navseg`/`.navind`).
-- Courbes d'animation « spring » : `cubic-bezier(.22,1,.36,1)`. Tout doit rester fluide sur iPad (Safari, tactile, 60 fps).
+  priorités (or), points (pastels discrets). En-tête éditorial `Hello.jsx` (date, salutation, résumé), navigation en pastille glissante (`.navseg`/`.navind`).
+- Courbes d'animation « spring » : `cubic-bezier(.22,1,.36,1)`. Tout doit rester fluide sur iPad (Safari, tactile, 60 fps) — mesuré :
+  30 tâches, profil iPad Retina, processeur ×4 plus lent : 60 i/s, aucune image > 25 ms, CLS 0.
 
 ## Barre de progression (Page 1) — dégradés pastel par palier
 
@@ -155,7 +170,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/cinematic/engine.js` — timeline GSAP + caméra de poursuite ; `Scene3D.jsx`, `Card3D.jsx`, `Outline.jsx`, `Arch.jsx`, `Sparks.jsx`,
   `SpeedLines.jsx` — scène 3D (**l'utilisateur a validé l'animation : ne plus la modifier**).
 - `src/brand.js` — logo : mettre `LOGO_URL` (ex. `'logo.png'` dans `public/`) pour remplacer le logo par défaut (en-tête + arche).
-- `scripts/make-typeface.mjs` — régénère la police 3D `src/assets/inter-black.typeface.json`.
+- `scripts/make-themes.py` (fonds des thèmes), `scripts/make-splash.py` (écrans de démarrage), `brand/` (kit du logo).
 
 - **Gratuit et sans limite** : aucune durée maximale, aucune fonction bloquée, aucune publicité.
 

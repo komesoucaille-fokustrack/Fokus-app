@@ -23,6 +23,9 @@ fonctionne hors ligne et peut recevoir des notifications.
   (par jour, par heure, par étiquette, par tâche, tendance 4/12 semaines, précision des estimations).
 - **Fiabilité** : copie de secours automatique (IndexedDB), export/import JSON (compatible avec l'ancien `index.html`),
   fonctionnement hors ligne, mises à jour signalées par un bandeau.
+- **Design** : thème « Obsidienne » (noir profond aux reflets bleu nuit, émeraude et ambre), cartes en verre fumé, lumière
+  colorée par la progression derrière la carte du jour ; fonds pré-calculés pour rester parfaitement fluide (60 i/s).
+  Autres ambiances au choix (Graphite lunaire, Ambre fumé, photos, dégradés).
 - **Notifications** même app fermée : fin de phase du Pomodoro et rappel du soir (voir ci-dessous).
 
 ## Notifications : mise en place (une seule fois, depuis l'iPad, sans terminal)
@@ -69,6 +72,8 @@ cd server && npm install && npm test   # test du chiffrement Web Push
 ```
 
 ## Crédits
+
+- Logo et icônes : kit Fokus (`brand/`).
 
 - Photos des fonds du Pomodoro : Unsplash (licence Unsplash), noms des photographes affichés dans l'app.
 - Sons d'ambiance (via le projet [Blanket](https://github.com/rafaelmardojai/blanket)) : pluie — alex36917 (CC BY 3.0) ;

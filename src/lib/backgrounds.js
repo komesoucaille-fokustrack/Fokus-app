@@ -2,6 +2,10 @@
    ink = couleur du texte et des pastilles ; scrim = voile de lisibilité pour les photos ('dark' | 'light', opacité) ;
    flip = cartes claires ou sombres ; pos = cadrage de la photo. Les concepts affichent leur propre chrono. */
 export const BGS = [
+  // Thèmes de l'app (fonds pré-calculés : lumière diffuse et grain rendus à l'avance, aucun filtre en direct)
+  { id: 't-obsidienne', group: 'theme', name: 'Obsidienne', theme: 'obsidienne', img: 'theme/obsidienne-L.webp', portrait: 'theme/obsidienne-P.webp', avg: '#0b1018', ink: '#fff', flip: 'dark', css: 'radial-gradient(ellipse at 15% 10%, #16244a, transparent 55%), radial-gradient(ellipse at 90% 95%, #0d3a2e, transparent 55%), #050608' },
+  { id: 't-graphite', group: 'theme', name: 'Graphite lunaire', theme: 'graphite', img: 'theme/graphite-L.webp', portrait: 'theme/graphite-P.webp', avg: '#16181c', ink: '#fff', flip: 'dark', css: 'radial-gradient(ellipse at 50% -10%, #3a3f48, transparent 60%), #060607' },
+  { id: 't-ambre', group: 'theme', name: 'Ambre fumé', theme: 'ambre', img: 'theme/ambre-L.webp', portrait: 'theme/ambre-P.webp', avg: '#170c08', ink: '#fff', flip: 'dark', css: 'radial-gradient(ellipse at 5% 100%, #4a2610, transparent 55%), radial-gradient(ellipse at 98% 0%, #3a0f18, transparent 50%), #060504' },
   // Concepts
   { id: 'c-gt', group: 'concept', name: 'Affiche GT', concept: 'gt', ink: '#e7efe9', flip: 'dark', amb: 'radial-gradient(ellipse at 40% 20%, #3a5444, #1b2a21 55%, #0b120e)' },
   { id: 'c-bauhaus', group: 'concept', name: 'Bauhaus', concept: 'bauhaus', ink: '#141414', flip: 'light', amb: 'radial-gradient(ellipse at 70% 15%, #e2662c, #6b2a12 35%, #1a120d 70%)' },
@@ -38,6 +42,7 @@ export const BGS = [
   { id: 'braise', group: 'grad', name: 'Braise', css: 'radial-gradient(ellipse at 75% 80%, #e2783c 0%, #8a3518 30%, #2b120a 65%, #120806)', ink: '#fff3e6', flip: 'dark' },
   { id: 'papier', group: 'grad', name: 'Papier', css: 'radial-gradient(ellipse at 50% 30%, #f6f2ea, #e6dfd2)', ink: '#141414', flip: 'light' },
 ];
-export const BG_GROUPS = [['concept', 'Concepts'], ['photo', 'Photos'], ['grad', 'Dégradés']];
+export const BG_GROUPS = [['theme', 'Thèmes'], ['concept', 'Concepts'], ['photo', 'Photos'], ['grad', 'Dégradés']];
 export const bgOf = (id) => BGS.find((b) => b.id === id) || BGS.find((b) => b.id === 'noir');
 export const thumbOf = (b) => (b.img ? b.img.replace(/(-L)?\.(jpg|webp)$/, '-mini.jpg') : null);
+export const ambOf = (b) => (b.img ? b.img.replace(/(-L)?\.(jpg|webp)$/, '-amb.webp') : null);

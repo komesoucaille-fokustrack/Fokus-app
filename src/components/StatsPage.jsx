@@ -153,7 +153,7 @@ export default function StatsPage({ S }) {
         datasets: [{
           data: pts.map((p) => (p ? p.p : null)),
           borderColor: col, borderWidth: 3.5,
-          pointBackgroundColor: col, pointBorderColor: '#121215', pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
+          pointBackgroundColor: col, pointBorderColor: '#121318', pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
           tension: 0.4, fill: true, spanGaps: true,
           backgroundColor: (c) => {
             const a = c.chart.chartArea;
@@ -175,7 +175,7 @@ export default function StatsPage({ S }) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#0c0c0e', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 12, displayColors: false,
+            backgroundColor: '#0b0c10', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 12, displayColors: false,
             callbacks: {
               title: (i) => titles[i[0].dataIndex],
               label: (i) => {
