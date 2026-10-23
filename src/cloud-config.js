@@ -8,4 +8,4 @@
 export const GOOGLE_CLIENT_ID = '';
 export const EMAIL_LOGIN = true;
 export const REQUIRE_LOGIN = true;
-export const ANALYTICS_TOKEN = '';
+export const ANALYTICS_TOKEN = 'd9d231508fd44df890be7d6769130993';

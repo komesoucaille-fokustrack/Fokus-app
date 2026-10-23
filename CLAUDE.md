@@ -206,7 +206,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   `applyRemote()` garde `pushId` et `LOCAL_SET` (push, pushUrl). Déconnexion (connexion obligatoire) : envoi des dernières modifications
   puis effacement des données de l'appareil (`resetAll(true)`). Méta locale `fokus_cloud`. Page `public/confidentialite/`.
   **Activé** (connexion par code e-mail, obligatoire dès la 1re ouverture) ; textes publics, JSON-LD, FAQ et `public/og.png` mis à jour.
-- **Statistiques de visites** : Cloudflare Web Analytics (sans cookie) si `ANALYTICS_TOKEN` est renseigné (`main.jsx`, chargé au repos).
+- **Statistiques de visites** : Cloudflare Web Analytics (sans cookie), jeton `ANALYTICS_TOKEN` renseigné (`main.jsx`, chargé au repos) + balise dans les pages statiques (Pomodoro, Découvrir, Confidentialité). Configuré dans Cloudflare en « extrait JS » (le site est en DNS uniquement, nuage gris).
 - **Tableau de bord du propriétaire** (Réglages → Administration, `Admin.jsx`, visible seulement si l'adresse du compte est dans le secret
   serveur `ADMIN_EMAILS` ; drapeau `user.admin` à la connexion ou en-tête `X-Fokus-Admin` sur `/sync/get`) : personnes en ligne en direct
   (rafraîchi toutes les 10 s), récap Aujourd'hui / Semaine / Mois / Année / Depuis le début (visiteurs uniques, temps passé cumulé,
