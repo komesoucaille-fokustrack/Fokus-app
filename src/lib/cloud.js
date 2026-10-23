@@ -157,6 +157,14 @@ export async function deleteAccount() {
   toast(loginRequired() ? 'Compte et données supprimés.' : 'Compte supprimé du serveur. Tes données restent sur cet appareil.');
 }
 
+/* Profil (prénom, nom, pseudo) : demandé à la première connexion, modifiable dans Réglages → Compte */
+export const needsProfile = (c = snap) => !!(c.session && c.user && 'pseudo' in c.user && !c.user.pseudo);
+export async function setProfile(p) {
+  const r = await api('/profile/set', { session: m.session, ...p });
+  m.user = { ...m.user, ...r.user };
+  persist();
+}
+
 export const sessionToken = () => m.session || '';
 export const serverUrl = base;
 /* Tableau de bord du propriétaire : 'summary' (en ligne + récap) ou 'accounts' (liste des comptes) */

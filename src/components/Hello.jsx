@@ -2,9 +2,11 @@ import { forwardRef } from 'react';
 import { fmtMin } from './TaskList';
 import { focusToday, now, stats, streaks } from '../store';
 import { getColorForPercentage } from '../lib/colors';
+import { useCloud } from '../lib/cloud';
 
 /* En-tête éditorial de « Mes Tâches » : date, salutation selon l'heure, résumé du jour */
 const Hello = forwardRef(function Hello({ S }, ref) {
+  const pseudo = useCloud().user?.pseudo;
   const d = now(), h = new Date().getHours();
   const hi = h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bel après-midi' : h < 22 ? 'Bonsoir' : 'Bonne nuit';
   const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -17,7 +19,7 @@ const Hello = forwardRef(function Hello({ S }, ref) {
   return (
     <div ref={ref} className="hello">
       <div className="hello-d">{date}</div>
-      <h1 className="hello-t">{hi}<span style={{ color: s.n ? getColorForPercentage(s.p) : '#86efac' }}>.</span></h1>
+      <h1 className="hello-t">{hi}{pseudo ? `, ${pseudo}` : ''}<span style={{ color: s.n ? getColorForPercentage(s.p) : '#86efac' }}>.</span></h1>
       {bits.length > 0 && <div className="hello-s">{bits.join('  ·  ')}</div>}
     </div>
   );

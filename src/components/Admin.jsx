@@ -69,13 +69,16 @@ export default function AdminDashboard() {
     return () => { alive = false; clearInterval(t); };
   }, []);
 
-  const shown = useMemo(() => (acc || []).filter((a) => a.email.includes(q.trim().toLowerCase())), [acc, q]);
+  const shown = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    return (acc || []).filter((a) => [a.email, a.pseudo, a.first, a.last].some((x) => (x || '').toLowerCase().includes(k)));
+  }, [acc, q]);
   const copy = async () => {
     try { await navigator.clipboard.writeText(shown.map((a) => a.email).join('\n')); toast(`${shown.length} adresse${shown.length > 1 ? 's' : ''} copiée${shown.length > 1 ? 's' : ''}.`); }
     catch { toast('Copie impossible.'); }
   };
   const csv = () => {
-    const rows = [['email', 'inscription', 'derniere_visite', 'connexion'], ...shown.map((a) => [a.email, new Date(a.created).toISOString(), new Date(a.seen).toISOString(), a.via])];
+    const rows = [['email', 'prenom', 'nom', 'pseudo', 'inscription', 'derniere_visite', 'connexion'], ...shown.map((a) => [a.email, a.first || '', a.last || '', a.pseudo || '', new Date(a.created).toISOString(), new Date(a.seen).toISOString(), a.via])];
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.join(';')).join('\n')], { type: 'text/csv' }));
     a.download = 'fokus-comptes-' + new Date().toISOString().slice(0, 10) + '.csv';
@@ -116,12 +119,13 @@ export default function AdminDashboard() {
           <button type="button" className="b" onClick={csv} disabled={!shown.length}>Exporter (CSV)</button>
         </span>
       </div>
-      <input className="field adm-search" type="search" placeholder="Rechercher une adresse…" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="off" />
+      <input className="field adm-search" type="search" placeholder="Rechercher (e-mail, pseudo, nom)…" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="off" />
       {!acc ? <p className="si-d">Chargement des comptes…</p> : !shown.length ? <p className="si-d">Aucun compte{q ? ' pour cette recherche' : ' pour l’instant'}.</p> : (
         <ul className="adm-list">
           {shown.slice(0, 300).map((a) => (
             <li key={a.email}>
-              <b>{a.email}</b>
+              <b>{a.pseudo ? <>{a.pseudo} <span className="adm-name">· {a.first} {a.last}</span></> : a.email}</b>
+              {a.pseudo && <span>{a.email}</span>}
               <span>Inscrit le {date(a.created)} · vu {ago(a.seen)} · {a.via === 'google' ? 'Google' : 'code e-mail'}</span>
             </li>
           ))}

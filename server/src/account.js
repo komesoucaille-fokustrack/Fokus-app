@@ -67,6 +67,18 @@ export async function readSession(tok, secret, now = Date.now()) {
   return { id: m[1], iat };
 }
 
+/* ---------- profil : prénom, nom, pseudo (choisis à la première connexion, modifiables) ---------- */
+const clean = (v, max) => String(v ?? '').normalize('NFC').replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+const NAME = /^[\p{L}][\p{L}\p{M} '’.-]{0,39}$/u, PSEUDO = /^[\p{L}\p{N}][\p{L}\p{M}\p{N} _.-]{1,19}$/u;
+export function checkProfile(b) {
+  const first = clean(b.first, 40), last = clean(b.last, 40), pseudo = clean(b.pseudo, 20);
+  if (!NAME.test(first)) return { error: 'Prénom invalide (lettres, espaces, tirets).' };
+  if (!NAME.test(last)) return { error: 'Nom invalide (lettres, espaces, tirets).' };
+  if (!PSEUDO.test(pseudo)) return { error: 'Pseudo invalide : 2 à 20 caractères (lettres, chiffres, espace, _ . -).' };
+  return { first, last, pseudo };
+}
+const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '' });
+
 /* code à 6 chiffres (tirage sans biais) et son empreinte (le code lui-même n'est jamais stocké) */
 export function newCode() {
   const a = new Uint32Array(1);
@@ -94,7 +106,7 @@ export class Account {
       if (b.name) meta.name = b.name;
       if (b.picture) meta.picture = b.picture;
       await st.put('meta', meta);
-      return Response.json({ ok: true, isNew, user: { name: meta.name || '', email: meta.email, picture: meta.picture || '' } });
+      return Response.json({ ok: true, isNew, user: profileOf(meta) });
     }
     if (path === '/code') { // nouveau code : au plus 1 par minute et 5 par heure
       const now = Date.now(), c = (await st.get('code')) || { sends: [] };
@@ -118,7 +130,14 @@ export class Account {
       return Response.json({ ok: true });
     }
     if (!(b.iat >= (meta.minIat || 0))) return Response.json({ error: 'session révoquée' }, { status: 401 });
-    const user = { name: meta.name || '', email: meta.email || '', picture: meta.picture || '' };
+    const user = profileOf(meta);
+    if (path === '/profile') {
+      const p = checkProfile(b);
+      if (p.error) return Response.json(p, { status: 400 });
+      Object.assign(meta, p);
+      await st.put('meta', meta);
+      return Response.json({ ok: true, user: profileOf(meta) });
+    }
 
     if (path === '/get') {
       if (b.have === meta.rev) return Response.json({ rev: meta.rev, at: meta.at, same: true, user });

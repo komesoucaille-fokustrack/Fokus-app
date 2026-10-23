@@ -720,3 +720,11 @@
 .adm-list b { font-size: 14.5px; overflow-wrap: anywhere; }
 .adm-list span { font-size: 12.5px; color: var(--color-mut); }
 .adm-note { font-size: 12px; color: var(--color-mut); margin: 0; }
+
+/* Profil (première connexion + Réglages → Compte) */
+.prof-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .prof-row { grid-template-columns: 1fr; } }
+.login-form label { display: grid; gap: 6px; }
+.prof-compact .field { font-size: 15px; min-height: 44px; }
+.prof-compact .login-go { min-height: 44px; font-size: 15px; justify-self: start; padding: 0 18px; }
+.adm-name { font-weight: 500; color: var(--color-mut); }

@@ -18,6 +18,7 @@
      POST /sync/get    { session, have }               → { rev, at, data? , user }
      POST /sync/put    { session, base, data }         → { rev, at } ou 409 si un autre appareil a envoyé une version plus récente
      POST /sync/delete { session }                     → efface le compte du serveur
+     POST /profile/set { session, first, last, pseudo } → profil (première connexion, puis Réglages → Compte)
      GET  /stats                                       → { accounts } nombre de comptes créés
    Statistiques (voir stats.js) :
      POST /ping { vid, s, f, t, bye?, session? }       → signal de présence anonyme (toutes les minutes, app ouverte)
@@ -27,7 +28,7 @@
    notification (précision de l'ordre de la seconde).
    ===================================================================== */
 import { generateVapid, sendPush } from './webpush.js';
-import { Account, EMAIL, accountId, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
+import { Account, EMAIL, accountId, checkProfile, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
 import { Stats } from './stats.js';
 
 export { Account, Stats };
@@ -64,7 +65,7 @@ export default {
       if (req.method === 'GET' && url.pathname === '/stats') return json(await keys(env, '/stats'), 200, h);
       if (req.method !== 'POST') return json({ error: 'not found' }, 404, h);
       if (url.pathname === '/auth/google/redirect') return await redirectLogin(req, env);
-      if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/') || url.pathname.startsWith('/admin/')) return await accountRoute(req, env, url.pathname, h);
+      if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/') || url.pathname.startsWith('/admin/') || url.pathname === '/profile/set') return await accountRoute(req, env, url.pathname, h);
       if (url.pathname === '/ping') return await ping(req, env, h);
       const text = await req.text();
       if (text.length > 8000) return json({ error: 'too large' }, 413, h);
@@ -168,6 +169,13 @@ async function accountRoute(req, env, path, h) {
     if (path === '/admin/summary') return json(await stats(env, '/summary', {}), 200, h);
     if (path === '/admin/accounts') return json(await stats(env, '/accounts', {}), 200, h);
     return json({ error: 'not found' }, 404, h);
+  }
+  if (path === '/profile/set') {
+    const p = checkProfile(b);
+    if (p.error) return json(p, 400, h);
+    const r = await account(env, s.id, '/profile', { ...p, iat: s.iat });
+    if (r.ok) await stats(env, '/profile', { id: s.id, ...p });
+    return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
   }
   const op = { '/sync/get': '/get', '/sync/put': '/put', '/sync/delete': '/delete' }[path];
   if (!op) return json({ error: 'not found' }, 404, h);

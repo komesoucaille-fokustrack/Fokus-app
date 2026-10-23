@@ -118,11 +118,28 @@ const list = await post('/admin/accounts', { session: boss.session });
 assert.deepEqual(list.accounts.map((a) => [a.email, a.via]).sort(), [['lea@exemple.fr', 'email'], ['patron@fokus.fr', 'email']]);
 console.log('✓ tableau de bord : en ligne (2 dont 1 connecté), totaux par période, valeurs bornées, liste des comptes, accès réservé');
 
+// profil : prénom, nom, pseudo (validés, modifiables, visibles dans le tableau de bord)
+assert.equal((await post('/profile/set', { session: s1, first: 'Léa', last: 'Martin', pseudo: 'x' })).status, 400, 'pseudo trop court');
+assert.equal((await post('/profile/set', { session: s1, first: '<b>', last: 'Martin', pseudo: 'lea' })).status, 400, 'balises refusées');
+assert.equal((await post('/profile/set', { session: 'faux', first: 'Léa', last: 'Martin', pseudo: 'lea' })).status, 401);
+r = await post('/profile/set', { session: s1, first: '  Léa ', last: "D'Arc-Martin", pseudo: 'Léa_42' });
+assert.deepEqual([r.user.first, r.user.last, r.user.pseudo], ['Léa', "D'Arc-Martin", 'Léa_42']);
+r = await post('/sync/get', { session: s1, have: -1 });
+assert.equal(r.user.pseudo, 'Léa_42', 'profil renvoyé à la synchronisation');
+r = await post('/profile/set', { session: s1, first: 'Léa', last: "D'Arc-Martin", pseudo: 'Lele' });
+assert.equal(r.user.pseudo, 'Lele', 'pseudo modifiable');
+const acc2 = (await post('/admin/accounts', { session: boss.session })).accounts.find((a) => a.email === 'lea@exemple.fr');
+assert.deepEqual([acc2.first, acc2.last, acc2.pseudo], ['Léa', "D'Arc-Martin", 'Lele']);
+r = await post('/auth/email/start', { email: 'nouveau@x.fr' });
+r = await post('/auth/email/verify', { email: 'nouveau@x.fr', code: /(\d{6}) est ton code/.exec(inbox.at(-1).subject)[1] });
+assert.equal(r.user.pseudo, '', 'nouveau compte : profil à remplir');
+console.log('✓ profil : prénom / nom / pseudo validés, modifiables, renvoyés à l’app et visibles dans le tableau de bord');
+
 // statistiques, suppression
 r = await worker.fetch(new Request('https://w/stats'), env).then((x) => x.json());
-assert.equal(r.accounts, 2);
+assert.equal(r.accounts, 3);
 assert.equal((await post('/sync/delete', { session: s1 })).ok, true);
-assert.deepEqual((await post('/admin/accounts', { session: boss.session })).accounts.map((a) => a.email), ['patron@fokus.fr'], 'compte supprimé retiré de la liste');
+assert.deepEqual((await post('/admin/accounts', { session: boss.session })).accounts.map((a) => a.email).sort(), ['nouveau@x.fr', 'patron@fokus.fr'], 'compte supprimé retiré de la liste');
 assert.equal((await post('/sync/get', { session: s1, have: -1 })).status, 401);
 assert.equal((await post('/sync/get', { session: 'v2.abc.1.zzzzzzzzzzzzzzzzzzzzzzzz', have: -1 })).status, 401);
 console.log('✓ compteur de comptes ; suppression → session invalidée');

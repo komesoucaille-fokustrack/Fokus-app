@@ -15,7 +15,13 @@ async function boot() {
   if (restored) store.toast('Données restaurées depuis la copie de secours.');
   // connexion obligatoire : écran de connexion tant qu'il n'y a pas de session (l'app s'affiche dès la connexion)
   const Login = cloud.loginRequired() ? (await import('./components/Login')).default : null;
-  const Root = () => (Login && !cloud.useCloud().session ? <Login /> : <App />);
+  const Profile = cloud.cloudEnabled() ? (await import('./components/Profile')).default : null;
+  const Root = () => {
+    const c = cloud.useCloud();
+    if (Login && !c.session) return <Login />;
+    if (Profile && cloud.needsProfile(c)) return <Profile />; // prénom, nom, pseudo à la première connexion
+    return <App />;
+  };
   createRoot(document.getElementById('root')).render(<StrictMode><Root /></StrictMode>);
   registerSW(store.setUpdate);
 }

@@ -3,6 +3,7 @@ import Sheet from './Sheet';
 import { exportJSON, getState } from '../store';
 import { deleteAccount, loginRequired, logout, pull, push, renderGoogleButton, resolveChoice, useCloud } from '../lib/cloud';
 import { LoginMethods } from './Login';
+import { ProfileForm } from './Profile';
 
 /* =====================================================================
    COMPTE — rubrique des Réglages (connexion, état de la sauvegarde) + choix à la première connexion
@@ -62,9 +63,9 @@ export function AccountSettings({ Group }) {
       <Group title="Compte">
         <div className="si">
           <span className="acc">
-            {u.picture ? <img src={u.picture} alt="" referrerPolicy="no-referrer" width="44" height="44" /> : <span className="acc-i">{(u.name || u.email || '?')[0].toUpperCase()}</span>}
+            {u.picture ? <img src={u.picture} alt="" referrerPolicy="no-referrer" width="44" height="44" /> : <span className="acc-i">{(u.pseudo || u.first || u.email || '?')[0].toUpperCase()}</span>}
             <span className="si-l">
-              <span className="si-t">{u.name || 'Mon compte'}</span>
+              <span className="si-t">{u.pseudo || u.name || 'Mon compte'}{u.first ? <span className="si-d"> · {u.first} {u.last}</span> : null}</span>
               <span className="si-d">{u.email}</span>
             </span>
           </span>
@@ -76,6 +77,9 @@ export function AccountSettings({ Group }) {
           </span>
           <span className="si-r"><button type="button" className="b" disabled={c.busy} onClick={() => (c.dirty ? push() : pull())}>Synchroniser</button></span>
         </div>
+      </Group>
+      <Group title="Mon profil">
+        <div className="si col"><ProfileForm compact /></div>
       </Group>
       <Group foot="Chaque modification est sauvegardée en quelques secondes. Connecte-toi avec la même adresse sur un autre appareil pour tout y retrouver.">
         <div className="si"><span className="si-l"><span className="si-t">Se déconnecter</span>

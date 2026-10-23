@@ -4,7 +4,7 @@
      (aucun nom, aucune tâche) : « en ligne » = signal reçu dans les 130 dernières secondes (gardé en mémoire).
    - Totaux par jour (fuseau Europe/Paris) : visiteurs uniques (appareils), temps passé dans l'app (onglet visible),
      minutes de concentration, tâches validées, comptes créés.
-   - Registre des comptes : adresse e-mail, date de création, dernière visite, moyen de connexion (Google / code).
+   - Registre des comptes : adresse e-mail, prénom, nom, pseudo, date de création, dernière visite, moyen de connexion.
    ===================================================================== */
 const TZ = 'Europe/Paris';
 export const ONLINE_MS = 130e3;
@@ -27,6 +27,9 @@ export class Stats {
     this.sql.exec('CREATE TABLE IF NOT EXISTS visits (day TEXT NOT NULL, vid TEXT NOT NULL, PRIMARY KEY (day, vid))');
     this.sql.exec('CREATE TABLE IF NOT EXISTS days (day TEXT PRIMARY KEY, secs INTEGER NOT NULL DEFAULT 0, focus INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, signups INTEGER NOT NULL DEFAULT 0)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, email TEXT NOT NULL, created INTEGER NOT NULL, seen INTEGER NOT NULL, via TEXT NOT NULL)');
+    for (const col of ['first', 'last', 'pseudo']) { // ajoutées avec le profil (base déjà créée : on complète)
+      try { this.sql.exec(`ALTER TABLE accounts ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`); } catch { /* colonne déjà là */ }
+    }
   }
 
   add(day, col, n) {
@@ -66,6 +69,10 @@ export class Stats {
       }
       return Response.json({ ok: true, isNew: !had });
     }
+    if (path === '/profile') {
+      this.sql.exec('UPDATE accounts SET first = ?, last = ?, pseudo = ? WHERE id = ?', b.first, b.last, b.pseudo, b.id);
+      return Response.json({ ok: true });
+    }
     if (path === '/forget') { this.sql.exec('DELETE FROM accounts WHERE id = ?', b.id); return Response.json({ ok: true }); }
     if (path === '/whois') {
       const r = this.sql.exec('SELECT email FROM accounts WHERE id = ?', b.id).toArray()[0];
@@ -91,7 +98,7 @@ export class Stats {
       return Response.json({ ...this.online(now), periods, daily, accounts, at: now });
     }
     if (path === '/accounts') {
-      return Response.json({ accounts: this.sql.exec('SELECT email, created, seen, via FROM accounts ORDER BY created DESC').toArray() });
+      return Response.json({ accounts: this.sql.exec('SELECT email, created, seen, via, first, last, pseudo FROM accounts ORDER BY created DESC').toArray() });
     }
     return Response.json({ error: 'not found' }, { status: 404 });
   }
