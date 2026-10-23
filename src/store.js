@@ -177,10 +177,14 @@ let UI = { sel: new Set(), busy: false, page: 1, toast: null, open: null, tag: n
 const listeners = new Set();
 let snapshot = { S, UI };
 const emit = () => { snapshot = { S, UI }; listeners.forEach((l) => l()); };
-const save = () => {
+/* abonnés aux enregistrements (sauvegarde du compte : lib/cloud.js) ; remote = données reçues d'un autre appareil */
+const saveHooks = new Set();
+export const onSave = (f) => { saveHooks.add(f); return () => saveHooks.delete(f); };
+const save = (remote = false) => {
   const json = JSON.stringify(S);
   try { localStorage.setItem(KEY, json); } catch { /* stockage indisponible */ }
   scheduleBackup(json);
+  saveHooks.forEach((f) => f(remote));
 };
 save(); // enregistre tout de suite la version migrée (+ copie de secours)
 
@@ -1061,6 +1065,18 @@ export function importJSON(text) {
   checkDay();
   emit();
 }
+/* Données reçues du compte (autre appareil) : remplacent l'état local, sauf ce qui est propre à cet appareil */
+export const LOCAL_SET = ['push', 'pushUrl'];
+export function applyRemote(o) {
+  const set = { ...(o.set || {}) };
+  LOCAL_SET.forEach((k) => { set[k] = S.set[k]; });
+  S = migrate({ ...o, set, pushId: S.pushId });
+  UI = { ...UI, sel: new Set(), open: null, tag: null };
+  save(true);
+  checkDay();
+  emit();
+}
+export const openSettings = (setSec) => setUI({ modal: 'settings', setSec: setSec || null });
 export function resetAll() {
   S = migrate({});
   UI = { ...UI, sel: new Set(), open: null, tag: null, modal: null, page: 1 };

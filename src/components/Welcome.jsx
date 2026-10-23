@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { markSeen, toast, useStore } from '../store';
+import { markSeen, openSettings, toast, useStore } from '../store';
+import { cloudEnabled } from '../lib/cloud';
 import { isStandalone } from '../lib/push';
 
 /* =====================================================================
@@ -45,9 +46,14 @@ export default function Welcome() {
       <div className="mt-3 flex flex-wrap gap-2">
         {canInstall && !isStandalone() && <button type="button" className="b on" onClick={install}>Installer Fokus</button>}
         <button type="button" className={'b ' + (canInstall && !isStandalone() ? '' : 'on')} onClick={() => markSeen('welcome')}>C'est parti</button>
+        {cloudEnabled() && <button type="button" className="b" onClick={() => openSettings('account')}>Se connecter avec Google</button>}
         <button type="button" className="b" onClick={shareFokus}>Inviter des amis</button>
       </div>
-      <p className="mt-2.5 text-[12px] text-mut">Tes données restent sur ton appareil : pas de compte, pas de pub, rien n'est envoyé ailleurs.</p>
+      <p className="mt-2.5 text-[12px] text-mut">
+        {cloudEnabled()
+          ? 'Pas de pub. Sans compte, tes tâches restent sur ton appareil ; connecte-toi avec Google (facultatif) pour sauvegarder ta progression et la retrouver partout.'
+          : 'Tes tâches restent sur ton appareil : pas de compte, pas de pub.'}
+      </p>
     </div>
   );
 }

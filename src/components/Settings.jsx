@@ -5,8 +5,10 @@ import { BgPicker, Durations } from './Pomodoro';
 import { CLOCKS } from './Clocks';
 import {
   PASTELS, addTag, deleteTag, exportJSON, importJSON, jokersLeft, recolorTag, renameTag, resetAll, setAnim, setConfetti, setModal,
-  setSetting, toast, todayKey, useStore, ensurePushId, getState,
+  setSetting, toast, todayKey, useStore, ensurePushId, getState, getUI,
 } from '../store';
+import { AccountSettings } from './Account';
+import { cloudEnabled } from '../lib/cloud';
 import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testPush } from '../lib/push';
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
@@ -17,6 +19,7 @@ import { shareFokus } from './Welcome';
 
 /* Icônes de rubrique (trait fin, cohérentes avec le reste de l'interface) */
 const ICONS = {
+  account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
   day: 'M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 14h.01 M12 14h.01 M16 14h.01',
   look: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.4-4-7.6-9-7.6z M7.5 11h.01 M10.5 7.5h.01 M15 7.5h.01',
   score: 'M4 19V9 M10 19V5 M16 19v-7 M22 19H2',
@@ -29,6 +32,7 @@ const ICONS = {
   data: 'M12 3v12 M7 10l5 5 5-5 M4 21h16',
 };
 const SECTIONS = [
+  ...(cloudEnabled() ? [['account', 'Compte']] : []),
   ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
   ['notif', 'Rappels'], ['cats', 'Catégories'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
@@ -389,12 +393,13 @@ function Day({ S }) {
 }
 
 const Cats = ({ S }) => <CatsSettings S={S} Group={Group} />;
-const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data };
+const Account = () => <AccountSettings Group={Group} />;
+const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data, account: Account };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {
   const { S } = useStore();
-  const [sec, setSec] = useState('look');
+  const [sec, setSec] = useState(() => (BODY[getUI().setSec] ? getUI().setSec : 'look'));
   const body = useRef(null);
   const close = () => setModal(null);
   useLayoutEffect(() => {

@@ -14,10 +14,24 @@ class_name = "User"
 name = "KEYS"
 class_name = "Keys"
 
+# Une instance « Account » par compte Google (sauvegarde de la progression)
+[[durable_objects.bindings]]
+name = "ACCOUNTS"
+class_name = "Account"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["User", "Keys"]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Account"]
+
 [vars]
+# adresses autorisées à appeler le serveur (séparées par des virgules : ajouter ici un futur nom de domaine)
 ALLOWED_ORIGIN = "https://komesoucaille-fokustrack.github.io"
+# page de l'app (retour après connexion Google en mode redirection)
+APP_URL = "https://komesoucaille-fokustrack.github.io/Fokus-app/"
+# identifiant client OAuth Google (public) : console.cloud.google.com → Identifiants ; vide = comptes désactivés
+GOOGLE_CLIENT_ID = ""
 CONTACT = "https://komesoucaille-fokustrack.github.io/Fokus-app/"

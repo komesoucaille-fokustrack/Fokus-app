@@ -25,6 +25,7 @@ import {
 import Icon from './components/Icons';
 import { CatChip } from './components/Categories';
 import Welcome from './components/Welcome';
+import { CloudChoice } from './components/Account';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
 const StatsPage = lazy(() => import('./components/StatsPage'));
@@ -321,7 +322,7 @@ export default function App() {
               <button className="b text-[13px] text-mut" onClick={() => setModal('weekly')}>Bilan de la semaine</button>
             </div>
             <footer className="site-foot">
-              <b>Fokus Track</b> — tâches du jour, minuteur Pomodoro et suivi de progression. Gratuit, sans pub, sans compte.
+              <b>Fokus Track</b> — tâches du jour, minuteur Pomodoro et suivi de progression. Gratuit et sans pub.
               <span><a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Le minuteur Pomodoro</a></span>
             </footer>
           </section>
@@ -334,6 +335,7 @@ export default function App() {
         )}
       </main>
 
+      <CloudChoice />
       <ValidateButton
         k={visibleSel} onClick={validate}
         gain={!visibleSel ? '' : S.set.scoreMode === 'pts' ? `${selPoints(UI.sel)} pt${selPoints(UI.sel) > 1 ? 's' : ''}` : `${gainOf(UI.sel)}%`}
