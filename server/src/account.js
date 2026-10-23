@@ -1,12 +1,14 @@
 /* =====================================================================
-   COMPTES FOKUS — connexion Google + sauvegarde de la progression
-   - L'app envoie le jeton d'identité Google (« Se connecter avec Google ») ; le serveur vérifie sa signature
-     (clés publiques de Google), son destinataire (notre identifiant client) et sa date, puis remet une
-     session Fokus signée (HMAC) valable 1 an : plus besoin de Google ensuite.
-   - Une instance « Account » par compte Google (clé = identifiant Google « sub ») : les données de l'app
-     (JSON découpé en morceaux) + un numéro de version « rev » pour éviter d'écraser une version
-     plus récente envoyée par un autre appareil.
-   Stocké : identifiant Google, e-mail, prénom, photo, données de l'app. Rien d'autre.
+   COMPTES FOKUS — connexion (Google ou code par e-mail) + sauvegarde de la progression
+   - Un compte = une adresse e-mail vérifiée, quelle que soit la façon de se connecter :
+     · Google : l'app envoie le jeton d'identité ; le serveur vérifie sa signature (clés publiques de Google),
+       son destinataire (notre identifiant client), sa date et que l'e-mail est vérifié par Google ;
+     · e-mail : code à 6 chiffres envoyé à l'adresse (valable 10 min, 5 essais, 1 envoi / min, 5 / h).
+     Puis le serveur remet une session Fokus signée (HMAC) valable 1 an.
+   - Une instance « Account » par adresse (clé = empreinte SHA-256 de l'adresse) : profil, code en attente,
+     données de l'app (JSON découpé en morceaux) + un numéro de version « rev » pour ne jamais écraser
+     une version plus récente envoyée par un autre appareil.
+   Stocké : e-mail, prénom et photo (Google), données de l'app. Rien d'autre.
    ===================================================================== */
 const enc = new TextEncoder();
 const b64u = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -38,23 +40,40 @@ export async function verifyGoogle(token, clientId, keys = googleCerts, now = Da
   if (pay.aud !== clientId) throw new Error('destinataire');
   if (!(pay.exp * 1000 > now - 60e3)) throw new Error('jeton expiré');
   if (!/^\d{1,40}$/.test(pay.sub || '')) throw new Error('sub');
+  if (!(pay.email_verified === true || pay.email_verified === 'true') || !pay.email) throw new Error('e-mail non vérifié');
   return { sub: pay.sub, email: String(pay.email || ''), name: String(pay.given_name || pay.name || '').slice(0, 60), picture: String(pay.picture || '').slice(0, 300), nonce: pay.nonce || '' };
 }
 
-/* ---------- session Fokus : « v1.<sub>.<émise à (s)>.<signature> » ---------- */
+/* ---------- adresse e-mail → identifiant de compte ---------- */
+export const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,24}$/i;
+export const normEmail = (e) => String(e || '').trim().toLowerCase();
+const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+export async function accountId(email) {
+  return hex(await crypto.subtle.digest('SHA-256', enc.encode('fokus:' + normEmail(email)))).slice(0, 32);
+}
+
+/* ---------- session Fokus : « v2.<compte>.<émise à (s)>.<signature> » ---------- */
 const hmacKey = (secret) => crypto.subtle.importKey('raw', unb64u(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
-export async function makeSession(sub, secret, now = Date.now()) {
-  const body = `v1.${sub}.${Math.floor(now / 1000)}`;
+export async function makeSession(id, secret, now = Date.now()) {
+  const body = `v2.${id}.${Math.floor(now / 1000)}`;
   return body + '.' + b64u(await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(body)));
 }
 export async function readSession(tok, secret, now = Date.now()) {
-  const m = /^v1\.(\d{1,40})\.(\d{1,12})\.([\w-]{20,})$/.exec(String(tok || ''));
+  const m = /^v2\.([0-9a-f]{32})\.(\d{1,12})\.([\w-]{20,})$/.exec(String(tok || ''));
   if (!m) return null;
-  const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), unb64u(m[3]), enc.encode(`v1.${m[1]}.${m[2]}`));
+  const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), unb64u(m[3]), enc.encode(`v2.${m[1]}.${m[2]}`));
   const iat = +m[2];
   if (!ok || iat * 1000 > now + 60e3 || now - iat * 1000 > 400 * 864e5) return null;
-  return { sub: m[1], iat };
+  return { id: m[1], iat };
 }
+
+/* code à 6 chiffres (tirage sans biais) et son empreinte (le code lui-même n'est jamais stocké) */
+export function newCode() {
+  const a = new Uint32Array(1);
+  do crypto.getRandomValues(a); while (a[0] >= 4_294_000_000);
+  return String(a[0] % 1_000_000).padStart(6, '0');
+}
+const codeHash = async (code, salt) => hex(await crypto.subtle.digest('SHA-256', enc.encode(salt + ':' + code)));
 
 /* ---------- une instance par compte ---------- */
 // morceaux de 32 000 caractères (≤ 96 Ko même tout en accents / emojis), 110 morceaux au plus (une seule écriture groupée)
@@ -69,11 +88,34 @@ export class Account {
     const st = this.state.storage;
     const meta = (await st.get('meta')) || { rev: 0, at: 0, n: 0, minIat: 0 };
 
-    if (path === '/login') { // profil mis à jour à chaque connexion
+    if (path === '/login') { // profil mis à jour à chaque connexion (prénom / photo seulement s'ils sont fournis)
       const isNew = !meta.created;
-      Object.assign(meta, { email: b.email, name: b.name, picture: b.picture, created: meta.created || Date.now(), seen: Date.now() });
+      Object.assign(meta, { email: b.email, created: meta.created || Date.now(), seen: Date.now() });
+      if (b.name) meta.name = b.name;
+      if (b.picture) meta.picture = b.picture;
       await st.put('meta', meta);
-      return Response.json({ ok: true, isNew });
+      return Response.json({ ok: true, isNew, user: { name: meta.name || '', email: meta.email, picture: meta.picture || '' } });
+    }
+    if (path === '/code') { // nouveau code : au plus 1 par minute et 5 par heure
+      const now = Date.now(), c = (await st.get('code')) || { sends: [] };
+      const sends = (c.sends || []).filter((t) => now - t < 3600e3);
+      if (sends.length && now - sends[sends.length - 1] < 60e3) return Response.json({ error: 'Un code vient d’être envoyé : attends une minute avant d’en redemander un.' }, { status: 429 });
+      if (sends.length >= 5) return Response.json({ error: 'Trop de codes demandés : réessaie dans une heure.' }, { status: 429 });
+      const code = newCode(), salt = hex(crypto.getRandomValues(new Uint8Array(8)));
+      await st.put('code', { hash: await codeHash(code, salt), salt, exp: now + 10 * 60e3, tries: 0, sends: [...sends, now] });
+      return Response.json({ code }); // remis au Worker seulement, pour l'e-mail
+    }
+    if (path === '/verify') {
+      const c = await st.get('code');
+      if (!c || !c.hash || Date.now() > c.exp) return Response.json({ error: 'Code expiré : demande-en un nouveau.' }, { status: 401 });
+      if (c.tries >= 5) return Response.json({ error: 'Trop d’essais : demande un nouveau code.' }, { status: 401 });
+      if ((await codeHash(String(b.code || '').replace(/\D/g, ''), c.salt)) !== c.hash) {
+        c.tries++;
+        await st.put('code', c);
+        return Response.json({ error: c.tries >= 5 ? 'Trop d’essais : demande un nouveau code.' : 'Code incorrect.' }, { status: 401 });
+      }
+      await st.put('code', { sends: c.sends }); // code utilisé : il ne resservira pas
+      return Response.json({ ok: true });
     }
     if (!(b.iat >= (meta.minIat || 0))) return Response.json({ error: 'session révoquée' }, { status: 401 });
     const user = { name: meta.name || '', email: meta.email || '', picture: meta.picture || '' };
@@ -98,7 +140,7 @@ export class Account {
     }
     if (path === '/delete') { // efface tout et invalide les sessions déjà remises
       await st.deleteAll();
-      await st.put('meta', { rev: 0, at: 0, n: 0, minIat: Math.floor(Date.now() / 1000) + 1 });
+      await st.put('meta', { rev: 0, at: 0, n: 0, minIat: Math.floor(Date.now() / 1000) + 1, deleted: Date.now() });
       return Response.json({ ok: true });
     }
     return Response.json({ error: 'not found' }, { status: 404 });

@@ -196,14 +196,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   Pomodoro, lien `../?page=4`) et `public/decouvrir/` (présentation), style commun `public/site.css` ; `public/sitemap.xml` ;
   pied de page `.site-foot` de la page Tâches avec liens vers ces pages. Le service worker ne met en cache que l'app (`./`),
   jamais ces pages. Si l'adresse change (domaine perso), mettre à jour les URL absolues (index.html, pages, sitemap).
-- **Compte Google facultatif** (`lib/cloud.js`, `Account.jsx`, `src/cloud-config.js` → `GOOGLE_CLIENT_ID` ; vide = désactivé, l'app reste
-  100 % sans compte) : bouton officiel « Continuer avec Google » (Google Identity Services : fenêtre surgissante dans Safari,
-  redirection dans l'app installée, retour `#fokus-session=…&n=<nonce>` vérifié), session Fokus signée d'un an. Synchronisation :
-  envoi ~2,5 s après chaque `save()` (`onSave` du store), récupération à l'ouverture / au retour dans l'app ; version `rev` côté serveur
-  (409 si un autre appareil a écrit entre-temps) ; conflit = la plus récente gagne + toast « Annuler » ; première connexion avec des
-  données des deux côtés → choix `CloudChoice`. `applyRemote()` garde ce qui est propre à l'appareil (`pushId`, `LOCAL_SET` : push, pushUrl).
-  Méta locale `fokus_cloud` (jamais exportée). Réglages → Compte (déconnexion, suppression du compte serveur), page `public/confidentialite/`.
-  Quand le compte est activé : mettre à jour la FAQ « synchronisées ? » de `public/decouvrir/`.
+- **Compte / connexion** (`lib/cloud.js`, `Login.jsx`, `Account.jsx`, `src/cloud-config.js`) : **connexion obligatoire** voulue par
+  l'utilisateur (`REQUIRE_LOGIN`, ouverte à tous) dès qu'une méthode est active : `GOOGLE_CLIENT_ID` (bouton officiel Google Identity
+  Services : fenêtre dans Safari, redirection dans l'app installée, retour `#fokus-session=…&n=<nonce>` vérifié) et/ou `EMAIL_LOGIN`
+  (code à 6 chiffres envoyé par Resend, serveur : secret `RESEND_API_KEY`, `MAIL_FROM`). Toutes deux vides/false = app 100 % sans compte.
+  Un compte = une adresse e-mail (Google et code mènent au même compte). `main.jsx` affiche `Login` tant qu'il n'y a pas de session.
+  Synchronisation : envoi ~2,5 s après chaque `save()` (`onSave`), récupération à l'ouverture / au retour ; `rev` serveur (409 si un autre
+  appareil a écrit) ; conflit = la plus récente gagne + toast « Annuler » ; première connexion avec des données des deux côtés → `CloudChoice`.
+  `applyRemote()` garde `pushId` et `LOCAL_SET` (push, pushUrl). Déconnexion (connexion obligatoire) : envoi des dernières modifications
+  puis effacement des données de l'appareil (`resetAll(true)`). Méta locale `fokus_cloud`. Page `public/confidentialite/`.
+  À l'activation : retirer « sans compte » des pages Découvrir / Pomodoro, du JSON-LD et de `public/og.png` ; FAQ « synchronisées ? ».
 - **Statistiques de visites** : Cloudflare Web Analytics (sans cookie) si `ANALYTICS_TOKEN` est renseigné (`main.jsx`, chargé au repos).
 - **Images / seconde** : tout est piloté par le temps (aucune hypothèse de 60 Hz) ; défilement et CSS à 120 Hz sur écran ProMotion ;
   Safari limite les animations JS (GSAP, 3D) à 60 i/s par défaut. Compteur de contrôle : ajouter `?fps` à l'adresse.
@@ -214,12 +216,14 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Account` (compte Google + choix des données).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Account` (compte + choix des données).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation).
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID + secret des
   sessions + compteur de comptes, `Account` = un compte Google : données découpées en morceaux de 32 000 caractères, `rev`) ;
-  chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece`) et comptes (`src/account.js` : vérification du jeton
-  Google RS256, sessions HMAC, conflits, suppression) : `npm test`. Variables `ALLOWED_ORIGIN` (liste), `APP_URL`, `GOOGLE_CLIENT_ID`.
+  chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece`) et comptes (`src/account.js` : jeton Google RS256
+  (e-mail vérifié), codes e-mail (empreinte salée, 10 min, 5 essais, 1/min, 5/h, ≤ 95 e-mails/jour), sessions HMAC `v2.<empreinte de
+  l'adresse>`, conflits, suppression) : `npm test` (dont `test/worker.test.mjs` = Worker complet simulé). Variables `ALLOWED_ORIGIN` (liste),
+  `APP_URL`, `GOOGLE_CLIENT_ID`, `MAIL_FROM` ; secret `RESEND_API_KEY` (GitHub → Actions, transmis par le workflow).
   Déployé par `.github/workflows/push-server.yml` (secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).
   Adresse dans `src/push-config.js` (ou Réglages → Rappels → Avancé). Stocke l'abonnement, l'heure et le texte des rappels ;
   les données de l'app seulement pour les comptes Google connectés.

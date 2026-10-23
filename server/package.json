@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
-    "test": "node test/webpush.test.mjs && node test/account.test.mjs"
+    "test": "node test/webpush.test.mjs && node test/account.test.mjs && node test/worker.test.mjs"
   },
   "devDependencies": {
     "http_ece": "^1.2.0",

@@ -13,6 +13,8 @@
    Comptes (voir account.js) :
      POST /auth/google          { credential }        → { session, user } (jeton Google vérifié → session Fokus d'un an)
      POST /auth/google/redirect (formulaire Google)   → retour vers l'app avec la session (iPad / iPhone en mode app)
+     POST /auth/email/start  { email }                 → envoie un code à 6 chiffres (Resend)
+     POST /auth/email/verify { email, code }           → { session, user }
      POST /sync/get    { session, have }               → { rev, at, data? , user }
      POST /sync/put    { session, base, data }         → { rev, at } ou 409 si un autre appareil a envoyé une version plus récente
      POST /sync/delete { session }                     → efface le compte du serveur
@@ -21,7 +23,7 @@
    notification (précision de l'ordre de la seconde).
    ===================================================================== */
 import { generateVapid, sendPush } from './webpush.js';
-import { Account, makeSession, readSession, verifyGoogle } from './account.js';
+import { Account, EMAIL, accountId, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
 
 export { Account };
 
@@ -52,7 +54,7 @@ export default {
         const v = await env.KEYS.get(env.KEYS.idFromName('vapid')).fetch('https://k/get').then((r) => r.json());
         return json({ key: v.publicKey }, 200, h);
       }
-      if (req.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'fokus-push', accounts: !!env.GOOGLE_CLIENT_ID }, 200, h);
+      if (req.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'fokus-push', google: !!env.GOOGLE_CLIENT_ID, email: !!env.RESEND_API_KEY }, 200, h);
       if (req.method === 'GET' && url.pathname === '/stats') return json(await keys(env, '/stats'), 200, h);
       if (req.method !== 'POST') return json({ error: 'not found' }, 404, h);
       if (url.pathname === '/auth/google/redirect') return await redirectLogin(req, env);
@@ -72,16 +74,35 @@ export default {
 
 /* ---------- comptes ---------- */
 const keys = (env, path) => env.KEYS.get(env.KEYS.idFromName('vapid')).fetch('https://k' + path).then((r) => r.json());
-const account = (env, sub, path, body) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName('g:' + sub))
+const account = (env, id, path, body) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName('a:' + id))
   .fetch('https://a' + path, { method: 'POST', body: JSON.stringify(body) });
 
-/* Jeton Google → session Fokus (+ profil enregistré, compteur de comptes) */
+/* Adresse vérifiée (Google ou code) → session Fokus (+ profil enregistré, compteur de comptes) */
+async function openSession(env, email, name = '', picture = '') {
+  const id = await accountId(email), { secret } = await keys(env, '/auth');
+  const r = await account(env, id, '/login', { email: normEmail(email), name, picture }).then((x) => x.json());
+  if (r.isNew) await keys(env, '/count');
+  return { session: await makeSession(id, secret), user: r.user };
+}
 async function login(env, credential) {
   const g = await verifyGoogle(credential, env.GOOGLE_CLIENT_ID);
-  const { secret } = await keys(env, '/auth');
-  const r = await account(env, g.sub, '/login', { email: g.email, name: g.name, picture: g.picture }).then((x) => x.json());
-  if (r.isNew) await keys(env, '/count');
-  return { session: await makeSession(g.sub, secret), user: { name: g.name, email: g.email, picture: g.picture }, nonce: g.nonce };
+  return { ...(await openSession(env, g.email, g.name, g.picture)), nonce: g.nonce };
+}
+
+/* Code de connexion par e-mail (Resend : https://resend.com, 100 e-mails / jour offerts) */
+async function sendCode(env, email, code) {
+  const html = `<div style="font-family:-apple-system,Segoe UI,Inter,sans-serif;max-width:420px;margin:0 auto;padding:28px 24px;background:#0b0c10;color:#f5f6f8;border-radius:18px">
+<p style="margin:0 0 6px;font-size:13px;letter-spacing:.12em;color:#86efac;font-weight:700">FOKUS</p>
+<p style="margin:0 0 18px;font-size:16px">Ton code de connexion :</p>
+<p style="margin:0 0 18px;font-size:40px;font-weight:800;letter-spacing:.18em;font-variant-numeric:tabular-nums">${code}</p>
+<p style="margin:0;font-size:13px;color:#a7abb4">Valable 10 minutes. Si tu n'as rien demandé, ignore simplement cet e-mail.</p></div>`;
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: env.MAIL_FROM || 'Fokus <connexion@fokus-track.com>', to: [email], subject: `${code} est ton code Fokus`, html,
+      text: `Ton code de connexion Fokus : ${code}\nValable 10 minutes. Si tu n'as rien demandé, ignore cet e-mail.` }),
+  });
+  if (!r.ok) throw new Error('envoi de l’e-mail impossible (' + r.status + ')');
 }
 
 async function accountRoute(req, env, path, h) {
@@ -92,12 +113,30 @@ async function accountRoute(req, env, path, h) {
     try { const r = await login(env, b.credential); return json({ session: r.session, user: r.user }, 200, h); }
     catch (e) { return json({ error: 'connexion refusée : ' + e.message }, 401, h); }
   }
+  if (path === '/auth/email/start' || path === '/auth/email/verify') {
+    const email = normEmail(b.email);
+    if (!EMAIL.test(email) || email.length > 254) return json({ error: 'Adresse e-mail invalide.' }, 400, h);
+    if (!env.RESEND_API_KEY) return json({ error: 'La connexion par e-mail n’est pas encore activée.' }, 503, h);
+    const id = await accountId(email);
+    if (path === '/auth/email/start') {
+      const { n } = await keys(env, '/mail'); // plafond quotidien de l'offre gratuite
+      if (n > 95) return json({ error: 'Trop de connexions aujourd’hui : réessaie demain ou utilise Google.' }, 429, h);
+      const r = await account(env, id, '/code', {});
+      const c = await r.json();
+      if (!r.ok) return json(c, r.status, h);
+      try { await sendCode(env, email, c.code); } catch (e) { return json({ error: e.message }, 502, h); }
+      return json({ ok: true }, 200, h);
+    }
+    const r = await account(env, id, '/verify', { code: b.code });
+    if (!r.ok) return json(await r.json(), r.status, h);
+    return json(await openSession(env, email), 200, h);
+  }
   const { secret } = await keys(env, '/auth');
   const s = await readSession(b.session, secret);
   if (!s) return json({ error: 'session invalide' }, 401, h);
   const op = { '/sync/get': '/get', '/sync/put': '/put', '/sync/delete': '/delete' }[path];
   if (!op) return json({ error: 'not found' }, 404, h);
-  const r = await account(env, s.sub, op, { ...b, session: undefined, iat: s.iat });
+  const r = await account(env, s.id, op, { ...b, session: undefined, iat: s.iat });
   return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
 }
 
@@ -127,6 +166,11 @@ export class Keys {
         await st.put('auth', secret);
       }
       return Response.json({ secret });
+    }
+    if (path === '/mail') { // e-mails envoyés aujourd'hui
+      const k = 'mail:' + new Date().toISOString().slice(0, 10), n = ((await st.get(k)) || 0) + 1;
+      await st.put(k, n);
+      return Response.json({ n });
     }
     if (path === '/count') { const n = ((await st.get('accounts')) || 0) + 1; await st.put('accounts', n); return Response.json({ n }); }
     if (path === '/stats') return Response.json({ accounts: (await st.get('accounts')) || 0 });

@@ -1077,14 +1077,14 @@ export function applyRemote(o) {
   emit();
 }
 export const openSettings = (setSec) => setUI({ modal: 'settings', setSec: setSec || null });
-export function resetAll() {
-  S = migrate({});
+export function resetAll(quiet = false) {
+  S = migrate({ pushId: quiet ? S.pushId : '' }); // déconnexion : l'appareil garde son identifiant de notifications
   UI = { ...UI, sel: new Set(), open: null, tag: null, modal: null, page: 1 };
   tq = [];
-  save();
+  save(quiet);
   checkDay();
   emit();
-  toast('Toutes les données ont été effacées.');
+  if (!quiet) toast('Toutes les données ont été effacées.');
 }
 /* Rappel discret d'export tous les 7 jours */
 export function exportReminder() {

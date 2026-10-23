@@ -1,12 +1,13 @@
 import { useSyncExternalStore } from 'react';
-import { GOOGLE_CLIENT_ID } from '../cloud-config';
+import { EMAIL_LOGIN, GOOGLE_CLIENT_ID, REQUIRE_LOGIN } from '../cloud-config';
 import { PUSH_URL } from '../push-config';
-import { applyRemote, getState, onSave, toast } from '../store';
+import { applyRemote, getState, onSave, resetAll, toast } from '../store';
 import { isStandalone } from './push';
 
 /* =====================================================================
-   COMPTE FOKUS (facultatif) — connexion Google + sauvegarde de la progression sur le serveur (server/src/account.js)
-   - Sans compte : rien ne change, les données restent sur l'appareil.
+   COMPTE FOKUS — connexion (Google ou code par e-mail) + sauvegarde de la progression sur le serveur (server/src/account.js)
+   - REQUIRE_LOGIN : écran de connexion obligatoire avant l'app (Login.jsx) dès qu'une méthode est configurée ;
+     sinon compte facultatif (Réglages → Compte) et, sans compte, les données restent sur l'appareil.
    - Connecté : chaque modification est envoyée ~2,5 s plus tard ; à l'ouverture (et au retour dans l'app) on récupère
      la version du serveur si un autre appareil l'a changée. Numéro de version « rev » : jamais d'écrasement silencieux ;
      si les deux appareils ont changé, la version la plus récente gagne et l'autre reste récupérable (« Annuler »).
@@ -23,7 +24,10 @@ const notify = () => { snap = { ...m, ...ui }; subs.forEach((f) => f()); };
 const persist = () => { try { localStorage.setItem(LS, JSON.stringify(m)); } catch { /* stockage indisponible */ } notify(); };
 const setUi = (p) => { ui = { ...ui, ...p }; notify(); };
 
-export const cloudEnabled = () => !!GOOGLE_CLIENT_ID;
+export const googleLogin = () => !!GOOGLE_CLIENT_ID;
+export const emailLogin = () => !!EMAIL_LOGIN;
+export const cloudEnabled = () => googleLogin() || emailLogin();
+export const loginRequired = () => !!REQUIRE_LOGIN && cloudEnabled();
 export const useCloud = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => snap);
 
 const base = () => (getState().set.pushUrl || PUSH_URL || '').replace(/\/+$/, '');
@@ -129,17 +133,33 @@ function signedIn(session, user) {
   toast(`Connecté${user?.name ? ' : ' + user.name : ''}. Ta progression est sauvegardée.`);
   pull();
 }
-export function signOut() {
+/* wipe : efface aussi les données de cet appareil (connexion obligatoire : appareil partagé, la copie est sur le compte) */
+export function signOut(wipe = false) {
   clearTimeout(timer);
   m = {};
   ui = { busy: false, error: '', choice: null };
   persist();
   try { window.google?.accounts.id.disableAutoSelect(); } catch { /* bibliothèque non chargée */ }
+  if (wipe) resetAll(true);
+}
+/* Déconnexion volontaire : envoie d'abord les dernières modifications ; renvoie false si elles n'ont pas pu partir */
+export async function logout(force = false) {
+  if (m.dirty && m.rev != null) await push();
+  if (m.dirty && !force) return false;
+  signOut(loginRequired());
+  return true;
 }
 export async function deleteAccount() {
   await api('/sync/delete', { session: m.session });
-  signOut();
-  toast('Compte supprimé du serveur. Tes données restent sur cet appareil.');
+  signOut(loginRequired());
+  toast(loginRequired() ? 'Compte et données supprimés.' : 'Compte supprimé du serveur. Tes données restent sur cet appareil.');
+}
+
+/* Connexion par code e-mail : 1) envoi du code 2) vérification → session */
+export const emailStart = (email) => api('/auth/email/start', { email });
+export async function emailVerify(email, code) {
+  const r = await api('/auth/email/verify', { email, code });
+  signedIn(r.session, r.user);
 }
 
 let gis = null;
@@ -183,7 +203,7 @@ function fromRedirect() {
   if (h.has('fokus-login-error')) { setTimeout(() => toast('Connexion Google impossible : ' + h.get('fokus-login-error')), 600); return; }
   let nonce = '';
   try { nonce = localStorage.getItem(NONCE) || ''; localStorage.removeItem(NONCE); } catch { /* rien */ }
-  if (!nonce || h.get('n') !== nonce) { setTimeout(() => toast('Connexion refusée (demande inconnue). Réessaie depuis Réglages → Compte.'), 600); return; }
+  if (!nonce || h.get('n') !== nonce) { setTimeout(() => toast('Connexion refusée (demande inconnue) : réessaie.'), 600); return; }
   signedIn(h.get('fokus-session'), { name: h.get('name') || '', email: h.get('email') || '', picture: h.get('picture') || '' });
 }
 
@@ -192,11 +212,12 @@ export function initCloud() {
   if (!cloudEnabled()) return;
   fromRedirect();
   onSave(changed);
-  if (!m.session) return;
-  if (m.dirty && m.rev != null) push(); else pull();
   document.addEventListener('visibilitychange', () => {
+    if (!m.session) return;
     if (document.hidden) { if (m.dirty) push(true); } // départ de l'app : envoi immédiat
     else if (Date.now() - lastPull > 20000) pull();     // retour : un autre appareil a peut-être changé quelque chose
   });
-  addEventListener('online', () => (m.dirty ? push() : pull()));
+  addEventListener('online', () => { if (m.session) (m.dirty ? push() : pull()); });
+  if (!m.session) return;
+  if (m.dirty && m.rev != null) push(); else pull();
 }

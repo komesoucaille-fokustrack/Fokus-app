@@ -10,9 +10,12 @@ async function boot() {
   const restored = await Promise.race([restoreIfNeeded('focus_state'), new Promise((r) => setTimeout(() => r(false), 1500))]);
   const [{ default: App }, store, cloud] = await Promise.all([import('./App'), import('./store'), import('./lib/cloud')]);
   store.checkDay();
-  cloud.initCloud(); // compte Google (facultatif) : retour de connexion + synchronisation
+  cloud.initCloud(); // compte : retour de connexion + synchronisation
   if (restored) store.toast('Données restaurées depuis la copie de secours.');
-  createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);
+  // connexion obligatoire : écran de connexion tant qu'il n'y a pas de session (l'app s'affiche dès la connexion)
+  const Login = cloud.loginRequired() ? (await import('./components/Login')).default : null;
+  const Root = () => (Login && !cloud.useCloud().session ? <Login /> : <App />);
+  createRoot(document.getElementById('root')).render(<StrictMode><Root /></StrictMode>);
   registerSW(store.setUpdate);
 }
 

@@ -667,3 +667,29 @@
 .choice:hover, .choice:focus-visible { background: var(--color-bg-4); border-color: var(--color-edge-hi); }
 .choice b { font-size: 15.5px; }
 .choice span { font-size: 13px; color: var(--color-mut); font-variant-numeric: tabular-nums; }
+
+/* Écran de connexion (connexion obligatoire) */
+.login { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: #050608 center / cover no-repeat; }
+.login-card { width: 100%; max-width: 420px; padding: 30px 26px 24px; border-radius: 26px; background: rgba(14, 15, 19, .82); border: 1px solid var(--color-edge);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.13), 0 30px 80px rgba(0,0,0,.55); }
+.login-card .fokus-logo { margin-bottom: 22px; }
+.login-card h1 { font-size: clamp(26px, 6vw, 32px); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; margin: 0 0 10px; }
+.login-lead { color: var(--color-mut); font-size: 15px; line-height: 1.5; margin: 0 0 22px; }
+.login-form { display: grid; gap: 10px; }
+.login-form label { font-size: 14px; font-weight: 600; }
+.login-form .field { font-size: 17px; min-height: 50px; }
+.login-code { text-align: center; font-size: 28px !important; letter-spacing: .4em; font-variant-numeric: tabular-nums; font-weight: 700; }
+.login-go { min-height: 50px; font-size: 16px; font-weight: 650; border-radius: 14px; }
+.login-go:disabled { opacity: .5; }
+.login-note { color: var(--color-mut); font-size: 13px; margin: 2px 0 0; }
+.login-err { color: #fca5a5; font-size: 14px; margin: 12px 0 0; }
+.login-or { display: flex; align-items: center; gap: 12px; color: var(--color-mut); font-size: 13px; margin: 18px 0; }
+.login-or::before, .login-or::after { content: ''; flex: 1; height: 1px; background: var(--color-edge); }
+.login-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.login-link { min-height: 44px; font-size: 14px; color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); }
+.login-link:disabled { color: var(--color-mut); text-decoration: none; }
+.login-foot { margin: 22px 0 4px; font-size: 12.5px; color: var(--color-mut); line-height: 1.5; }
+.login-nav { font-size: 13px; color: var(--color-mut); }
+.login-nav a { display: inline-block; padding: 8px 0; color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); }
+.login .gbtn { margin: 0 auto; display: flex; justify-content: center; }
