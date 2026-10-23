@@ -4,7 +4,7 @@ Application de tâches quotidiennes, de concentration et de suivi de performance
 cinématographique à chaque validation (arche gonflable « FINISH 100% », gel bleu électrique, étincelles 3D).
 Gratuite, sans limite, sans publicité, sans fonction bloquée.
 
-**Ouvrir l'application :** https://komesoucaille-fokustrack.github.io/Fokus-app/
+**Ouvrir l'application :** https://fokus-track.com/ (ancienne adresse https://komesoucaille-fokustrack.github.io/Fokus-app/ redirigée automatiquement)
 
 Sur iPad / iPhone : dans Safari, bouton Partager → « Sur l'écran d'accueil ». Fokus s'ouvre alors en plein écran comme une app,
 fonctionne hors ligne et peut recevoir des notifications.

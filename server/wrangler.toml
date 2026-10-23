@@ -38,11 +38,11 @@ new_sqlite_classes = ["Stats"]
 
 [vars]
 # adresses autorisées à appeler le serveur (séparées par des virgules : ajouter ici un futur nom de domaine)
-ALLOWED_ORIGIN = "https://komesoucaille-fokustrack.github.io"
+ALLOWED_ORIGIN = "https://fokus-track.com,https://www.fokus-track.com,https://komesoucaille-fokustrack.github.io"
 # page de l'app (retour après connexion Google en mode redirection)
-APP_URL = "https://komesoucaille-fokustrack.github.io/Fokus-app/"
+APP_URL = "https://fokus-track.com/"
 # identifiant client OAuth Google (public) : console.cloud.google.com → Identifiants ; vide = comptes désactivés
 GOOGLE_CLIENT_ID = ""
 # expéditeur des codes de connexion (domaine vérifié chez Resend) ; la clé RESEND_API_KEY est un secret (GitHub → Actions)
 MAIL_FROM = "Fokus <connexion@fokus-track.com>"
-CONTACT = "https://komesoucaille-fokustrack.github.io/Fokus-app/"
+CONTACT = "https://fokus-track.com/"

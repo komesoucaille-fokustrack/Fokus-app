@@ -195,7 +195,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   1200×630) et JSON-LD `WebApplication` (alternateName « Fokus Track ») ; pages statiques indexables `public/pomodoro/` (minuteur
   Pomodoro, lien `../?page=4`) et `public/decouvrir/` (présentation), style commun `public/site.css` ; `public/sitemap.xml` ;
   pied de page `.site-foot` de la page Tâches avec liens vers ces pages. Le service worker ne met en cache que l'app (`./`),
-  jamais ces pages. Si l'adresse change (domaine perso), mettre à jour les URL absolues (index.html, pages, sitemap).
+  jamais ces pages. Adresse officielle **https://fokus-track.com/** (réglée dans GitHub Settings → Pages ; l'ancienne adresse github.io y redirige) : URL absolues dans index.html, pages, sitemap, `server/wrangler.toml` (ALLOWED_ORIGIN, APP_URL).
 - **Compte / connexion** (`lib/cloud.js`, `Login.jsx`, `Account.jsx`, `src/cloud-config.js`) : **connexion obligatoire** voulue par
   l'utilisateur (`REQUIRE_LOGIN`, ouverte à tous) dès qu'une méthode est active : `GOOGLE_CLIENT_ID` (bouton officiel Google Identity
   Services : fenêtre dans Safari, redirection dans l'app installée, retour `#fokus-session=…&n=<nonce>` vérifié) et/ou `EMAIL_LOGIN`
