@@ -11,16 +11,9 @@ import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testP
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
 import { CatsSettings } from './Categories';
+import { shareFokus } from './Welcome';
 
 /* Rouage (icône paramètres) */
-export function Gear() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
 
 /* Icônes de rubrique (trait fin, cohérentes avec le reste de l'interface) */
 const ICONS = {
@@ -320,6 +313,11 @@ function Data({ S, close }) {
           <button type="button" className="b on" onClick={exportJSON}>Exporter</button>
           <button type="button" className="b" onClick={() => file.current.click()}>Importer</button>
           <input ref={file} type="file" accept=".json,application/json" hidden onChange={onFile} />
+        </Item>
+      </Group>
+      <Group title="Partager Fokus" foot="Chacun garde ses propres tâches sur son appareil : rien n'est partagé entre amis.">
+        <Item title="Inviter des amis" desc="Envoie le lien de Fokus par message, mail…">
+          <button type="button" className="b on" onClick={shareFokus}>Partager le lien</button>
         </Item>
       </Group>
       <Group title="Mode test" foot="« Simuler minuit » et « Générer données test », en bas de la page Tâches. Masque-les quand tes essais sont finis : tes données ne changent pas.">

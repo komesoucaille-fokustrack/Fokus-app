@@ -5,18 +5,10 @@ import ProgressCard from './components/ProgressCard';
 import TaskList, { TagChip } from './components/TaskList';
 import QuickAdd from './components/QuickAdd';
 import ValidateButton from './components/ValidateButton';
-import Settings from './components/Settings';
-import Search from './components/Search';
-import MorningTriage from './components/MorningTriage';
-import WeeklyReview from './components/WeeklyReview';
-import Pomodoro from './components/Pomodoro';
 import Upcoming from './components/Upcoming';
 import Hello from './components/Hello';
 import Ambiance from './components/Ambiance';
 import DayStrip from './components/DayStrip';
-import Overload from './components/Overload';
-import Timeline from './components/Timeline';
-import EveningRitual from './components/EveningRitual';
 import { getColorForPercentage } from './lib/colors';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
@@ -32,9 +24,19 @@ import {
 } from './store';
 import Icon from './components/Icons';
 import { CatChip } from './components/Categories';
+import Welcome from './components/Welcome';
 
 const Scene3D = lazy(() => import('./cinematic/Scene3D'));
 const StatsPage = lazy(() => import('./components/StatsPage'));
+// chargés seulement quand on en a besoin (page Pomodoro, Réglages, fenêtres…) : ouverture de l'app plus rapide
+const Pomodoro = lazy(() => import('./components/Pomodoro'));
+const Settings = lazy(() => import('./components/Settings'));
+const Search = lazy(() => import('./components/Search'));
+const MorningTriage = lazy(() => import('./components/MorningTriage'));
+const WeeklyReview = lazy(() => import('./components/WeeklyReview'));
+const Overload = lazy(() => import('./components/Overload'));
+const Timeline = lazy(() => import('./components/Timeline'));
+const EveningRitual = lazy(() => import('./components/EveningRitual'));
 
 /* Si WebGL est indisponible, l'app reste utilisable (animation DOM seule) */
 class Guard extends Component {
@@ -157,7 +159,17 @@ export default function App() {
   const fmt = scoreFmt(S);
 
   // Charge la scène 3D en arrière-plan (shaders précompilés avant le premier « Valider »)
-  useEffect(() => { const t = setTimeout(() => setLoad3D(true), 250); return () => clearTimeout(t); }, []);
+  // La scène 3D (1 Mo) se charge quand l'app est au repos — jamais pendant que l'on tape —, et tout de suite dès qu'une
+  // tâche est cochée (le « Valider » arrive). Puis les autres écrans sont préparés en douce : navigation instantanée.
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+    const h = idle(() => {
+      setLoad3D(true);
+      idle(() => { import('./components/Pomodoro'); import('./components/Settings'); import('./components/StatsPage'); import('./components/Timeline'); }, { timeout: 6000 });
+    }, { timeout: 2500 });
+    return () => (window.cancelIdleCallback || clearTimeout)(h);
+  }, []);
+  useEffect(() => { if (UI.sel.size) setLoad3D(true); }, [UI.sel.size]);
 
   // Ouverture depuis une notification : ?page=4 (Pomodoro), ?ritual=evening (fermer ma journée)
   useEffect(() => {
@@ -269,6 +281,7 @@ export default function App() {
       <main className="relative z-[1] mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (
           <section ref={page} key="p1" className="relative">
+            <Welcome />
             <Hello ref={hello} S={S} />
             <div className={'aura ' + (UI.busy ? 'off' : '')} style={{ '--aura': getColorForPercentage(s.p) }} aria-hidden="true" />
             <ProgressCard ref={card} s={s} text={text} busy={UI.busy} fmt={fmt} />
@@ -294,7 +307,7 @@ export default function App() {
                 </span>
               </div>
               {S.set.planView === 'timeline'
-                ? <Timeline tasks={shown} sel={UI.sel} busy={UI.busy} />
+                ? <Suspense fallback={<div className="min-h-[60vh]" />}><Timeline tasks={shown} sel={UI.sel} busy={UI.busy} /></Suspense>
                 : <TaskList tasks={shown} sel={UI.sel} busy={UI.busy} empty={UI.cat ? 'Aucune tâche de cette catégorie aujourd’hui.' : UI.tag ? 'Aucune tâche avec cette étiquette aujourd’hui.' : undefined} />}
             </div>
             <div ref={tools} className="mt-[30px] flex flex-wrap items-center justify-center gap-2">
@@ -310,7 +323,7 @@ export default function App() {
         ) : UI.page === 3 ? (
           <div ref={page} key="p3"><Upcoming /></div>
         ) : UI.page === 4 ? (
-          <div ref={page} key="p4"><Pomodoro /></div>
+          <div ref={page} key="p4"><Suspense fallback={<div className="stage-ph" />}><Pomodoro /></Suspense></div>
         ) : (
           <div ref={page} key="p2"><Suspense fallback={<div className="card h-[420px]" />}><StatsPage S={S} /></Suspense></div>
         )}
@@ -321,12 +334,14 @@ export default function App() {
         gain={!visibleSel ? '' : S.set.scoreMode === 'pts' ? `${selPoints(UI.sel)} pt${selPoints(UI.sel) > 1 ? 's' : ''}` : `${gainOf(UI.sel)}%`}
       />
 
-      {UI.modal === 'settings' && <Settings />}
-      {UI.modal === 'search' && <Search onClose={closeModal} />}
-      {UI.modal === 'morning' && <MorningTriage onClose={closeModal} />}
-      {UI.modal === 'weekly' && <WeeklyReview onClose={closeModal} />}
-      {UI.modal === 'overload' && <Overload onClose={closeModal} />}
-      {UI.modal === 'evening' && <EveningRitual onClose={closeModal} />}
+      <Suspense fallback={null}>
+        {UI.modal === 'settings' && <Settings />}
+        {UI.modal === 'search' && <Search onClose={closeModal} />}
+        {UI.modal === 'morning' && <MorningTriage onClose={closeModal} />}
+        {UI.modal === 'weekly' && <WeeklyReview onClose={closeModal} />}
+        {UI.modal === 'overload' && <Overload onClose={closeModal} />}
+        {UI.modal === 'evening' && <EveningRitual onClose={closeModal} />}
+      </Suspense>
 
       <div id="dim" ref={dim} />
       {load3D && <Guard><Suspense fallback={null}><Scene3D /></Suspense></Guard>}

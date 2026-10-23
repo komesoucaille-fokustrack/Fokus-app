@@ -179,13 +179,18 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - PWA : `pwa/sw.js` → `dist/sw.js` généré au build par le plugin de `vite.config.js` (injecte `const VERSION` / `const ASSETS` ;
   le build **échoue** si un nom reste non remplacé — sinon le service worker plante : plus de hors ligne ni de notifications) ;
   cache consulté avec `ignoreVary` ; rechargement automatique seulement lors d'une mise à jour ; bandeau « Nouvelle version ».
-- Mode test (à garder tel quel, en bas de la page Tâches ; masquable par l'utilisateur : Réglages → Données → « Afficher les outils de test », `set.testTools`, visible par défaut) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
+- Mode test (à garder tel quel, en bas de la page Tâches ; masquable par l'utilisateur : Réglages → Données → « Afficher les outils de test », `set.testTools` : masqué pour un nouvel utilisateur, visible si des données existaient déjà) : « Simuler minuit » (dates, reports, récurrences, séries, jokers, tri du matin) et « Générer données test » (365 jours complets
   + sessions, estimations, heures, idées notées et tâches d'exemple).
 - Réglages (`Settings.jsx`) : rubriques (Apparence, Score et affichage, Ma journée, Série et motivation, Pomodoro, Animations, Rappels,
   Étiquettes, Données)
   en colonne à gauche (iPad) ou en puces (téléphone), listes groupées façon iOS (`.sg`, `.si`).
 - Fluidité : grain = petite texture `public/noise.png` en mosaïque (jamais de filtre SVG plein écran), animations des décors
   par `transform` (composité), pas de transition sur les tracés SVG.
+- **Ouverture rapide** (`App.jsx`) : écrans secondaires chargés à la demande (`React.lazy` + `Suspense` : Pomodoro, Réglages, Recherche,
+  Tri du matin, Bilan, Surcharge, Chronologie, Rituel du soir, Progrès) ; scène 3D (`Scene3D`) chargée au repos (`requestIdleCallback`)
+  ou dès qu'une tâche est cochée, puis préchargement des autres écrans. Mesuré (4G lente, processeur ×4) : utilisable en ≈ 1,4 s.
+- **Amis / nouveaux utilisateurs** : carte `Welcome.jsx` (1re ouverture sans données : 3 points clés, installation sur l'écran d'accueil,
+  « Inviter des amis » via `shareFokus()` = partage natif ou copie du lien) ; bouton « Partager Fokus » dans Réglages → Données.
 - Raccourcis : N, /, Entrée, Échap. Interface en français, mobile d'abord (cibles ≥ 44 px, pas de défilement horizontal).
 
 ## Arborescence
@@ -193,7 +198,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`.
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID générées
   au premier appel) ; chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece` : `npm test`).

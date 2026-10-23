@@ -37,7 +37,7 @@ export const DEF_SET = {
   remind: false, remindAt: '20:00', pomoNotif: false, push: false, pushUrl: '',
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
-  defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: true, pipMode: 'auto',
+  defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: false, pipMode: 'auto',
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
@@ -132,6 +132,8 @@ export function migrate(raw) {
   const set0 = { ...DEF_SET, ...(o.set && typeof o.set === 'object' ? o.set : {}) };
   const seen0 = o.seen && typeof o.seen === 'object' ? { ...o.seen } : {};
   if (!seen0.thm) { if (set0.amb === 'p12') set0.amb = 't-obsidienne'; seen0.thm = 1; }
+  // outils de test : masqués pour les nouveaux utilisateurs, conservés pour ceux qui ont déjà des données
+  if (!(o.set && 'testTools' in o.set) && (Object.keys(hist).length || tasks.length)) set0.testTools = true;
   return {
     ...base(), ...o,
     version: VERSION, tasks, rec, hist, last, off,

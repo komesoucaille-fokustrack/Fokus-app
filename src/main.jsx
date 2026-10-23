@@ -29,4 +29,7 @@ function registerSW(onUpdate) {
   }).catch(() => {});
 }
 
+// Android / Chrome : on garde la proposition d'installation pour le bouton « Installer » de la carte de bienvenue
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__fokusInstall = e; dispatchEvent(new Event('fokusinstall')); });
+
 boot();
