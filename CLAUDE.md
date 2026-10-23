@@ -205,7 +205,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   appareil a écrit) ; conflit = la plus récente gagne + toast « Annuler » ; première connexion avec des données des deux côtés → `CloudChoice`.
   `applyRemote()` garde `pushId` et `LOCAL_SET` (push, pushUrl). Déconnexion (connexion obligatoire) : envoi des dernières modifications
   puis effacement des données de l'appareil (`resetAll(true)`). Méta locale `fokus_cloud`. Page `public/confidentialite/`.
-  À l'activation : retirer « sans compte » des pages Découvrir / Pomodoro, du JSON-LD et de `public/og.png` ; FAQ « synchronisées ? ».
+  **Activé** (connexion par code e-mail, obligatoire dès la 1re ouverture) ; textes publics, JSON-LD, FAQ et `public/og.png` mis à jour.
 - **Statistiques de visites** : Cloudflare Web Analytics (sans cookie) si `ANALYTICS_TOKEN` est renseigné (`main.jsx`, chargé au repos).
 - **Tableau de bord du propriétaire** (Réglages → Administration, `Admin.jsx`, visible seulement si l'adresse du compte est dans le secret
   serveur `ADMIN_EMAILS` ; drapeau `user.admin` à la connexion ou en-tête `X-Fokus-Admin` sur `/sync/get`) : personnes en ligne en direct

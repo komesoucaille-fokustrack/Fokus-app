@@ -7,5 +7,5 @@
    - ANALYTICS_TOKEN : jeton Cloudflare Web Analytics (sans cookie, sans donnée personnelle). */
 export const GOOGLE_CLIENT_ID = '';
 export const EMAIL_LOGIN = true;
-export const REQUIRE_LOGIN = false; // phase de test : connexion facultative (Réglages → Compte) ; repasser à true une fois l'envoi des codes vérifié
+export const REQUIRE_LOGIN = true;
 export const ANALYTICS_TOKEN = '';
