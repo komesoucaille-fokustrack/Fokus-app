@@ -73,12 +73,14 @@ export default function AdminDashboard() {
     const k = q.trim().toLowerCase();
     return (acc || []).filter((a) => [a.email, a.pseudo, a.first, a.last].some((x) => (x || '').toLowerCase().includes(k)));
   }, [acc, q]);
+  const ages = (acc || []).map((a) => a.age).filter(Boolean);
+  const avgAge = ages.length ? Math.round(ages.reduce((x, y) => x + y, 0) / ages.length) : 0;
   const copy = async () => {
     try { await navigator.clipboard.writeText(shown.map((a) => a.email).join('\n')); toast(`${shown.length} adresse${shown.length > 1 ? 's' : ''} copiée${shown.length > 1 ? 's' : ''}.`); }
     catch { toast('Copie impossible.'); }
   };
   const csv = () => {
-    const rows = [['email', 'prenom', 'nom', 'pseudo', 'inscription', 'derniere_visite', 'connexion'], ...shown.map((a) => [a.email, a.first || '', a.last || '', a.pseudo || '', new Date(a.created).toISOString(), new Date(a.seen).toISOString(), a.via])];
+    const rows = [['email', 'prenom', 'nom', 'pseudo', 'age', 'inscription', 'derniere_visite', 'connexion'], ...shown.map((a) => [a.email, a.first || '', a.last || '', a.pseudo || '', a.age || '', new Date(a.created).toISOString(), new Date(a.seen).toISOString(), a.via])];
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.join(';')).join('\n')], { type: 'text/csv' }));
     a.download = 'fokus-comptes-' + new Date().toISOString().slice(0, 10) + '.csv';
@@ -113,7 +115,7 @@ export default function AdminDashboard() {
       <Bars daily={sum.daily} />
 
       <div className="adm-acc-h">
-        <b>📧 Comptes ({nf.format(acc ? acc.length : sum.accounts)})</b>
+        <b>📧 Comptes ({nf.format(acc ? acc.length : sum.accounts)}){avgAge ? <span className="adm-name"> · âge moyen {avgAge} ans</span> : null}</b>
         <span className="flex flex-wrap gap-2">
           <button type="button" className="b" onClick={copy} disabled={!shown.length}>Copier les e-mails</button>
           <button type="button" className="b" onClick={csv} disabled={!shown.length}>Exporter (CSV)</button>
@@ -124,7 +126,7 @@ export default function AdminDashboard() {
         <ul className="adm-list">
           {shown.slice(0, 300).map((a) => (
             <li key={a.email}>
-              <b>{a.pseudo ? <>{a.pseudo} <span className="adm-name">· {a.first} {a.last}</span></> : a.email}</b>
+              <b>{a.pseudo ? <>{a.pseudo} <span className="adm-name">· {a.first} {a.last}{a.age ? ` · ${a.age} ans` : ''}</span></> : a.email}</b>
               {a.pseudo && <span>{a.email}</span>}
               <span>Inscrit le {date(a.created)} · vu {ago(a.seen)} · {a.via === 'google' ? 'Google' : 'code e-mail'}</span>
             </li>

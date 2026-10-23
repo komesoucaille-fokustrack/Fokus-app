@@ -67,7 +67,7 @@ export async function readSession(tok, secret, now = Date.now()) {
   return { id: m[1], iat };
 }
 
-/* ---------- profil : prénom, nom, pseudo (choisis à la première connexion, modifiables) ---------- */
+/* ---------- profil : prénom, nom, pseudo, âge (demandés à la première connexion, modifiables) ---------- */
 const clean = (v, max) => String(v ?? '').normalize('NFC').replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 const NAME = /^[\p{L}][\p{L}\p{M} '’.-]{0,39}$/u, PSEUDO = /^[\p{L}\p{N}][\p{L}\p{M}\p{N} _.-]{1,19}$/u;
 export function checkProfile(b) {
@@ -75,9 +75,13 @@ export function checkProfile(b) {
   if (!NAME.test(first)) return { error: 'Prénom invalide (lettres, espaces, tirets).' };
   if (!NAME.test(last)) return { error: 'Nom invalide (lettres, espaces, tirets).' };
   if (!PSEUDO.test(pseudo)) return { error: 'Pseudo invalide : 2 à 20 caractères (lettres, chiffres, espace, _ . -).' };
-  return { first, last, pseudo };
+  const age = Number(String(b.age ?? '').trim());
+  if (!Number.isInteger(age) || age < 7 || age > 120) return { error: 'Âge invalide (entre 7 et 120 ans).' };
+  return { first, last, pseudo, age };
 }
-const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '' });
+// l'âge vieillit tout seul : âge donné + années écoulées depuis qu'il a été donné
+export const ageNow = (age, at, now = Date.now()) => (age ? age + Math.floor((now - (at || now)) / (365.25 * 864e5)) : 0);
+const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '', age: ageNow(meta.age, meta.ageAt) });
 
 /* code à 6 chiffres (tirage sans biais) et son empreinte (le code lui-même n'est jamais stocké) */
 export function newCode() {
@@ -115,7 +119,7 @@ export class Account {
       if (sends.length >= 5) return Response.json({ error: 'Trop de codes demandés : réessaie dans une heure.' }, { status: 429 });
       const code = newCode(), salt = hex(crypto.getRandomValues(new Uint8Array(8)));
       await st.put('code', { hash: await codeHash(code, salt), salt, exp: now + 10 * 60e3, tries: 0, sends: [...sends, now] });
-      return Response.json({ code }); // remis au Worker seulement, pour l'e-mail
+      return Response.json({ code, isNew: !meta.created }); // remis au Worker seulement, pour l'e-mail (bienvenue ou retour)
     }
     if (path === '/verify') {
       const c = await st.get('code');
@@ -134,7 +138,7 @@ export class Account {
     if (path === '/profile') {
       const p = checkProfile(b);
       if (p.error) return Response.json(p, { status: 400 });
-      Object.assign(meta, p);
+      Object.assign(meta, p, { ageAt: Date.now() });
       await st.put('meta', meta);
       return Response.json({ ok: true, user: profileOf(meta) });
     }

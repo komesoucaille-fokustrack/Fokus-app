@@ -64,6 +64,8 @@ assert.equal(r.ok, true); assert.equal(r.cors, 'https://fokus-track.com');
 assert.equal(inbox.length, 1); assert.deepEqual(inbox[0].to, ['lea@exemple.fr']);
 const code = /(\d{6}) est ton code/.exec(inbox[0].subject)[1];
 assert.ok(inbox[0].html.includes(code) && inbox[0].text.includes(code));
+assert.ok(inbox[0].html.includes('Bienvenue dans Fokus') && inbox[0].text.includes('Le principe est simple'), 'inscription : e-mail de bienvenue');
+assert.match(inbox[0].subject, /bienvenue/);
 assert.equal((await post('/auth/email/start', { email: 'lea@exemple.fr' })).status, 429, 'pas de 2e code dans la minute');
 assert.equal((await post('/auth/email/verify', { email: 'lea@exemple.fr', code: code === '000000' ? '111111' : '000000' })).status, 401);
 r = await post('/auth/email/verify', { email: 'LEA@exemple.fr', code });
@@ -122,17 +124,27 @@ console.log('✓ tableau de bord : en ligne (2 dont 1 connecté), totaux par pé
 assert.equal((await post('/profile/set', { session: s1, first: 'Léa', last: 'Martin', pseudo: 'x' })).status, 400, 'pseudo trop court');
 assert.equal((await post('/profile/set', { session: s1, first: '<b>', last: 'Martin', pseudo: 'lea' })).status, 400, 'balises refusées');
 assert.equal((await post('/profile/set', { session: 'faux', first: 'Léa', last: 'Martin', pseudo: 'lea' })).status, 401);
-r = await post('/profile/set', { session: s1, first: '  Léa ', last: "D'Arc-Martin", pseudo: 'Léa_42' });
-assert.deepEqual([r.user.first, r.user.last, r.user.pseudo], ['Léa', "D'Arc-Martin", 'Léa_42']);
+assert.equal((await post('/profile/set', { session: s1, first: 'Léa', last: 'Martin', pseudo: 'lea' })).status, 400, 'âge obligatoire');
+assert.equal((await post('/profile/set', { session: s1, first: 'Léa', last: 'Martin', pseudo: 'lea', age: 3 })).status, 400, 'âge trop petit');
+assert.equal((await post('/profile/set', { session: s1, first: 'Léa', last: 'Martin', pseudo: 'lea', age: '17.5' })).status, 400, 'âge entier');
+r = await post('/profile/set', { session: s1, first: '  Léa ', last: "D'Arc-Martin", pseudo: 'Léa_42', age: '17' });
+assert.deepEqual([r.user.first, r.user.last, r.user.pseudo, r.user.age], ['Léa', "D'Arc-Martin", 'Léa_42', 17]);
 r = await post('/sync/get', { session: s1, have: -1 });
 assert.equal(r.user.pseudo, 'Léa_42', 'profil renvoyé à la synchronisation');
-r = await post('/profile/set', { session: s1, first: 'Léa', last: "D'Arc-Martin", pseudo: 'Lele' });
+r = await post('/profile/set', { session: s1, first: 'Léa', last: "D'Arc-Martin", pseudo: 'Lele', age: 18 });
 assert.equal(r.user.pseudo, 'Lele', 'pseudo modifiable');
 const acc2 = (await post('/admin/accounts', { session: boss.session })).accounts.find((a) => a.email === 'lea@exemple.fr');
-assert.deepEqual([acc2.first, acc2.last, acc2.pseudo], ['Léa', "D'Arc-Martin", 'Lele']);
+assert.deepEqual([acc2.first, acc2.last, acc2.pseudo, acc2.age], ['Léa', "D'Arc-Martin", 'Lele', 18]);
+// connexion suivante d'un compte existant : e-mail « content de te revoir » (pas le mode d'emploi)
+
+await post('/auth/email/start', { email: 'boss-unused@x.fr' }); // (autre adresse : pas de limite d'une minute)
+const ret = (await import('../src/index.js')).codeMail('111111', false);
+assert.ok(ret.html.includes('Content de te revoir') && !ret.html.includes('Le principe'), 'retour : petit mot, pas le mode d’emploi');
+const { ageNow } = await import('../src/account.js');
+assert.equal(ageNow(17, Date.now() - 366 * 864e5), 18, 'l’âge avance avec le temps');
 r = await post('/auth/email/start', { email: 'nouveau@x.fr' });
 r = await post('/auth/email/verify', { email: 'nouveau@x.fr', code: /(\d{6}) est ton code/.exec(inbox.at(-1).subject)[1] });
-assert.equal(r.user.pseudo, '', 'nouveau compte : profil à remplir');
+assert.equal(r.user.pseudo, '', 'nouveau compte : profil à remplir'); assert.equal(r.user.age, 0);
 console.log('✓ profil : prénom / nom / pseudo validés, modifiables, renvoyés à l’app et visibles dans le tableau de bord');
 
 // statistiques, suppression

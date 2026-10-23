@@ -18,7 +18,7 @@
      POST /sync/get    { session, have }               → { rev, at, data? , user }
      POST /sync/put    { session, base, data }         → { rev, at } ou 409 si un autre appareil a envoyé une version plus récente
      POST /sync/delete { session }                     → efface le compte du serveur
-     POST /profile/set { session, first, last, pseudo } → profil (première connexion, puis Réglages → Compte)
+     POST /profile/set { session, first, last, pseudo, age } → profil (première connexion, puis Réglages → Compte)
      GET  /stats                                       → { accounts } nombre de comptes créés
    Statistiques (voir stats.js) :
      POST /ping { vid, s, f, t, bye?, session? }       → signal de présence anonyme (toutes les minutes, app ouverte)
@@ -118,18 +118,45 @@ async function ping(req, env, h) {
   return json({ ok: true }, 200, h);
 }
 
-/* Code de connexion par e-mail (Resend : https://resend.com, 100 e-mails / jour offerts) */
-async function sendCode(env, email, code) {
-  const html = `<div style="font-family:-apple-system,Segoe UI,Inter,sans-serif;max-width:420px;margin:0 auto;padding:28px 24px;background:#0b0c10;color:#f5f6f8;border-radius:18px">
-<p style="margin:0 0 6px;font-size:13px;letter-spacing:.12em;color:#86efac;font-weight:700">FOKUS</p>
-<p style="margin:0 0 18px;font-size:16px">Ton code de connexion :</p>
-<p style="margin:0 0 18px;font-size:40px;font-weight:800;letter-spacing:.18em;font-variant-numeric:tabular-nums">${code}</p>
-<p style="margin:0;font-size:13px;color:#a7abb4">Valable 10 minutes. Si tu n'as rien demandé, ignore simplement cet e-mail.</p></div>`;
+/* Code de connexion par e-mail (Resend : https://resend.com, 100 e-mails / jour offerts).
+   Le code d'abord (bien visible), puis un mot d'encouragement : bienvenue + principe de l'app à l'inscription, petit boost au retour. */
+const STEPS = [
+  ['✍️', 'Note tes tâches du jour', 'et donne-leur 1, 2 ou 3 points selon leur importance.'],
+  ['✅', 'Coche ce que tu as fait, puis Valider', ': ta barre avance… jusqu’à passer l’arche des 100 % 🎊'],
+  ['⏱️', 'Concentre-toi', 'avec le minuteur Pomodoro, une session à la fois.'],
+  ['🔥', 'Construis ta série', 'jour après jour et débloque 90 badges.'],
+];
+export function codeMail(code, isNew) {
+  const p = (t, css = '') => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#d6d9df;${css}">${t}</p>`;
+  const welcome = isNew
+    ? p('<b style="color:#f5f6f8;font-size:17px">Bienvenue dans Fokus 💚</b><br>Tu viens de faire le premier pas, et c’est souvent le plus dur. Bravo !')
+      + p('Le principe est simple :', 'margin-bottom:8px')
+      + STEPS.map(([e, b, t]) => p(`${e}&nbsp; <b style="color:#f5f6f8">${b}</b> ${t}`, 'margin-bottom:8px')).join('')
+      + p('Pas besoin d’être parfait : vise juste un peu mieux qu’hier. Les petits pas, répétés chaque jour, mènent très loin. 🚀', 'margin-top:14px')
+    : p('<b style="color:#f5f6f8;font-size:17px">Content de te revoir 👋</b><br>Ta barre t’attend. Une tâche après l’autre, tu vas l’emmener loin aujourd’hui. 💪');
+  const html = `<div style="font-family:-apple-system,Segoe UI,Inter,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:30px 26px;background:#0b0c10;color:#f5f6f8;border-radius:20px">
+<p style="margin:0 0 6px;font-size:13px;letter-spacing:.14em;color:#86efac;font-weight:700">FOKUS</p>
+<p style="margin:0 0 14px;font-size:16px;color:#f5f6f8">Ton code de connexion :</p>
+<p style="margin:0 0 6px;font-size:42px;font-weight:800;letter-spacing:.18em;font-variant-numeric:tabular-nums;color:#f5f6f8">${code}</p>
+<p style="margin:0 0 24px;font-size:13px;color:#a7abb4">Valable 10 minutes.</p>
+<div style="height:1px;background:rgba(255,255,255,.1);margin:0 0 22px"></div>
+${welcome}
+<p style="margin:18px 0 0;font-size:12px;color:#8b8f99">Si tu n’as rien demandé, ignore simplement cet e-mail. — L’équipe Fokus · fokus-track.com</p></div>`;
+  const text = `Ton code de connexion Fokus : ${code} (valable 10 minutes)\n\n`
+    + (isNew
+      ? 'Bienvenue dans Fokus ! Tu viens de faire le premier pas, et c’est souvent le plus dur. Bravo !\n\nLe principe est simple :\n'
+        + STEPS.map(([e, b, t]) => `${e} ${b} ${t}`).join('\n')
+        + '\n\nPas besoin d’être parfait : vise juste un peu mieux qu’hier. Les petits pas, répétés chaque jour, mènent très loin.'
+      : 'Content de te revoir ! Ta barre t’attend. Une tâche après l’autre, tu vas l’emmener loin aujourd’hui.')
+    + '\n\nSi tu n’as rien demandé, ignore cet e-mail. — L’équipe Fokus · fokus-track.com';
+  return { html, text, subject: isNew ? `${code} est ton code Fokus — bienvenue !` : `${code} est ton code Fokus` };
+}
+async function sendCode(env, email, code, isNew) {
+  const { html, text, subject } = codeMail(code, isNew);
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: env.MAIL_FROM || 'Fokus <connexion@fokus-track.com>', to: [email], subject: `${code} est ton code Fokus`, html,
-      text: `Ton code de connexion Fokus : ${code}\nValable 10 minutes. Si tu n'as rien demandé, ignore cet e-mail.` }),
+    body: JSON.stringify({ from: env.MAIL_FROM || 'Fokus <connexion@fokus-track.com>', to: [email], subject, html, text }),
   });
   if (!r.ok) throw new Error('envoi de l’e-mail impossible (' + r.status + ')');
 }
@@ -153,7 +180,7 @@ async function accountRoute(req, env, path, h) {
       const r = await account(env, id, '/code', {});
       const c = await r.json();
       if (!r.ok) return json(c, r.status, h);
-      try { await sendCode(env, email, c.code); } catch (e) { return json({ error: e.message }, 502, h); }
+      try { await sendCode(env, email, c.code, c.isNew); } catch (e) { return json({ error: e.message }, 502, h); }
       return json({ ok: true }, 200, h);
     }
     const r = await account(env, id, '/verify', { code: b.code });

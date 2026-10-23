@@ -206,10 +206,15 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   `applyRemote()` garde `pushId` et `LOCAL_SET` (push, pushUrl). Déconnexion (connexion obligatoire) : envoi des dernières modifications
   puis effacement des données de l'appareil (`resetAll(true)`). Méta locale `fokus_cloud`. Page `public/confidentialite/`.
   **Activé** (connexion par code e-mail, obligatoire dès la 1re ouverture) ; textes publics, JSON-LD, FAQ et `public/og.png` mis à jour.
-  **Profil** (`Profile.jsx`) : à la 1re connexion, écran « Faisons connaissance » (prénom, nom, pseudo) avant l'app (`needsProfile` :
-  `user.pseudo` vide renvoyé par le serveur) ; modifiable dans Réglages → Compte (`ProfileForm compact`) ; pseudo dans la salutation
+  **Profil** (`Profile.jsx`) : à la 1re connexion, écran « Faisons connaissance » (prénom, nom, pseudo, **âge** 7–120 ans) avant l'app
+  (`needsProfile` : `user.pseudo` ou `user.age` vide renvoyé par le serveur ; compte existant sans âge → « Un dernier détail ✨ ») ;
+  puis **écran de bienvenue** `Intro.jsx` (une seule fois, `m.intro` posé par `setProfile` à l'inscription) : message d'encouragement +
+  principe de l'app en 5 étapes + « C'est parti ! » ; modifiable dans Réglages → Compte (`ProfileForm compact`) ; pseudo dans la salutation
   (`Hello.jsx` : « Bonsoir, Lili. ») ; serveur `POST /profile/set` (validation `checkProfile` : lettres / espaces / tirets, pseudo 2–20
-  caractères, balises refusées), stocké dans `Account` (meta) et `Stats.accounts` (colonnes first, last, pseudo) → tableau de bord + export CSV.
+  caractères, balises refusées ; âge stocké avec sa date `ageAt` et vieillissant tout seul, `ageNow`), stocké dans `Account` (meta) et
+  `Stats.accounts` (colonnes first, last, pseudo, age, ageAt) → tableau de bord (âge moyen) + export CSV.
+  **E-mail du code** (`codeMail` de `server/src/index.js`) : code en grand d'abord, puis inscription = « Bienvenue dans Fokus 💚 » + principe
+  en 4 étapes + encouragement (sujet « … — bienvenue ! ») ; connexion suivante = « Content de te revoir 👋 » (drapeau `isNew` de `/code`).
 - **Statistiques de visites** : Cloudflare Web Analytics (sans cookie), jeton `ANALYTICS_TOKEN` renseigné (`main.jsx`, chargé au repos) + balise dans les pages statiques (Pomodoro, Découvrir, Confidentialité). Configuré dans Cloudflare en « extrait JS » (le site est en DNS uniquement, nuage gris).
 - **Tableau de bord du propriétaire** (Réglages → Administration, `Admin.jsx`, visible seulement si l'adresse du compte est dans le secret
   serveur `ADMIN_EMAILS` ; drapeau `user.admin` à la connexion ou en-tête `X-Fokus-Admin` sur `/sync/get`) : personnes en ligne en direct
@@ -226,7 +231,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo), `Account` (compte + choix des données), `Admin` (tableau de bord).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo / âge), `Intro` (bienvenue après l'inscription), `Account` (compte + choix des données), `Admin` (tableau de bord).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation), `presence` (signal « en ligne »).
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID + secret des
   sessions + compteur de comptes, `Account` = un compte : données découpées en morceaux de 32 000 caractères, `rev` ;

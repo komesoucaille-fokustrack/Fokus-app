@@ -157,13 +157,17 @@ export async function deleteAccount() {
   toast(loginRequired() ? 'Compte et données supprimés.' : 'Compte supprimé du serveur. Tes données restent sur cet appareil.');
 }
 
-/* Profil (prénom, nom, pseudo) : demandé à la première connexion, modifiable dans Réglages → Compte */
-export const needsProfile = (c = snap) => !!(c.session && c.user && 'pseudo' in c.user && !c.user.pseudo);
+/* Profil (prénom, nom, pseudo, âge) : demandé à la première connexion, modifiable dans Réglages → Compte.
+   Juste après l'inscription : écran de bienvenue (Intro.jsx) tant que m.intro est vrai. */
+export const needsProfile = (c = snap) => !!(c.session && c.user && 'pseudo' in c.user && (!c.user.pseudo || !c.user.age));
 export async function setProfile(p) {
+  const first = !m.user?.pseudo; // inscription (et pas simple ajout de l'âge ou modification)
   const r = await api('/profile/set', { session: m.session, ...p });
   m.user = { ...m.user, ...r.user };
+  if (first) m.intro = true;
   persist();
 }
+export const dismissIntro = () => { delete m.intro; persist(); };
 
 export const sessionToken = () => m.session || '';
 export const serverUrl = base;

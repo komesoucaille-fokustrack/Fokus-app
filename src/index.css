@@ -728,3 +728,17 @@
 .prof-compact .field { font-size: 15px; min-height: 44px; }
 .prof-compact .login-go { min-height: 44px; font-size: 15px; justify-self: start; padding: 0 18px; }
 .adm-name { font-weight: 500; color: var(--color-mut); }
+.prof-row-2 { grid-template-columns: 1fr 96px; }
+@media (max-width: 420px) { .prof-row-2 { grid-template-columns: 1fr 88px; } }
+
+/* Bienvenue après l'inscription (Intro.jsx) */
+.login-card.intro { max-width: 520px; }
+.intro-steps { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 10px; }
+.intro-step { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-radius: 16px;
+  background: rgba(255,255,255,.035); border: 1px solid var(--color-edge); }
+.intro-e { font-size: 24px; line-height: 1.2; text-align: center; }
+.intro-step b { display: block; font-size: 15.5px; margin-bottom: 2px; }
+.intro-step span span { display: block; font-size: 13.5px; line-height: 1.45; color: var(--color-mut); }
+.intro-quote { margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; color: #d9f99d;
+  background: rgba(134,239,172,.08); border: 1px solid rgba(134,239,172,.25); }
+.intro-go { width: 100%; }

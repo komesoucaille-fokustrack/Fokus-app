@@ -62,6 +62,7 @@ const iat = Math.floor(Date.now() / 1000);
 // code par e-mail : envoi limité, 5 essais, usage unique
 let c1 = await call('/code', {});
 assert.match(c1.code, /^\d{6}$/);
+assert.equal(c1.isNew, true, 'jamais connecté → e-mail de bienvenue');
 assert.equal((await call('/code', {})).status, 429, '1 code par minute');
 assert.ok(![...st.m.values()].some((v) => JSON.stringify(v).includes(c1.code)), 'le code n’est pas stocké en clair');
 assert.equal((await call('/verify', { code: '000000' === c1.code ? '111111' : '000000' })).status, 401);
@@ -76,6 +77,8 @@ assert.equal((await call('/verify', { code: c2 })).status, 401, 'code expiré');
 console.log('✓ code par e-mail : 6 chiffres, jamais stocké en clair, 1/min, 5 essais, usage unique, expiration');
 
 assert.equal((await call('/login', { email: 'a@b.c', name: 'Léa' })).isNew, true);
+{ const cm3 = await st.get('code'); cm3.sends = []; await st.put('code', cm3); }
+assert.equal((await call('/code', {})).isNew, false, 'compte existant → e-mail « content de te revoir »');
 const again = await call('/login', { email: 'a@b.c' }); // connexion par code : pas de prénom fourni
 assert.equal(again.isNew, false); assert.equal(again.user.name, 'Léa', 'le prénom Google est gardé');
 let r = await call('/get', { iat, have: null });
