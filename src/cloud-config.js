@@ -6,6 +6,6 @@
    - REQUIRE_LOGIN : écran de connexion obligatoire avant l'app (dès qu'une des deux méthodes est active).
    - ANALYTICS_TOKEN : jeton Cloudflare Web Analytics (sans cookie, sans donnée personnelle). */
 export const GOOGLE_CLIENT_ID = '';
-export const EMAIL_LOGIN = false;
-export const REQUIRE_LOGIN = true;
+export const EMAIL_LOGIN = true;
+export const REQUIRE_LOGIN = false; // phase de test : connexion facultative (Réglages → Compte) ; repasser à true une fois l'envoi des codes vérifié
 export const ANALYTICS_TOKEN = '';
