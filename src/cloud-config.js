@@ -4,8 +4,12 @@
      le même que GOOGLE_CLIENT_ID dans server/wrangler.toml. Public par nature (visible dans la page).
    - EMAIL_LOGIN : connexion par code à 6 chiffres envoyé par e-mail (serveur : secret RESEND_API_KEY configuré).
    - REQUIRE_LOGIN : écran de connexion obligatoire avant l'app (dès qu'une des deux méthodes est active).
-   - ANALYTICS_TOKEN : jeton Cloudflare Web Analytics (sans cookie, sans donnée personnelle). */
+   - ANALYTICS_TOKEN : jeton Cloudflare Web Analytics (sans cookie, sans donnée personnelle).
+   - CONTACT_EMAIL : adresse de contact affichée (routage Cloudflare Email vers la boîte du propriétaire).
+   - MIN_AGE : âge minimum (moins de 15 ans → compte bloqué ; même valeur que server/src/account.js). */
 export const GOOGLE_CLIENT_ID = '';
 export const EMAIL_LOGIN = true;
 export const REQUIRE_LOGIN = true;
+export const CONTACT_EMAIL = 'contact@fokus-track.com';
+export const MIN_AGE = 15;
 export const ANALYTICS_TOKEN = 'd9d231508fd44df890be7d6769130993';

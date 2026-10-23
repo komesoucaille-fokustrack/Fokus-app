@@ -169,6 +169,10 @@ export async function setProfile(p) {
 }
 export const dismissIntro = () => { delete m.intro; persist(); };
 
+/* Formulaire de contact (connecté : l'adresse du compte est utilisée) ; déblocage d'un compte (propriétaire) */
+export const sendContact = ({ topic, message, email }) => api('/contact', { session: m.session || undefined, email, topic, message });
+export const adminUnblock = (email) => api('/admin/unblock', { session: m.session, email });
+
 export const sessionToken = () => m.session || '';
 export const serverUrl = base;
 /* Tableau de bord du propriétaire : 'summary' (en ligne + récap) ou 'accounts' (liste des comptes) */

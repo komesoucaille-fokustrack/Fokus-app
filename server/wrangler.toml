@@ -45,4 +45,7 @@ APP_URL = "https://fokus-track.com/"
 GOOGLE_CLIENT_ID = ""
 # expéditeur des codes de connexion (domaine vérifié chez Resend) ; la clé RESEND_API_KEY est un secret (GitHub → Actions)
 MAIL_FROM = "Fokus <connexion@fokus-track.com>"
+# adresse de contact affichée aux utilisateurs (routage Cloudflare Email → boîte du propriétaire) ; les messages du formulaire
+# arrivent aux adresses ADMIN_EMAILS (ou CONTACT_TO si défini)
+CONTACT_EMAIL = "contact@fokus-track.com"
 CONTACT = "https://fokus-track.com/"

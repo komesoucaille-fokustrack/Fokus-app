@@ -79,9 +79,12 @@ export function checkProfile(b) {
   if (!Number.isInteger(age) || age < 7 || age > 120) return { error: 'Âge invalide (entre 7 et 120 ans).' };
   return { first, last, pseudo, age };
 }
+// Fokus est réservé aux 15 ans et plus (loi Informatique et Libertés, art. 45) : un âge inférieur bloque le compte,
+// définitivement pour cette adresse (seul le propriétaire peut débloquer depuis le tableau de bord, en cas d'erreur de saisie)
+export const MIN_AGE = 15;
 // l'âge vieillit tout seul : âge donné + années écoulées depuis qu'il a été donné
 export const ageNow = (age, at, now = Date.now()) => (age ? age + Math.floor((now - (at || now)) / (365.25 * 864e5)) : 0);
-const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '', age: ageNow(meta.age, meta.ageAt) });
+const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '', age: ageNow(meta.age, meta.ageAt), blocked: meta.blocked || '' });
 
 /* code à 6 chiffres (tirage sans biais) et son empreinte (le code lui-même n'est jamais stocké) */
 export function newCode() {
@@ -133,17 +136,28 @@ export class Account {
       await st.put('code', { sends: c.sends }); // code utilisé : il ne resservira pas
       return Response.json({ ok: true });
     }
+    if (path === '/unblock') { // appelé seulement par le Worker, après vérification du propriétaire
+      delete meta.blocked; delete meta.blockedAt;
+      Object.assign(meta, { age: 0, ageAt: 0 }); // l'âge sera redemandé à la prochaine ouverture
+      await st.put('meta', meta);
+      return Response.json({ ok: true });
+    }
     if (!(b.iat >= (meta.minIat || 0))) return Response.json({ error: 'session révoquée' }, { status: 401 });
     const user = profileOf(meta);
+    if (meta.blocked && (path === '/profile' || path === '/put')) {
+      return Response.json({ error: 'Compte bloqué : contacte-nous si c’est une erreur.', blocked: meta.blocked, user }, { status: 403 });
+    }
     if (path === '/profile') {
       const p = checkProfile(b);
       if (p.error) return Response.json(p, { status: 400 });
       Object.assign(meta, p, { ageAt: Date.now() });
+      if (p.age < MIN_AGE) Object.assign(meta, { blocked: 'age', blockedAt: Date.now() });
       await st.put('meta', meta);
       return Response.json({ ok: true, user: profileOf(meta) });
     }
 
     if (path === '/get') {
+      if (meta.blocked) return Response.json({ rev: meta.rev, at: meta.at, same: true, user }); // compte bloqué : pas de données
       if (b.have === meta.rev) return Response.json({ rev: meta.rev, at: meta.at, same: true, user });
       let text = '';
       for (let i = 0; i < meta.n; i++) text += (await st.get('c' + i)) || '';

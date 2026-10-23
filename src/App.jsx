@@ -20,7 +20,7 @@ import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
   moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter, setCatFilter,
-  setSetting, simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
+  openSettings, setSetting, simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
 } from './store';
 import Icon from './components/Icons';
 import { CatChip } from './components/Categories';
@@ -323,7 +323,7 @@ export default function App() {
             </div>
             <footer className="site-foot">
               <b>Fokus Track</b> — tâches du jour, minuteur Pomodoro et suivi de progression. Gratuit et sans pub.
-              <span><a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Le minuteur Pomodoro</a></span>
+              <span><a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Le minuteur Pomodoro</a> · <a href="#contact" onClick={(e) => { e.preventDefault(); openSettings('contact'); }}>Contact</a></span>
             </footer>
           </section>
         ) : UI.page === 3 ? (

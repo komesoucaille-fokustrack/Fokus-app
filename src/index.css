@@ -752,3 +752,25 @@
 .intro-go { width: 100%; }
 .adm-active { margin: -4px 0 0; font-size: 13px; color: var(--color-mut); font-variant-numeric: tabular-nums; }
 .adm-active b { color: var(--color-text); }
+
+/* Contact + compte bloqué */
+.contact select.field { min-height: 48px; font-size: 16px; }
+.contact-msg { resize: vertical; min-height: 110px; font-size: 16px !important; line-height: 1.45; }
+.contact a, .blocked-help a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+.contact-ok { display: grid; gap: 6px; padding: 14px 16px; border-radius: 16px; background: rgba(134,239,172,.08); border: 1px solid rgba(134,239,172,.25); }
+.contact-ok span { font-size: 14px; color: var(--color-mut); }
+.contact-ok .login-link { justify-self: start; }
+.blocked-help { display: grid; gap: 4px; margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--color-edge); }
+.blocked-help span { font-size: 14px; line-height: 1.5; color: var(--color-mut); }
+.blocked-out { margin-top: 14px; }
+.login-form .prof-certify { display: flex !important; grid-template-columns: none; align-items: flex-start; gap: 10px !important; font-size: 13.5px; line-height: 1.45; color: var(--color-mut); font-weight: 400; }
+.prof-certify input { width: 22px; height: 22px; flex: none; margin-top: 1px; accent-color: #10b981; }
+.prof-minor { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgba(252,165,165,.08); border: 1px solid rgba(252,165,165,.3); font-size: 14px; line-height: 1.5; }
+.prof-minor b { color: #fecaca; }
+.prof-minor-b { display: flex; flex-wrap: wrap; gap: 8px; }
+.login-contact { min-height: 0; font-size: 13px; padding: 8px 0; }
+.login-contact-box { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-edge); }
+.adm-blocked { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #fecaca !important; }
+.adm-blocked .b { padding: 4px 10px; font-size: 12.5px; }
+/* écrans de connexion / profil / bienvenue : le fond va jusqu'en bas (le corps de page garde une marge pour le bouton Valider) */
+.login { margin-bottom: calc(-130px - env(safe-area-inset-bottom)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }

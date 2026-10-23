@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { adminApi } from '../lib/cloud';
+import { adminApi, adminUnblock } from '../lib/cloud';
 import { toast } from '../store';
 
 /* =====================================================================
@@ -77,6 +77,12 @@ export default function AdminDashboard() {
   const avgAge = ages.length ? Math.round(ages.reduce((x, y) => x + y, 0) / ages.length) : 0;
   // comptes revenus récemment (dernière visite) : les inscrits qui utilisent vraiment Fokus
   const activeIn = (days) => (acc || []).filter((a) => Date.now() - a.seen < days * 864e5).length;
+  // compte bloqué par erreur (âge mal saisi) : débloquer → l'âge lui sera redemandé à sa prochaine ouverture
+  const unblock = async (email) => {
+    if (!confirm(`Débloquer ${email} ? Son âge lui sera redemandé à la prochaine ouverture.`)) return;
+    try { await adminUnblock(email); setAcc((l) => l.map((x) => (x.email === email ? { ...x, blocked: '', age: 0 } : x))); toast('Compte débloqué ✓'); }
+    catch (e) { toast(e.message); }
+  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(shown.map((a) => a.email).join('\n')); toast(`${shown.length} adresse${shown.length > 1 ? 's' : ''} copiée${shown.length > 1 ? 's' : ''}.`); }
     catch { toast('Copie impossible.'); }
@@ -124,7 +130,7 @@ export default function AdminDashboard() {
         </span>
       </div>
       {acc && acc.length > 0 && (
-        <p className="adm-active">🔁 Comptes actifs : <b>{nf.format(activeIn(1))}</b> aujourd’hui · <b>{nf.format(activeIn(7))}</b> sur 7 jours · <b>{nf.format(activeIn(30))}</b> sur 30 jours</p>
+        <p className="adm-active">{acc.some((a) => a.blocked) ? <>🔒 <b>{acc.filter((a) => a.blocked).length}</b> bloqué(s) (moins de 15 ans) · </> : null}🔁 Comptes actifs : <b>{nf.format(activeIn(1))}</b> aujourd’hui · <b>{nf.format(activeIn(7))}</b> sur 7 jours · <b>{nf.format(activeIn(30))}</b> sur 30 jours</p>
       )}
       <input className="field adm-search" type="search" placeholder="Rechercher (e-mail, pseudo, nom)…" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="off" />
       {!acc ? <p className="si-d">Chargement des comptes…</p> : !shown.length ? <p className="si-d">Aucun compte{q ? ' pour cette recherche' : ' pour l’instant'}.</p> : (
@@ -134,6 +140,11 @@ export default function AdminDashboard() {
               <b>{a.pseudo ? <>{a.pseudo} <span className="adm-name">· {a.first} {a.last}{a.age ? ` · ${a.age} ans` : ''}</span></> : a.email}</b>
               {a.pseudo && <span>{a.email}</span>}
               <span>Inscrit le {date(a.created)} · vu {ago(a.seen)} · {a.via === 'google' ? 'Google' : 'code e-mail'}</span>
+              {a.blocked && (
+                <span className="adm-blocked">🔒 Bloqué (âge indiqué : {a.age} ans)
+                  <button type="button" className="b" onClick={() => unblock(a.email)}>Débloquer</button>
+                </span>
+              )}
             </li>
           ))}
           {shown.length > 300 && <li className="si-d">… et {shown.length - 300} autres (utilise la recherche ou l’export).</li>}

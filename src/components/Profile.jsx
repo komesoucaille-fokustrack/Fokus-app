@@ -2,10 +2,13 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { setProfile, useCloud } from '../lib/cloud';
+import { MIN_AGE } from '../cloud-config';
 
 /* =====================================================================
    PROFIL — prénom, nom, pseudo et âge. Écran plein à la première connexion (avant l'app), et formulaire
    réutilisé dans Réglages → Compte pour modifier ensuite. Le pseudo s'affiche dans la salutation.
+   Âge : engagement à dire la vérité (inscription) ; moins de 15 ans → confirmation explicite (faute de frappe ?)
+   puis compte bloqué côté serveur (Blocked.jsx).
    ===================================================================== */
 export function ProfileForm({ onDone, submit = 'Enregistrer', compact }) {
   const { user = {} } = useCloud();
@@ -13,15 +16,20 @@ export function ProfileForm({ onDone, submit = 'Enregistrer', compact }) {
   const [first, setFirst] = useState(user.first || guess);
   const [last, setLast] = useState(user.last || '');
   const [pseudo, setPseudo] = useState(user.pseudo || '');
-  const [age, setAge] = useState(user.age ? String(user.age) : '');
+  const [age, setAgeRaw] = useState(user.age ? String(user.age) : '');
+  const [certify, setCertify] = useState(!!compact);
+  const [minor, setMinor] = useState(false); // confirmation demandée pour un âge < 15 ans
+  const ageIn = useRef(null);
+  const setAge = (v) => { setAgeRaw(v); setMinor(false); };
   const ageOk = /^\d{1,3}$/.test(age) && +age >= 7 && +age <= 120;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [ok, setOk] = useState(false);
   const changed = first !== (user.first || '') || last !== (user.last || '') || pseudo !== (user.pseudo || '') || age !== (user.age ? String(user.age) : '');
-  const save = async (e) => {
-    e.preventDefault();
+  const save = async (e, confirmed) => {
+    e?.preventDefault();
     if (busy) return;
+    if (+age < MIN_AGE && !confirmed) { setMinor(true); return; } // on demande confirmation avant de bloquer
     setErr(''); setOk(false); setBusy(true);
     try { await setProfile({ first, last, pseudo, age: +age }); setOk(true); onDone?.(); }
     catch (x) { setErr(x.message); }
@@ -39,14 +47,30 @@ export function ProfileForm({ onDone, submit = 'Enregistrer', compact }) {
             autoComplete="nickname" autoCapitalize="off" spellCheck="false" maxLength={20} required />
         </label>
         <label>Âge
-          <input className="field" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" pattern="\d*"
+          <input ref={ageIn} className="field" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" pattern="\d*"
             placeholder="ex. 17" aria-label="Âge (en années)" required />
         </label>
       </div>
-      <p className="login-note">Ton pseudo s’affiche dans l’app (« Bonjour, {pseudo || '…'} ») et reste modifiable à tout moment dans Réglages → Compte.</p>
+      <p className="login-note">Ton pseudo s’affiche dans l’app (« Bonjour, {pseudo || '…'} ») et reste modifiable à tout moment dans Réglages → Compte.
+        Fokus est réservé aux {MIN_AGE} ans et plus.</p>
+      {!compact && (
+        <label className="prof-certify">
+          <input type="checkbox" checked={certify} onChange={(e) => setCertify(e.target.checked)} required />
+          <span>Je certifie que ces informations, et en particulier mon âge, sont exactes. Indiquer un faux âge est interdit : un âge inférieur à {MIN_AGE} ans bloque le compte.</span>
+        </label>
+      )}
+      {minor && (
+        <div className="prof-minor" role="alert">
+          <span><b>⚠️ Tu as indiqué {age} ans.</b> Fokus est réservé aux {MIN_AGE} ans et plus : si tu confirmes, ton compte sera bloqué. S’il s’agit d’une faute de frappe, corrige ton âge.</span>
+          <span className="prof-minor-b">
+            <button type="button" className="b on" onClick={() => { setMinor(false); ageIn.current?.focus(); }}>Corriger mon âge</button>
+            <button type="button" className="b danger" onClick={() => save(null, true)}>Je confirme : {age} ans</button>
+          </span>
+        </div>
+      )}
       {err && <p className="login-err" role="alert">{err}</p>}
       {ok && compact && <p className="login-note">✓ Enregistré</p>}
-      <button className="b on login-go" disabled={busy || !first.trim() || !last.trim() || pseudo.trim().length < 2 || !ageOk || (compact && !changed)}>{busy ? 'Enregistrement…' : submit}</button>
+      <button className="b on login-go" disabled={busy || minor || !certify || !first.trim() || !last.trim() || pseudo.trim().length < 2 || !ageOk || (compact && !changed)}>{busy ? 'Enregistrement…' : submit}</button>
     </form>
   );
 }

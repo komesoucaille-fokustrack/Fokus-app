@@ -15,11 +15,13 @@ async function boot() {
   if (restored) store.toast('Données restaurées depuis la copie de secours.');
   // connexion obligatoire : écran de connexion tant qu'il n'y a pas de session (l'app s'affiche dès la connexion)
   const Login = cloud.loginRequired() ? (await import('./components/Login')).default : null;
-  const [Profile, Intro] = cloud.cloudEnabled()
-    ? await Promise.all([import('./components/Profile'), import('./components/Intro')]).then((m) => m.map((x) => x.default)) : [null, null];
+  const [Profile, Intro, Blocked] = cloud.cloudEnabled()
+    ? await Promise.all([import('./components/Profile'), import('./components/Intro'), import('./components/Blocked')]).then((m) => m.map((x) => x.default))
+    : [null, null, null];
   const Root = () => {
     const c = cloud.useCloud();
     if (Login && !c.session) return <Login />;
+    if (Blocked && c.session && c.user?.blocked) return <Blocked />; // moins de 15 ans : compte bloqué (contact pour une erreur)
     if (Profile && cloud.needsProfile(c)) return <Profile />; // prénom, nom, pseudo, âge à la première connexion
     if (Intro && c.session && c.intro) return <Intro />;      // bienvenue + principe de l'app, une fois
     return <App />;

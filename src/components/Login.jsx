@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { GoogleButton } from './Account';
 import { emailLogin, emailStart, emailVerify, googleLogin, useCloud } from '../lib/cloud';
+import ContactForm from './Contact';
 
 /* =====================================================================
    ÉCRAN DE CONNEXION (connexion obligatoire, REQUIRE_LOGIN) — affiché à la place de l'app tant qu'on n'est pas connecté.
@@ -101,6 +102,7 @@ export function LoginMethods() {
 
 export default function Login() {
   const card = useRef(null);
+  const [contact, setContact] = useState(false);
   useLayoutEffect(() => {
     gsap.from(card.current, { y: 18, opacity: 0, duration: 0.7, ease: 'expo.out', clearProps: 'transform,opacity' });
   }, []);
@@ -114,7 +116,9 @@ export default function Login() {
         <p className="login-foot">Gratuit, sans pub. Ton adresse sert uniquement à te connecter et à sauvegarder ta progression.</p>
         <nav className="login-nav" aria-label="En savoir plus">
           <a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Minuteur Pomodoro</a> · <a href="./confidentialite/">Confidentialité</a>
+          {' · '}<button type="button" className="login-link login-contact" onClick={() => setContact((v) => !v)} aria-expanded={contact}>Contact</button>
         </nav>
+        {contact && <div className="login-contact-box"><b>Une question, un problème ?</b><ContactForm /></div>}
       </div>
     </main>
   );

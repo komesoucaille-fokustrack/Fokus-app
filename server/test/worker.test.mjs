@@ -147,11 +147,45 @@ r = await post('/auth/email/verify', { email: 'nouveau@x.fr', code: /(\d{6}) est
 assert.equal(r.user.pseudo, '', 'nouveau compte : profil à remplir'); assert.equal(r.user.age, 0);
 console.log('✓ profil : prénom / nom / pseudo validés, modifiables, renvoyés à l’app et visibles dans le tableau de bord');
 
+// moins de 15 ans : compte bloqué (pas de nouvel essai possible), déblocage par le propriétaire seulement
+await post('/auth/email/start', { email: 'jeune@x.fr' });
+const kid = await post('/auth/email/verify', { email: 'jeune@x.fr', code: /(\d{6}) est ton code/.exec(inbox.at(-1).subject)[1] });
+r = await post('/profile/set', { session: kid.session, first: 'Tom', last: 'Petit', pseudo: 'tom', age: 12 });
+assert.equal(r.user.blocked, 'age', '12 ans → bloqué');
+r = await post('/profile/set', { session: kid.session, first: 'Tom', last: 'Petit', pseudo: 'tom', age: 30 });
+assert.equal(r.status, 403, 'impossible de changer l’âge ensuite');
+assert.equal((await post('/sync/put', { session: kid.session, base: 0, data: { tasks: [], hist: {} } })).status, 403, 'pas de sauvegarde');
+r = await post('/sync/get', { session: kid.session, have: -1 });
+assert.equal(r.user.blocked, 'age'); assert.equal(r.data, undefined, 'aucune donnée renvoyée');
+assert.equal((await post('/admin/unblock', { session: s1, email: 'jeune@x.fr' })).status, 403, 'déblocage réservé au propriétaire');
+let list3 = (await post('/admin/accounts', { session: boss.session })).accounts;
+assert.equal(list3.find((a) => a.email === 'jeune@x.fr').blocked, 'age', 'visible dans le tableau de bord');
+assert.equal((await post('/admin/unblock', { session: boss.session, email: 'jeune@x.fr' })).ok, true);
+r = await post('/sync/get', { session: kid.session, have: -1 });
+assert.equal(r.user.blocked, ''); assert.equal(r.user.age, 0, 'âge redemandé après déblocage');
+r = await post('/profile/set', { session: kid.session, first: 'Tom', last: 'Petit', pseudo: 'tom', age: 21 });
+assert.equal(r.user.blocked, ''); assert.equal(r.user.age, 21);
+console.log('✓ moins de 15 ans : compte bloqué sans nouvel essai, aucune donnée ; déblocage par le propriétaire, âge redemandé');
+
+// contact : formulaire → boîte du propriétaire, réponse directe à l'utilisateur
+const before = inbox.length;
+assert.equal((await post('/contact', { topic: 'age', message: 'ok' })).status, 400, 'message trop court');
+assert.equal((await post('/contact', { topic: 'age', message: 'Je me suis trompé d’âge' })).status, 400, 'adresse requise sans compte');
+r = await post('/contact', { email: 'visiteur@x.fr', topic: 'age', message: 'J’ai tapé 2 au lieu de 20, <b>désolé</b>' });
+assert.equal(r.ok, true);
+const m = inbox.at(-1);
+assert.deepEqual(m.to, ['patron@fokus.fr', 'autre@x.fr']); assert.equal(m.reply_to, 'visiteur@x.fr');
+assert.match(m.subject, /Âge saisi par erreur/); assert.ok(m.html.includes('&lt;b&gt;désolé'), 'texte échappé');
+r = await post('/contact', { session: kid.session, email: 'usurpe@x.fr', topic: 'idee', message: 'Une idée géniale pour Fokus' });
+assert.equal(inbox.at(-1).reply_to, 'jeune@x.fr', 'connecté : l’adresse du compte fait foi');
+assert.equal(inbox.length, before + 2);
+console.log('✓ contact : message envoyé au propriétaire, réponse à l’utilisateur, texte échappé, adresse du compte vérifiée');
+
 // statistiques, suppression
 r = await worker.fetch(new Request('https://w/stats'), env).then((x) => x.json());
-assert.equal(r.accounts, 3);
+assert.equal(r.accounts, 4);
 assert.equal((await post('/sync/delete', { session: s1 })).ok, true);
-assert.deepEqual((await post('/admin/accounts', { session: boss.session })).accounts.map((a) => a.email).sort(), ['nouveau@x.fr', 'patron@fokus.fr'], 'compte supprimé retiré de la liste');
+assert.deepEqual((await post('/admin/accounts', { session: boss.session })).accounts.map((a) => a.email).sort(), ['jeune@x.fr', 'nouveau@x.fr', 'patron@fokus.fr'], 'compte supprimé retiré de la liste');
 assert.equal((await post('/sync/get', { session: s1, have: -1 })).status, 401);
 assert.equal((await post('/sync/get', { session: 'v2.abc.1.zzzzzzzzzzzzzzzzzzzzzzzz', have: -1 })).status, 401);
 console.log('✓ compteur de comptes ; suppression → session invalidée');

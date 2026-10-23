@@ -18,7 +18,9 @@
      POST /sync/get    { session, have }               → { rev, at, data? , user }
      POST /sync/put    { session, base, data }         → { rev, at } ou 409 si un autre appareil a envoyé une version plus récente
      POST /sync/delete { session }                     → efface le compte du serveur
-     POST /profile/set { session, first, last, pseudo, age } → profil (première connexion, puis Réglages → Compte)
+     POST /contact { session? | email, topic, message } → message au propriétaire (Resend, réponse = e-mail de l'utilisateur)
+     POST /admin/unblock { session, email }            → débloque un compte (âge saisi par erreur ; l'âge sera redemandé)
+     POST /profile/set { session, first, last, pseudo, age } → profil (âge < 15 ans : compte bloqué) (première connexion, puis Réglages → Compte)
      GET  /stats                                       → { accounts } nombre de comptes créés
    Statistiques (voir stats.js) :
      POST /ping { vid, s, f, t, bye?, session? }       → signal de présence anonyme (toutes les minutes, app ouverte)
@@ -28,7 +30,7 @@
    notification (précision de l'ordre de la seconde).
    ===================================================================== */
 import { generateVapid, sendPush } from './webpush.js';
-import { Account, EMAIL, accountId, checkProfile, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
+import { Account, EMAIL, MIN_AGE, accountId, checkProfile, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
 import { Stats } from './stats.js';
 
 export { Account, Stats };
@@ -67,6 +69,7 @@ export default {
       if (url.pathname === '/auth/google/redirect') return await redirectLogin(req, env);
       if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/') || url.pathname.startsWith('/admin/') || url.pathname === '/profile/set') return await accountRoute(req, env, url.pathname, h);
       if (url.pathname === '/ping') return await ping(req, env, h);
+      if (url.pathname === '/contact') return await contact(req, env, h);
       const text = await req.text();
       if (text.length > 8000) return json({ error: 'too large' }, 413, h);
       const body = JSON.parse(text || '{}');
@@ -195,13 +198,19 @@ async function accountRoute(req, env, path, h) {
     if (!isAdmin(env, email)) return json({ error: 'réservé au propriétaire' }, 403, h);
     if (path === '/admin/summary') return json(await stats(env, '/summary', {}), 200, h);
     if (path === '/admin/accounts') return json(await stats(env, '/accounts', {}), 200, h);
+    if (path === '/admin/unblock') {
+      const id = await accountId(b.email);
+      await account(env, id, '/unblock', {});
+      await stats(env, '/unblock', { id });
+      return json({ ok: true }, 200, h);
+    }
     return json({ error: 'not found' }, 404, h);
   }
   if (path === '/profile/set') {
     const p = checkProfile(b);
     if (p.error) return json(p, 400, h);
     const r = await account(env, s.id, '/profile', { ...p, iat: s.iat });
-    if (r.ok) await stats(env, '/profile', { id: s.id, ...p });
+    if (r.ok) await stats(env, '/profile', { id: s.id, ...p, blocked: p.age < MIN_AGE ? 'age' : '' });
     return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
   }
   const op = { '/sync/get': '/get', '/sync/put': '/put', '/sync/delete': '/delete' }[path];
@@ -225,6 +234,42 @@ async function redirectLogin(req, env) {
   } catch (e) {
     return Response.redirect(app + '#' + new URLSearchParams({ 'fokus-login-error': String(e.message || e).slice(0, 80) }), 303);
   }
+}
+
+/* ---------- contact : formulaire de l'app → boîte du propriétaire (on répond directement à l'utilisateur) ---------- */
+export const TOPICS = { compte: 'Problème de compte / connexion', age: 'Âge saisi par erreur (compte bloqué)', bug: 'Bug', idee: 'Idée / suggestion', autre: 'Autre' };
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+async function contact(req, env, h) {
+  const text = await req.text();
+  if (text.length > 8000) return json({ error: 'Message trop long.' }, 413, h);
+  const b = JSON.parse(text || '{}');
+  const message = String(b.message || '').replace(/\r/g, '').trim().slice(0, 3000);
+  if (message.length < 5) return json({ error: 'Écris quelques mots pour expliquer ta demande.' }, 400, h);
+  const topic = TOPICS[b.topic] ? b.topic : 'autre';
+  let email = normEmail(b.email), who = '';
+  if (b.session) { // connecté : l'adresse du compte fait foi
+    const s = await readSession(b.session, (await keys(env, '/auth')).secret);
+    const w = s ? await stats(env, '/whois', { id: s.id }) : null;
+    if (w?.email) { email = w.email; who = ' (compte Fokus)'; }
+  }
+  if (!EMAIL.test(email)) return json({ error: 'Indique une adresse e-mail valide pour qu’on puisse te répondre.' }, 400, h);
+  const to = String(env.CONTACT_TO || env.ADMIN_EMAILS || '').split(',').map(normEmail).filter(Boolean);
+  if (!env.RESEND_API_KEY || !to.length) return json({ error: 'Le contact n’est pas encore configuré : écris à ' + (env.CONTACT_EMAIL || 'contact@fokus-track.com') + '.' }, 503, h);
+  const { n } = await keys(env, '/mail'); // même plafond quotidien que les codes (offre gratuite Resend)
+  if (n > 95) return json({ error: 'Trop de messages aujourd’hui : réessaie demain ou écris à ' + (env.CONTACT_EMAIL || 'contact@fokus-track.com') + '.' }, 429, h);
+  const html = `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:560px">
+<p style="margin:0 0 6px;font-size:13px;letter-spacing:.12em;color:#059669;font-weight:700">FOKUS · CONTACT</p>
+<p style="margin:0 0 4px"><b>${esc(TOPICS[topic])}</b></p>
+<p style="margin:0 0 16px;color:#555">De : ${esc(email)}${who} — réponds simplement à cet e-mail.</p>
+<div style="white-space:pre-wrap;padding:14px 16px;border-radius:12px;background:#f3f4f6;color:#111">${esc(message)}</div></div>`;
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: env.MAIL_FROM || 'Fokus <connexion@fokus-track.com>', to, reply_to: email,
+      subject: `[Fokus] ${TOPICS[topic]} — ${email}`, html, text: `${TOPICS[topic]}\nDe : ${email}${who}\n\n${message}` }),
+  });
+  if (!r.ok) return json({ error: 'Envoi impossible pour le moment (' + r.status + ').' }, 502, h);
+  return json({ ok: true }, 200, h);
 }
 
 /* Clés VAPID et secret des sessions générés une seule fois et gardés dans le stockage de l'instance ; compteur de comptes */

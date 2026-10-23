@@ -215,6 +215,15 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   (`Hello.jsx` : « Bonsoir, Lili. ») ; serveur `POST /profile/set` (validation `checkProfile` : lettres / espaces / tirets, pseudo 2–20
   caractères, balises refusées ; âge stocké avec sa date `ageAt` et vieillissant tout seul, `ageNow`), stocké dans `Account` (meta) et
   `Stats.accounts` (colonnes first, last, pseudo, age, ageAt) → tableau de bord (âge moyen) + export CSV.
+  **Âge minimum 15 ans** (`MIN_AGE`, client `cloud-config.js` + serveur `account.js`, loi Informatique et Libertés art. 45) : case « Je certifie
+  que ces informations sont exactes » à l'inscription ; âge < 15 → confirmation (« Corriger mon âge » / « Je confirme ») puis compte **bloqué**
+  côté serveur (`meta.blocked = 'age'` : plus de profil ni de sauvegarde ni de données renvoyées, nouvel essai impossible avec cette adresse) →
+  écran `Blocked.jsx` (« Compte en pause 🔒 » + formulaire de contact + `CONTACT_EMAIL`). Le propriétaire débloque depuis le tableau de bord
+  (`/admin/unblock` : âge remis à zéro, redemandé à la prochaine ouverture).
+  **Contact** (`Contact.jsx`) : formulaire (sujet, message ; adresse demandée seulement hors connexion) dans Réglages → Contact, sur l'écran de
+  connexion (lien « Contact »), l'écran bloqué et le pied de page ; serveur `POST /contact` → e-mail Resend aux adresses `ADMIN_EMAILS`
+  (ou `CONTACT_TO`) avec `reply_to` = l'utilisateur (adresse du compte si connecté), texte échappé, plafond quotidien partagé avec les codes.
+  Adresse affichée `contact@fokus-track.com` (routage Cloudflare Email → boîte du propriétaire, à activer dans Cloudflare).
   **E-mail du code** (`codeMail` de `server/src/index.js`) : code en grand d'abord, puis inscription = « Bienvenue dans Fokus 💚 » + principe
   en 4 étapes + encouragement (sujet « … — bienvenue ! ») ; connexion suivante = « Content de te revoir 👋 » (drapeau `isNew` de `/code`).
 - **Statistiques de visites** : Cloudflare Web Analytics (sans cookie), jeton `ANALYTICS_TOKEN` renseigné (`main.jsx`, chargé au repos) + balise dans les pages statiques (Pomodoro, Découvrir, Confidentialité). Configuré dans Cloudflare en « extrait JS » (le site est en DNS uniquement, nuage gris).
@@ -234,7 +243,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo / âge), `Intro` (bienvenue après l'inscription), `Account` (compte + choix des données), `Admin` (tableau de bord).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo / âge), `Intro` (bienvenue après l'inscription), `Blocked` (compte bloqué), `Contact` (formulaire), `Account` (compte + choix des données), `Admin` (tableau de bord).
 - `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation), `presence` (signal « en ligne »).
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID + secret des
   sessions + compteur de comptes, `Account` = un compte : données découpées en morceaux de 32 000 caractères, `rev` ;

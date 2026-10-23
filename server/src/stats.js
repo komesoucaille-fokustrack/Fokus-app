@@ -30,7 +30,7 @@ export class Stats {
     this.sql.exec('CREATE TABLE IF NOT EXISTS days (day TEXT PRIMARY KEY, secs INTEGER NOT NULL DEFAULT 0, focus INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, signups INTEGER NOT NULL DEFAULT 0)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, email TEXT NOT NULL, created INTEGER NOT NULL, seen INTEGER NOT NULL, via TEXT NOT NULL)');
     for (const [col, type] of [['first', "TEXT NOT NULL DEFAULT ''"], ['last', "TEXT NOT NULL DEFAULT ''"], ['pseudo', "TEXT NOT NULL DEFAULT ''"],
-      ['age', 'INTEGER NOT NULL DEFAULT 0'], ['ageAt', 'INTEGER NOT NULL DEFAULT 0']]) { // ajoutées avec le profil (base déjà créée : on complète)
+      ['age', 'INTEGER NOT NULL DEFAULT 0'], ['ageAt', 'INTEGER NOT NULL DEFAULT 0'], ['blocked', "TEXT NOT NULL DEFAULT ''"]]) { // ajoutées avec le profil (base déjà créée : on complète)
       try { this.sql.exec(`ALTER TABLE accounts ADD COLUMN ${col} ${type}`); } catch { /* colonne déjà là */ }
     }
   }
@@ -73,9 +73,10 @@ export class Stats {
       return Response.json({ ok: true, isNew: !had });
     }
     if (path === '/profile') {
-      this.sql.exec('UPDATE accounts SET first = ?, last = ?, pseudo = ?, age = ?, ageAt = ? WHERE id = ?', b.first, b.last, b.pseudo, b.age, Date.now(), b.id);
+      this.sql.exec('UPDATE accounts SET first = ?, last = ?, pseudo = ?, age = ?, ageAt = ?, blocked = ? WHERE id = ?', b.first, b.last, b.pseudo, b.age, Date.now(), b.blocked || '', b.id);
       return Response.json({ ok: true });
     }
+    if (path === '/unblock') { this.sql.exec("UPDATE accounts SET blocked = '', age = 0, ageAt = 0 WHERE id = ?", b.id); return Response.json({ ok: true }); }
     if (path === '/forget') { this.sql.exec('DELETE FROM accounts WHERE id = ?', b.id); return Response.json({ ok: true }); }
     if (path === '/whois') {
       const r = this.sql.exec('SELECT email FROM accounts WHERE id = ?', b.id).toArray()[0];
@@ -101,7 +102,7 @@ export class Stats {
       return Response.json({ ...this.online(now), periods, daily, accounts, at: now });
     }
     if (path === '/accounts') {
-      return Response.json({ accounts: this.sql.exec('SELECT email, created, seen, via, first, last, pseudo, age, ageAt FROM accounts ORDER BY created DESC').toArray()
+      return Response.json({ accounts: this.sql.exec('SELECT email, created, seen, via, first, last, pseudo, age, ageAt, blocked FROM accounts ORDER BY created DESC').toArray()
         .map(({ ageAt, ...a }) => ({ ...a, age: ageNow(a.age, ageAt) })) });
     }
     return Response.json({ error: 'not found' }, { status: 404 });
