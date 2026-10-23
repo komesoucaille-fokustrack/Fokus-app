@@ -1,6 +1,6 @@
 # Déploie le serveur de notifications (server/) sur Cloudflare Workers.
 # Secrets du dépôt nécessaires : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID (voir README → Notifications) ;
-# facultatif : RESEND_API_KEY (connexion par code e-mail).
+# facultatifs : RESEND_API_KEY (connexion par code e-mail), ADMIN_EMAILS (tableau de bord du propriétaire).
 name: Serveur de notifications
 
 on:
@@ -42,16 +42,21 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: server
           wranglerVersion: '4.151.3'
-      # Clé Resend (connexion par code e-mail) : transmise au serveur comme secret si elle existe dans le dépôt
-      - name: Clé d'envoi des e-mails
+      # Secrets facultatifs transmis au serveur s'ils existent dans le dépôt :
+      # RESEND_API_KEY (connexion par code e-mail), ADMIN_EMAILS (adresses du propriétaire → tableau de bord)
+      - name: Secrets du serveur
         if: steps.check.outputs.ok == 'true'
         working-directory: server
         env:
-          RESEND: ${{ secrets.RESEND_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -n "$RESEND" ]; then printf '%s' "$RESEND" | npx wrangler secret put RESEND_API_KEY; else echo "Pas de clé Resend : connexion par e-mail désactivée."; fi
+          for name in RESEND_API_KEY ADMIN_EMAILS; do
+            value="${!name}"
+            if [ -n "$value" ]; then printf '%s' "$value" | npx wrangler secret put "$name"; else echo "$name absent : fonction désactivée."; fi
+          done
       - name: Vérifier que le serveur répond
         if: steps.check.outputs.ok == 'true'
         run: |

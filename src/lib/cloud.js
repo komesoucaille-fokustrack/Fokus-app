@@ -36,6 +36,7 @@ async function api(path, body, keepalive = false) {
   const r = await fetch(base() + path, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body), keepalive });
   let j = {};
   try { j = await r.json(); } catch { /* réponse vide */ }
+  if (path === '/sync/get' && r.ok) j.admin = r.headers.get('X-Fokus-Admin') === '1'; // propriétaire du site (tableau de bord)
   if (r.status === 401 && path.startsWith('/sync/')) { signOut(); throw new Error('Session expirée : reconnecte-toi.'); }
   if (!r.ok && r.status !== 409) throw new Error(j.error || 'Erreur ' + r.status);
   return { status: r.status, ...j };
@@ -97,6 +98,7 @@ export async function pull() {
   catch (e) { setUi({ busy: false, error: navigator.onLine === false ? 'Hors ligne.' : e.message }); return; }
   ui.busy = false; ui.error = '';
   if (r.user) m.user = { ...m.user, ...r.user };
+  if (m.user && 'admin' in r) m.user = { ...m.user, admin: r.admin };
   if (r.same) { m.syncedAt = Date.now(); persist(); if (m.dirty) push(); return; }
   if (m.rev == null) { // première synchronisation de cet appareil
     if (!r.data) return keepMine(r.rev);           // compte vide : on y met les données de l'appareil
@@ -155,6 +157,11 @@ export async function deleteAccount() {
   toast(loginRequired() ? 'Compte et données supprimés.' : 'Compte supprimé du serveur. Tes données restent sur cet appareil.');
 }
 
+export const sessionToken = () => m.session || '';
+export const serverUrl = base;
+/* Tableau de bord du propriétaire : 'summary' (en ligne + récap) ou 'accounts' (liste des comptes) */
+export const adminApi = (what) => api('/admin/' + what, { session: m.session });
+
 /* Connexion par code e-mail : 1) envoi du code 2) vérification → session */
 export const emailStart = (email) => api('/auth/email/start', { email });
 export async function emailVerify(email, code) {
@@ -204,7 +211,7 @@ function fromRedirect() {
   let nonce = '';
   try { nonce = localStorage.getItem(NONCE) || ''; localStorage.removeItem(NONCE); } catch { /* rien */ }
   if (!nonce || h.get('n') !== nonce) { setTimeout(() => toast('Connexion refusée (demande inconnue) : réessaie.'), 600); return; }
-  signedIn(h.get('fokus-session'), { name: h.get('name') || '', email: h.get('email') || '', picture: h.get('picture') || '' });
+  signedIn(h.get('fokus-session'), { name: h.get('name') || '', email: h.get('email') || '', picture: h.get('picture') || '', admin: h.get('admin') === '1' });
 }
 
 /* Démarrage (main.jsx) */

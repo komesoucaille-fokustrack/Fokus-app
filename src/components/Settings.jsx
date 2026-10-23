@@ -8,7 +8,8 @@ import {
   setSetting, toast, todayKey, useStore, ensurePushId, getState, getUI,
 } from '../store';
 import { AccountSettings } from './Account';
-import { cloudEnabled } from '../lib/cloud';
+import { cloudEnabled, useCloud } from '../lib/cloud';
+import AdminDashboard from './Admin';
 import { configurePush, disablePush, enablePush, pushDiagnose, pushStatus, testPush } from '../lib/push';
 import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
@@ -20,6 +21,7 @@ import { shareFokus } from './Welcome';
 /* Icônes de rubrique (trait fin, cohérentes avec le reste de l'interface) */
 const ICONS = {
   account: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+  admin: 'M3 3v18h18 M7 15l4-4 3 3 5-6',
   day: 'M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 14h.01 M12 14h.01 M16 14h.01',
   look: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.4-4-7.6-9-7.6z M7.5 11h.01 M10.5 7.5h.01 M15 7.5h.01',
   score: 'M4 19V9 M10 19V5 M16 19v-7 M22 19H2',
@@ -33,6 +35,7 @@ const ICONS = {
 };
 const SECTIONS = [
   ...(cloudEnabled() ? [['account', 'Compte']] : []),
+  ['admin', 'Administration'], // propriétaire seulement (filtré dans Settings)
   ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
   ['notif', 'Rappels'], ['cats', 'Catégories'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
@@ -394,12 +397,17 @@ function Day({ S }) {
 
 const Cats = ({ S }) => <CatsSettings S={S} Group={Group} />;
 const Account = () => <AccountSettings Group={Group} />;
-const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data, account: Account };
+const Admin = () => <Group title="Tableau de bord" foot="Visible seulement par toi (propriétaire du site). Chiffres en direct, mis à jour toutes les 10 secondes.">
+  <div className="si col"><AdminDashboard /></div>
+</Group>;
+const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data, account: Account, admin: Admin };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {
   const { S } = useStore();
-  const [sec, setSec] = useState(() => (BODY[getUI().setSec] ? getUI().setSec : 'look'));
+  const { user } = useCloud();
+  const sections = SECTIONS.filter(([k]) => k !== 'admin' || user?.admin);
+  const [sec, setSec] = useState(() => (sections.some(([k]) => k === getUI().setSec) ? getUI().setSec : 'look'));
   const body = useRef(null);
   const close = () => setModal(null);
   useLayoutEffect(() => {
@@ -411,7 +419,7 @@ export default function Settings() {
     <Sheet title="Réglages" onClose={close} xl>
       <div className="set-layout">
         <nav className="set-nav" aria-label="Rubriques">
-          {SECTIONS.map(([k, l]) => (
+          {sections.map(([k, l]) => (
             <button key={k} type="button" className={sec === k ? 'on' : ''} onClick={() => setSec(k)} aria-current={sec === k}>
               <Ico k={k} /><span>{l}</span>
             </button>

@@ -693,3 +693,30 @@
 .login-nav { font-size: 13px; color: var(--color-mut); }
 .login-nav a { display: inline-block; padding: 8px 0; color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); }
 .login .gbtn { margin: 0 auto; display: flex; justify-content: center; }
+
+/* Tableau de bord du propriétaire (Réglages → Administration) */
+.adm { display: grid; gap: 14px; }
+.adm-live { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: rgba(134,239,172,.07); border: 1px solid rgba(134,239,172,.22); }
+.adm-live-n { font-size: 34px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.adm-live-s { display: block; font-size: 13px; color: var(--color-mut); margin-top: 2px; }
+.adm-dot { width: 12px; height: 12px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.2); flex: none; animation: adm-pulse 2s ease-in-out infinite; }
+@keyframes adm-pulse { 50% { box-shadow: 0 0 0 9px rgba(34,197,94,0); } }
+@media (prefers-reduced-motion: reduce) { .adm-dot { animation: none; } }
+.adm-per { display: flex; flex-wrap: wrap; width: fit-content; max-width: 100%; }
+.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.adm-stat { display: grid; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--color-bg-3); border: 1px solid var(--color-edge); }
+.adm-stat-l { font-size: 13px; color: var(--color-mut); }
+.adm-stat b { font-size: 24px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.adm-stat-s { font-size: 12px; color: var(--color-mut); font-variant-numeric: tabular-nums; }
+.adm-chart { margin: 0; }
+.adm-chart svg { width: 100%; height: auto; display: block; }
+.adm-chart figcaption { font-size: 12px; color: var(--color-mut); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.adm-ax { font-size: 9px; fill: var(--color-mut); }
+.adm-acc-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.adm-search { width: 100%; }
+.adm-list { list-style: none; margin: 0; padding: 0; display: grid; max-height: 420px; overflow: auto; border-radius: 12px; border: 1px solid var(--color-edge); }
+.adm-list li { display: grid; gap: 2px; padding: 10px 12px; min-width: 0; }
+.adm-list li + li { border-top: 1px solid rgba(255,255,255,.06); }
+.adm-list b { font-size: 14.5px; overflow-wrap: anywhere; }
+.adm-list span { font-size: 12.5px; color: var(--color-mut); }
+.adm-note { font-size: 12px; color: var(--color-mut); margin: 0; }

@@ -19,13 +19,18 @@
      POST /sync/put    { session, base, data }         → { rev, at } ou 409 si un autre appareil a envoyé une version plus récente
      POST /sync/delete { session }                     → efface le compte du serveur
      GET  /stats                                       → { accounts } nombre de comptes créés
+   Statistiques (voir stats.js) :
+     POST /ping { vid, s, f, t, bye?, session? }       → signal de présence anonyme (toutes les minutes, app ouverte)
+     POST /admin/summary  { session }                  → en ligne, récap jour / semaine / mois / année / total (propriétaire)
+     POST /admin/accounts { session }                  → liste des comptes (e-mail, création, dernière visite)
    Chaque appareil a son instance « User » : une alarme réveille l'instance à l'heure de la prochaine
    notification (précision de l'ordre de la seconde).
    ===================================================================== */
 import { generateVapid, sendPush } from './webpush.js';
 import { Account, EMAIL, accountId, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
+import { Stats } from './stats.js';
 
-export { Account };
+export { Account, Stats };
 
 const ID = /^[a-z0-9]{16,48}$/;
 const KEY = /^[a-z0-9-]{1,24}$/;
@@ -39,6 +44,7 @@ function cors(env, req) {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
+    'Access-Control-Expose-Headers': 'X-Fokus-Admin',
     Vary: 'Origin',
   };
 }
@@ -58,7 +64,8 @@ export default {
       if (req.method === 'GET' && url.pathname === '/stats') return json(await keys(env, '/stats'), 200, h);
       if (req.method !== 'POST') return json({ error: 'not found' }, 404, h);
       if (url.pathname === '/auth/google/redirect') return await redirectLogin(req, env);
-      if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/')) return await accountRoute(req, env, url.pathname, h);
+      if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/') || url.pathname.startsWith('/admin/')) return await accountRoute(req, env, url.pathname, h);
+      if (url.pathname === '/ping') return await ping(req, env, h);
       const text = await req.text();
       if (text.length > 8000) return json({ error: 'too large' }, 413, h);
       const body = JSON.parse(text || '{}');
@@ -77,16 +84,37 @@ const keys = (env, path) => env.KEYS.get(env.KEYS.idFromName('vapid')).fetch('ht
 const account = (env, id, path, body) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName('a:' + id))
   .fetch('https://a' + path, { method: 'POST', body: JSON.stringify(body) });
 
-/* Adresse vérifiée (Google ou code) → session Fokus (+ profil enregistré, compteur de comptes) */
-async function openSession(env, email, name = '', picture = '') {
+const stats = (env, path, body) => env.STATS.get(env.STATS.idFromName('stats'))
+  .fetch('https://s' + path, { method: 'POST', body: JSON.stringify(body) }).then((r) => r.json());
+// propriétaire(s) du site : secret ADMIN_EMAILS (adresses séparées par des virgules)
+const isAdmin = (env, email) => !!email && String(env.ADMIN_EMAILS || '').split(',').map(normEmail).includes(normEmail(email));
+
+/* Adresse vérifiée (Google ou code) → session Fokus (+ profil, registre des comptes, compteur) */
+async function openSession(env, email, via, name = '', picture = '') {
   const id = await accountId(email), { secret } = await keys(env, '/auth');
   const r = await account(env, id, '/login', { email: normEmail(email), name, picture }).then((x) => x.json());
   if (r.isNew) await keys(env, '/count');
-  return { session: await makeSession(id, secret), user: r.user };
+  await stats(env, '/login', { id, email: normEmail(email), via });
+  return { session: await makeSession(id, secret), user: { ...r.user, admin: isAdmin(env, email) } };
 }
 async function login(env, credential) {
   const g = await verifyGoogle(credential, env.GOOGLE_CLIENT_ID);
-  return { ...(await openSession(env, g.email, g.name, g.picture)), nonce: g.nonce };
+  return { ...(await openSession(env, g.email, 'google', g.name, g.picture)), nonce: g.nonce };
+}
+
+/* Signal de présence : numéro d'appareil aléatoire + secondes passées dans l'app, minutes de concentration et tâches
+   validées depuis le signal précédent (bornés) ; session facultative (compte « en ligne »). */
+const VID = /^[a-z0-9]{12,40}$/;
+const clamp = (v, max) => Math.max(0, Math.min(max, Math.round(+v || 0)));
+async function ping(req, env, h) {
+  const text = await req.text();
+  if (text.length > 2000) return json({ error: 'too large' }, 413, h);
+  const b = JSON.parse(text || '{}');
+  if (!VID.test(b.vid || '')) return json({ error: 'bad vid' }, 400, h);
+  let acc = null;
+  if (b.session) { const s = await readSession(b.session, (await keys(env, '/auth')).secret); acc = s ? s.id : null; }
+  await stats(env, '/ping', { vid: b.vid, s: clamp(b.s, 600), f: clamp(b.f, 4 * 3600), t: clamp(b.t, 100), bye: !!b.bye, acc });
+  return json({ ok: true }, 200, h);
 }
 
 /* Code de connexion par e-mail (Resend : https://resend.com, 100 e-mails / jour offerts) */
@@ -129,15 +157,25 @@ async function accountRoute(req, env, path, h) {
     }
     const r = await account(env, id, '/verify', { code: b.code });
     if (!r.ok) return json(await r.json(), r.status, h);
-    return json(await openSession(env, email), 200, h);
+    return json(await openSession(env, email, 'email'), 200, h);
   }
   const { secret } = await keys(env, '/auth');
   const s = await readSession(b.session, secret);
   if (!s) return json({ error: 'session invalide' }, 401, h);
+  if (path.startsWith('/admin/')) { // tableau de bord : réservé aux adresses de ADMIN_EMAILS
+    const { email } = await stats(env, '/whois', { id: s.id });
+    if (!isAdmin(env, email)) return json({ error: 'réservé au propriétaire' }, 403, h);
+    if (path === '/admin/summary') return json(await stats(env, '/summary', {}), 200, h);
+    if (path === '/admin/accounts') return json(await stats(env, '/accounts', {}), 200, h);
+    return json({ error: 'not found' }, 404, h);
+  }
   const op = { '/sync/get': '/get', '/sync/put': '/put', '/sync/delete': '/delete' }[path];
   if (!op) return json({ error: 'not found' }, 404, h);
+  if (op === '/delete') await stats(env, '/forget', { id: s.id });
   const r = await account(env, s.id, op, { ...b, session: undefined, iat: s.iat });
-  return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
+  const extra = {};
+  if (op === '/get' && env.ADMIN_EMAILS && isAdmin(env, (await stats(env, '/whois', { id: s.id })).email)) extra['X-Fokus-Admin'] = '1'; // propriétaire désigné après sa connexion
+  return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h, ...extra } });
 }
 
 /* Connexion par redirection (app installée sur l'écran d'accueil) : Google envoie le formulaire ici,
@@ -147,7 +185,7 @@ async function redirectLogin(req, env) {
   try {
     const f = await req.formData();
     const r = await login(env, f.get('credential'));
-    const frag = new URLSearchParams({ 'fokus-session': r.session, n: r.nonce, name: r.user.name, email: r.user.email, picture: r.user.picture });
+    const frag = new URLSearchParams({ 'fokus-session': r.session, n: r.nonce, name: r.user.name, email: r.user.email, picture: r.user.picture, admin: r.user.admin ? '1' : '' });
     return Response.redirect(app + '#' + frag, 303);
   } catch (e) {
     return Response.redirect(app + '#' + new URLSearchParams({ 'fokus-login-error': String(e.message || e).slice(0, 80) }), 303);

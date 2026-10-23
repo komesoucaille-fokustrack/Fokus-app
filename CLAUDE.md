@@ -207,6 +207,12 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   puis effacement des données de l'appareil (`resetAll(true)`). Méta locale `fokus_cloud`. Page `public/confidentialite/`.
   À l'activation : retirer « sans compte » des pages Découvrir / Pomodoro, du JSON-LD et de `public/og.png` ; FAQ « synchronisées ? ».
 - **Statistiques de visites** : Cloudflare Web Analytics (sans cookie) si `ANALYTICS_TOKEN` est renseigné (`main.jsx`, chargé au repos).
+- **Tableau de bord du propriétaire** (Réglages → Administration, `Admin.jsx`, visible seulement si l'adresse du compte est dans le secret
+  serveur `ADMIN_EMAILS` ; drapeau `user.admin` à la connexion ou en-tête `X-Fokus-Admin` sur `/sync/get`) : personnes en ligne en direct
+  (rafraîchi toutes les 10 s), récap Aujourd'hui / Semaine / Mois / Année / Depuis le début (visiteurs uniques, temps passé cumulé,
+  concentration, tâches validées, nouveaux comptes), barres des 30 derniers jours, liste des comptes (recherche, copie, export CSV).
+  Données : signal anonyme `lib/presence.js` (`/ping` toutes les 60 s, app visible : numéro d'appareil `fokus_vid`, secondes, secondes de
+  concentration et tâches validées depuis le signal précédent, « bye » au départ ; base remise à zéro sur les données reçues d'un autre appareil).
 - **Images / seconde** : tout est piloté par le temps (aucune hypothèse de 60 Hz) ; défilement et CSS à 120 Hz sur écran ProMotion ;
   Safari limite les animations JS (GSAP, 3D) à 60 i/s par défaut. Compteur de contrôle : ajouter `?fps` à l'adresse.
 - Raccourcis : N, /, Entrée, Échap. Interface en français, mobile d'abord (cibles ≥ 44 px, pas de défilement horizontal).
@@ -216,14 +222,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Account` (compte + choix des données).
-- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Account` (compte + choix des données), `Admin` (tableau de bord).
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation), `presence` (signal « en ligne »).
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID + secret des
-  sessions + compteur de comptes, `Account` = un compte Google : données découpées en morceaux de 32 000 caractères, `rev`) ;
+  sessions + compteur de comptes, `Account` = un compte : données découpées en morceaux de 32 000 caractères, `rev` ;
+  `Stats` = base SQLite unique : présence en mémoire, `visits(day, vid)`, `days(secs, focus, done, signups)`, `accounts(email, created, seen, via)`,
+  jours au fuseau Europe/Paris) ;
   chiffrement Web Push sans dépendance (`src/webpush.js`, testé contre `http_ece`) et comptes (`src/account.js` : jeton Google RS256
   (e-mail vérifié), codes e-mail (empreinte salée, 10 min, 5 essais, 1/min, 5/h, ≤ 95 e-mails/jour), sessions HMAC `v2.<empreinte de
   l'adresse>`, conflits, suppression) : `npm test` (dont `test/worker.test.mjs` = Worker complet simulé). Variables `ALLOWED_ORIGIN` (liste),
-  `APP_URL`, `GOOGLE_CLIENT_ID`, `MAIL_FROM` ; secret `RESEND_API_KEY` (GitHub → Actions, transmis par le workflow).
+  `APP_URL`, `GOOGLE_CLIENT_ID`, `MAIL_FROM` ; secrets `RESEND_API_KEY`, `ADMIN_EMAILS` (GitHub → Actions, transmis par le workflow).
   Déployé par `.github/workflows/push-server.yml` (secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).
   Adresse dans `src/push-config.js` (ou Réglages → Rappels → Avancé). Stocke l'abonnement, l'heure et le texte des rappels ;
   les données de l'app seulement pour les comptes Google connectés.

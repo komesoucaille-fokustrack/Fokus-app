@@ -27,6 +27,15 @@ new_sqlite_classes = ["User", "Keys"]
 tag = "v2"
 new_sqlite_classes = ["Account"]
 
+# Statistiques du tableau de bord (une seule instance, base SQLite)
+[[durable_objects.bindings]]
+name = "STATS"
+class_name = "Stats"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Stats"]
+
 [vars]
 # adresses autorisées à appeler le serveur (séparées par des virgules : ajouter ici un futur nom de domaine)
 ALLOWED_ORIGIN = "https://komesoucaille-fokustrack.github.io"

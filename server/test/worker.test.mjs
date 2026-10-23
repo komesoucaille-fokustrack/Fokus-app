@@ -1,12 +1,20 @@
 /* Test du Worker complet (routes, Durable Objects simulés en mémoire, e-mails et clés Google simulés) :
    connexion par code e-mail et par Google → même compte → sauvegarde → suppression. Lancer : npm test */
 import assert from 'node:assert/strict';
-import worker, { Account, Keys } from '../src/index.js';
+import { DatabaseSync } from 'node:sqlite';
+import worker, { Account, Keys, Stats } from '../src/index.js';
+import { periodStarts } from '../src/stats.js';
 
 const b64u = (b) => Buffer.from(b).toString('base64url');
+// base SQLite en mémoire au format de Cloudflare (storage.sql.exec(requête, ...valeurs).toArray())
+function sqlite() {
+  const db = new DatabaseSync(':memory:');
+  return { exec: (q, ...b) => { const st = db.prepare(q); const rows = /^\s*select/i.test(q) ? st.all(...b) : (st.run(...b), []); return { toArray: () => rows.map((r) => ({ ...r })) }; } };
+}
 function mem() {
   const m = new Map();
   return {
+    sql: sqlite(),
     async get(k) { return structuredClone(m.get(k)); },
     async put(k, v) { if (typeof k === 'object') Object.entries(k).forEach(([a, b]) => m.set(a, structuredClone(b))); else m.set(k, structuredClone(v)); },
     async delete(k) { m.delete(k); }, async deleteAll() { m.clear(); }, async setAlarm() {}, async deleteAlarm() {},
@@ -25,7 +33,8 @@ function ns(Cls, env) {
 }
 const CLIENT = 'c.apps.googleusercontent.com';
 const env = { ALLOWED_ORIGIN: 'https://fokus-track.com,https://komesoucaille-fokustrack.github.io', APP_URL: 'https://fokus-track.com/', GOOGLE_CLIENT_ID: CLIENT, RESEND_API_KEY: 're_test', MAIL_FROM: 'Fokus <connexion@fokus-track.com>' };
-env.KEYS = ns(Keys, env); env.ACCOUNTS = ns(Account, env);
+env.KEYS = ns(Keys, env); env.ACCOUNTS = ns(Account, env); env.STATS = ns(Stats, env);
+env.ADMIN_EMAILS = 'Patron@Fokus.fr, autre@x.fr';
 
 // faux Google (clés) et faux Resend (boîte aux lettres)
 const kp = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
@@ -83,10 +92,37 @@ assert.ok(new URLSearchParams(loc.hash.slice(1)).get('fokus-session').startsWith
 assert.equal(new URLSearchParams(loc.hash.slice(1)).get('n'), 'n1');
 console.log('✓ redirection Google : retour sur fokus-track.com avec la session et le nonce');
 
+// tableau de bord : présence, totaux, comptes, accès réservé
+assert.deepEqual(periodStarts('2026-10-23'), { today: '2026-10-23', week: '2026-10-19', month: '2026-10-01', year: '2026-01-01', all: '0000-00-00' });
+assert.deepEqual(periodStarts('2026-10-19').week, '2026-10-19'); assert.deepEqual(periodStarts('2026-10-25').week, '2026-10-19');
+assert.equal((await post('/ping', { vid: 'bad' })).status, 400);
+await post('/ping', { vid: 'appareil0000001', s: 60, f: 1500, t: 2, session: s1 });
+await post('/ping', { vid: 'appareil0000001', s: 60, session: s1 });
+await post('/ping', { vid: 'appareil0000002', s: 99999, t: 9999 }); // valeurs bornées
+await post('/ping', { vid: 'appareil0000003', s: 30, bye: true });  // quitte l'app
+assert.equal((await post('/admin/summary', { session: s1 })).status, 403, 'pas propriétaire → refusé');
+assert.equal((await post('/admin/summary', { session: 'nimporte' })).status, 401);
+await post('/auth/email/start', { email: 'patron@fokus.fr' });
+const boss = await post('/auth/email/verify', { email: 'patron@fokus.fr', code: /(\d{6}) est ton code/.exec(inbox.at(-1).subject)[1] });
+assert.equal(boss.user.admin, true, 'propriétaire reconnu (casse indifférente)');
+assert.equal(r.user?.admin ?? false, false);
+const sum = await post('/admin/summary', { session: boss.session });
+assert.equal(sum.online, 2, '2 appareils en ligne (le 3e est parti)');
+assert.equal(sum.onlineAccounts, 1);
+for (const k of ['today', 'week', 'month', 'year', 'all']) {
+  assert.equal(sum.periods[k].visitors, 3); assert.equal(sum.periods[k].secs, 60 + 60 + 600 + 30);
+  assert.equal(sum.periods[k].focus, 1500); assert.equal(sum.periods[k].done, 2 + 100); assert.equal(sum.periods[k].signups, 2);
+}
+assert.equal(sum.daily.length, 30); assert.equal(sum.daily.at(-1).visitors, 3); assert.equal(sum.accounts, 2);
+const list = await post('/admin/accounts', { session: boss.session });
+assert.deepEqual(list.accounts.map((a) => [a.email, a.via]).sort(), [['lea@exemple.fr', 'email'], ['patron@fokus.fr', 'email']]);
+console.log('✓ tableau de bord : en ligne (2 dont 1 connecté), totaux par période, valeurs bornées, liste des comptes, accès réservé');
+
 // statistiques, suppression
 r = await worker.fetch(new Request('https://w/stats'), env).then((x) => x.json());
-assert.equal(r.accounts, 1);
+assert.equal(r.accounts, 2);
 assert.equal((await post('/sync/delete', { session: s1 })).ok, true);
+assert.deepEqual((await post('/admin/accounts', { session: boss.session })).accounts.map((a) => a.email), ['patron@fokus.fr'], 'compte supprimé retiré de la liste');
 assert.equal((await post('/sync/get', { session: s1, have: -1 })).status, 401);
 assert.equal((await post('/sync/get', { session: 'v2.abc.1.zzzzzzzzzzzzzzzzzzzzzzzz', have: -1 })).status, 401);
 console.log('✓ compteur de comptes ; suppression → session invalidée');

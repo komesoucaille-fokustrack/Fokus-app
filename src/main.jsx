@@ -8,9 +8,10 @@ import { ANALYTICS_TOKEN } from './cloud-config';
    puis chargement du store (qui lit le localStorage à l'import) et de l'interface. */
 async function boot() {
   const restored = await Promise.race([restoreIfNeeded('focus_state'), new Promise((r) => setTimeout(() => r(false), 1500))]);
-  const [{ default: App }, store, cloud] = await Promise.all([import('./App'), import('./store'), import('./lib/cloud')]);
+  const [{ default: App }, store, cloud, presence] = await Promise.all([import('./App'), import('./store'), import('./lib/cloud'), import('./lib/presence')]);
   store.checkDay();
   cloud.initCloud(); // compte : retour de connexion + synchronisation
+  presence.initPresence(); // signal anonyme « en ligne » + temps passé (tableau de bord du propriétaire)
   if (restored) store.toast('Données restaurées depuis la copie de secours.');
   // connexion obligatoire : écran de connexion tant qu'il n'y a pas de session (l'app s'affiche dès la connexion)
   const Login = cloud.loginRequired() ? (await import('./components/Login')).default : null;
