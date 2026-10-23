@@ -75,6 +75,8 @@ export default function AdminDashboard() {
   }, [acc, q]);
   const ages = (acc || []).map((a) => a.age).filter(Boolean);
   const avgAge = ages.length ? Math.round(ages.reduce((x, y) => x + y, 0) / ages.length) : 0;
+  // comptes revenus récemment (dernière visite) : les inscrits qui utilisent vraiment Fokus
+  const activeIn = (days) => (acc || []).filter((a) => Date.now() - a.seen < days * 864e5).length;
   const copy = async () => {
     try { await navigator.clipboard.writeText(shown.map((a) => a.email).join('\n')); toast(`${shown.length} adresse${shown.length > 1 ? 's' : ''} copiée${shown.length > 1 ? 's' : ''}.`); }
     catch { toast('Copie impossible.'); }
@@ -121,6 +123,9 @@ export default function AdminDashboard() {
           <button type="button" className="b" onClick={csv} disabled={!shown.length}>Exporter (CSV)</button>
         </span>
       </div>
+      {acc && acc.length > 0 && (
+        <p className="adm-active">🔁 Comptes actifs : <b>{nf.format(activeIn(1))}</b> aujourd’hui · <b>{nf.format(activeIn(7))}</b> sur 7 jours · <b>{nf.format(activeIn(30))}</b> sur 30 jours</p>
+      )}
       <input className="field adm-search" type="search" placeholder="Rechercher (e-mail, pseudo, nom)…" value={q} onChange={(e) => setQ(e.target.value)} autoCapitalize="off" />
       {!acc ? <p className="si-d">Chargement des comptes…</p> : !shown.length ? <p className="si-d">Aucun compte{q ? ' pour cette recherche' : ' pour l’instant'}.</p> : (
         <ul className="adm-list">

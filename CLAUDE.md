@@ -33,7 +33,8 @@ Claude gère 100 % du code, des builds et du déploiement. Chaque push sur `main
 - **Logo** (kit source dans `brand/`) : anneau de progression vert (`#059669 → #10b981 → #86efac`) + logotype « FOKUS » dont le O est
   l'anneau ; `FokusLogo.jsx` (en-tête) et bannière de l'arche (mêmes tracés `LOGO_SVG`) ; icônes `public/icon*.png`, `favicon*`.
   `theme_color` / `background_color` `#050608` ; écrans de démarrage iPad/iPhone `public/splash/` (`scripts/make-splash.py`).
-- Typographie Inter, `tabular-nums` sur tous les chiffres. Accents de couleur : progression (pastels), animation (bleu électrique),
+- Typographie Inter, `tabular-nums` sur tous les chiffres ; le trait d'union vient d'une police système (`'Fokus Trait'`, `unicode-range`
+  U+2D, en tête de `--font-sans`) car `tnum` élargit celui d'Inter (« après - midi »). Accents de couleur : progression (pastels), animation (bleu électrique),
   priorités (or), points (pastels discrets). En-tête éditorial `Hello.jsx` (date, salutation, résumé), navigation en pastille glissante (`.navseg`/`.navind`).
 - Courbes d'animation « spring » : `cubic-bezier(.22,1,.36,1)`. Tout doit rester fluide sur iPad (Safari, tactile, 60 fps) — mesuré :
   30 tâches, profil iPad Retina, processeur ×4 plus lent : 60 i/s, aucune image > 25 ms, CLS 0.
@@ -189,7 +190,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Ouverture rapide** (`App.jsx`) : écrans secondaires chargés à la demande (`React.lazy` + `Suspense` : Pomodoro, Réglages, Recherche,
   Tri du matin, Bilan, Surcharge, Chronologie, Rituel du soir, Progrès) ; scène 3D (`Scene3D`) chargée au repos (`requestIdleCallback`)
   ou dès qu'une tâche est cochée, puis préchargement des autres écrans. Mesuré (4G lente, processeur ×4) : utilisable en ≈ 1,4 s.
-- **Amis / nouveaux utilisateurs** : carte `Welcome.jsx` (1re ouverture sans données : 3 points clés, installation sur l'écran d'accueil,
+- **Amis / nouveaux utilisateurs** : carte `Welcome.jsx` (1re ouverture sans données ; connecté : « À toi de jouer, {pseudo} 👇 » + astuce
+  de saisie rapide, le principe étant déjà dans `Intro.jsx` ; sinon 3 points clés ; installation sur l'écran d'accueil,
   « Inviter des amis » via `shareFokus()` = partage natif ou copie du lien) ; bouton « Partager Fokus » dans Réglages → Données.
 - **Référencement Google** : `index.html` porte titre « Fokus Track — … », description, `canonical`, Open Graph (`public/og.png`
   1200×630) et JSON-LD `WebApplication` (alternateName « Fokus Track ») ; pages statiques indexables `public/pomodoro/` (minuteur
@@ -219,7 +221,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **Tableau de bord du propriétaire** (Réglages → Administration, `Admin.jsx`, visible seulement si l'adresse du compte est dans le secret
   serveur `ADMIN_EMAILS` ; drapeau `user.admin` à la connexion ou en-tête `X-Fokus-Admin` sur `/sync/get`) : personnes en ligne en direct
   (rafraîchi toutes les 10 s), récap Aujourd'hui / Semaine / Mois / Année / Depuis le début (visiteurs uniques, temps passé cumulé,
-  concentration, tâches validées, nouveaux comptes), barres des 30 derniers jours, liste des comptes (recherche, copie, export CSV).
+  concentration, tâches validées, nouveaux comptes), barres des 30 derniers jours, comptes actifs (aujourd'hui / 7 j / 30 j, d'après la
+  dernière visite), liste des comptes (recherche, copie, export CSV).
   Données : signal anonyme `lib/presence.js` (`/ping` toutes les 60 s, app visible : numéro d'appareil `fokus_vid`, secondes, secondes de
   concentration et tâches validées depuis le signal précédent, « bye » au départ ; base remise à zéro sur les données reçues d'un autre appareil).
 - **Images / seconde** : tout est piloté par le temps (aucune hypothèse de 60 Hz) ; défilement et CSS à 120 Hz sur écran ProMotion ;

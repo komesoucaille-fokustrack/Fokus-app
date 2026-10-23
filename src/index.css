@@ -1,8 +1,16 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/inter';
 
+/* Trait d'union : avec « tabular-nums » (chiffres alignés, partout), Inter élargit aussi le tiret (« Bel après - midi »).
+   Seul le trait d'union vient donc d'une police système ; tout le reste reste en Inter. Police absente → Inter (comme avant). */
+@font-face {
+  font-family: 'Fokus Trait';
+  src: local('Helvetica Neue'), local('HelveticaNeue'), local('Arial'), local('Liberation Sans');
+  unicode-range: U+2D, U+2010-2011;
+}
+
 @theme {
-  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Fokus Trait', 'Inter Variable', Inter, system-ui, -apple-system, sans-serif;
   --color-ink: #050608;
   --color-cont: #0b0c10;
   --color-card: #121318;
@@ -742,3 +750,5 @@
 .intro-quote { margin: 0 0 18px; padding: 12px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; color: #d9f99d;
   background: rgba(134,239,172,.08); border: 1px solid rgba(134,239,172,.25); }
 .intro-go { width: 100%; }
+.adm-active { margin: -4px 0 0; font-size: 13px; color: var(--color-mut); font-variant-numeric: tabular-nums; }
+.adm-active b { color: var(--color-text); }

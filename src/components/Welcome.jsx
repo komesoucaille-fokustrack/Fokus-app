@@ -22,7 +22,7 @@ const ios = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.pla
 
 export default function Welcome() {
   const { S } = useStore();
-  const { session } = useCloud();
+  const { session, user } = useCloud();
   const [canInstall, setCanInstall] = useState(!!window.__fokusInstall);
   useEffect(() => { const f = () => setCanInstall(true); addEventListener('fokusinstall', f); return () => removeEventListener('fokusinstall', f); }, []);
   if (S.seen.welcome || S.tasks.length || Object.keys(S.hist).length) return null;
@@ -30,14 +30,21 @@ export default function Welcome() {
   return (
     <div className="card welcome">
       <div className="flex items-start justify-between gap-3">
-        <b className="text-[17px]">Bienvenue sur Fokus 👋</b>
+        <b className="text-[17px]">{session ? `À toi de jouer${user?.pseudo ? ', ' + user.pseudo : ''} 👇` : 'Bienvenue sur Fokus 👋'}</b>
         <button type="button" className="ic close" onClick={() => markSeen('welcome')} aria-label="Fermer">✕</button>
       </div>
-      <ul className="welcome-l">
-        <li><span>✍️</span><span>Ajoute tes tâches du jour : « Sport demain 18h30 @sport ~45 » marche aussi.</span></li>
-        <li><span>✅</span><span>Coche ce que tu as fait puis touche <b>Valider</b> : ta barre avance (et ça se voit !).</span></li>
-        <li><span>⏱️</span><span>Concentre-toi avec l'onglet <b>Pomodoro</b>, suis ta série et gagne des badges.</span></li>
-      </ul>
+      {session ? ( // le principe a déjà été expliqué juste après l'inscription (Intro.jsx) : ici, le concret pour démarrer
+        <ul className="welcome-l">
+          <li><span>✍️</span><span>Écris ta première tâche juste en dessous. Astuce : « Sport demain 18h30 @sport ~45 » règle d'un coup la date, l'heure, la catégorie et la durée.</span></li>
+          <li><span>🌱</span><span>Commence petit : 2 ou 3 tâches faciles aujourd'hui suffisent pour lancer ta série.</span></li>
+        </ul>
+      ) : (
+        <ul className="welcome-l">
+          <li><span>✍️</span><span>Ajoute tes tâches du jour : « Sport demain 18h30 @sport ~45 » marche aussi.</span></li>
+          <li><span>✅</span><span>Coche ce que tu as fait puis touche <b>Valider</b> : ta barre avance (et ça se voit !).</span></li>
+          <li><span>⏱️</span><span>Concentre-toi avec l'onglet <b>Pomodoro</b>, suis ta série et gagne des badges.</span></li>
+        </ul>
+      )}
       {!isStandalone() && (
         <p className="welcome-i">
           📲 <b>Installe Fokus comme une app</b> (plein écran, hors ligne, notifications) :{' '}

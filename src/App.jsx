@@ -289,7 +289,7 @@ export default function App() {
             <ProgressCard ref={card} s={s} text={text} busy={UI.busy} fmt={fmt} />
             <DayStrip ref={strip} S={S} />
             <div ref={form}>
-              <QuickAdd ref={input} allowRec placeholder="Ajouter une tâche… (ex. « Sport demain #santé »)" />
+              <QuickAdd ref={input} allowRec placeholder={innerWidth < 560 ? "Nouvelle tâche… (ex. « Sport demain »)" : "Ajouter une tâche… (ex. « Sport demain #santé »)"} />
             </div>
             <div ref={list}>
               {usedCats.length + usedTags.length > 0 && (
