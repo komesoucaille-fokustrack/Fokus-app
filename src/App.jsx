@@ -37,6 +37,7 @@ const WeeklyReview = lazy(() => import('./components/WeeklyReview'));
 const Overload = lazy(() => import('./components/Overload'));
 const Timeline = lazy(() => import('./components/Timeline'));
 const EveningRitual = lazy(() => import('./components/EveningRitual'));
+const TITLE = document.title; // titre de index.html (référencement), remis quand le minuteur s'arrête
 
 /* Si WebGL est indisponible, l'app reste utilisable (animation DOM seule) */
 class Guard extends Component {
@@ -86,7 +87,7 @@ function usePomodoro() {
       if (p && p.paused == null) {
         const left = Math.max(0, Math.ceil(p.dur - pomoElapsed(p)));
         document.title = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')} · ${PHASES[p.phase]} — Fokus`;
-      } else if (!document.title.startsWith('Fokus')) document.title = 'Fokus — Tâches & Performance';
+      } else if (document.title !== TITLE) document.title = TITLE;
     };
     const iv = setInterval(step, 1000);
     document.addEventListener('visibilitychange', step);
@@ -319,6 +320,10 @@ export default function App() {
               )}
               <button className="b text-[13px] text-mut" onClick={() => setModal('weekly')}>Bilan de la semaine</button>
             </div>
+            <footer className="site-foot">
+              <b>Fokus Track</b> — tâches du jour, minuteur Pomodoro et suivi de progression. Gratuit, sans pub, sans compte.
+              <span><a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Le minuteur Pomodoro</a></span>
+            </footer>
           </section>
         ) : UI.page === 3 ? (
           <div ref={page} key="p3"><Upcoming /></div>

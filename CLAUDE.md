@@ -191,6 +191,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   ou dès qu'une tâche est cochée, puis préchargement des autres écrans. Mesuré (4G lente, processeur ×4) : utilisable en ≈ 1,4 s.
 - **Amis / nouveaux utilisateurs** : carte `Welcome.jsx` (1re ouverture sans données : 3 points clés, installation sur l'écran d'accueil,
   « Inviter des amis » via `shareFokus()` = partage natif ou copie du lien) ; bouton « Partager Fokus » dans Réglages → Données.
+- **Référencement Google** : `index.html` porte titre « Fokus Track — … », description, `canonical`, Open Graph (`public/og.png`
+  1200×630) et JSON-LD `WebApplication` (alternateName « Fokus Track ») ; pages statiques indexables `public/pomodoro/` (minuteur
+  Pomodoro, lien `../?page=4`) et `public/decouvrir/` (présentation), style commun `public/site.css` ; `public/sitemap.xml` ;
+  pied de page `.site-foot` de la page Tâches avec liens vers ces pages. Le service worker ne met en cache que l'app (`./`),
+  jamais ces pages. Si l'adresse change (domaine perso), mettre à jour les URL absolues (index.html, pages, sitemap).
 - Raccourcis : N, /, Entrée, Échap. Interface en français, mobile d'abord (cibles ≥ 44 px, pas de défilement horizontal).
 
 ## Arborescence

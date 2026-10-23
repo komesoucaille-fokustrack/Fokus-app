@@ -645,3 +645,10 @@
   .welcome-l li { display: grid; grid-template-columns: 26px 1fr; gap: 6px; align-items: start; }
   .welcome-i { margin-top: 12px; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--color-line); }
 }
+
+/* pied de page de la page Tâches : présentation courte + liens vers les pages Découvrir / Pomodoro (référencement) */
+.site-foot { margin: 26px auto 0; max-width: 520px; text-align: center; font-size: 12.5px; line-height: 1.55; color: var(--color-mut); }
+.site-foot b { color: var(--color-text); font-weight: 650; }
+.site-foot span { display: block; margin-top: 4px; }
+.site-foot a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3);
+  display: inline-block; padding: 8px 2px; }

@@ -24,6 +24,12 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   if (req.mode === 'navigate') {
+    // pages de présentation (Découvrir, Pomodoro) : réseau, sans jamais remplacer l'app en cache
+    const path = new URL(req.url).pathname, root = new URL('./', self.registration.scope).pathname;
+    if (path !== root && path !== root + 'index.html') {
+      e.respondWith(fetch(req).catch(() => caches.match('./', { ignoreVary: true })));
+      return;
+    }
     // page : réseau d'abord en contournant le cache HTTP (GitHub Pages le garde 10 min) → mises à jour immédiates
     e.respondWith(
       fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
