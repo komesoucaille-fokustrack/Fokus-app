@@ -1,0 +1,25 @@
+# Vérifie le site en ligne comme un visiteur : cadenas HTTPS (certificat), redirections, serveur de comptes.
+# Lancement manuel (Actions → « Vérifier le site » → Run workflow) ou par Claude.
+name: Vérifier le site
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cadenas HTTPS de fokus-track.com
+        run: |
+          echo | openssl s_client -connect fokus-track.com:443 -servername fokus-track.com 2>/dev/null | openssl x509 -noout -subject -issuer -dates || echo "PAS DE CERTIFICAT VALIDE"
+          curl -sS -o /dev/null -w "https://fokus-track.com → %{http_code} (certificat vérifié : %{ssl_verify_result} = 0 si OK)\n" https://fokus-track.com/ || echo "HTTPS INDISPONIBLE"
+      - name: Redirections
+        run: |
+          curl -sS -o /dev/null -w "http://fokus-track.com → %{http_code} %{redirect_url}\n" http://fokus-track.com/ || true
+          curl -sS -o /dev/null -w "https://www.fokus-track.com → %{http_code} %{redirect_url}\n" https://www.fokus-track.com/ || true
+          curl -sS -o /dev/null -w "ancienne adresse → %{http_code} %{redirect_url}\n" https://komesoucaille-fokustrack.github.io/Fokus-app/ || true
+      - name: Pages et serveur
+        run: |
+          for p in "" pomodoro/ decouvrir/ confidentialite/ sitemap.xml og.png sw.js; do curl -sS -o /dev/null -w "/$p → %{http_code}\n" "https://fokus-track.com/$p" || true; done
+          curl -sS https://fokus-push.kome-soucaille.workers.dev/ && echo
+          curl -sS -o /dev/null -D - -X OPTIONS -H "Origin: https://fokus-track.com" https://fokus-push.kome-soucaille.workers.dev/sync/get | grep -i "access-control-allow-origin" || echo "CORS : origine refusée"
