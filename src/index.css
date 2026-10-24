@@ -971,5 +971,5 @@
 .mine-mission-r { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 60px; opacity: .8; font-variant-numeric: tabular-nums; }
 .mine-bar.sm2 { height: 7px; }
 .mine-mission.done .mine-bar i { background: linear-gradient(90deg, #34d399, #86efac); }
-@media (max-width: 600px) { .mine-wait-t > span { display: none; } .mine-mission { grid-template-columns: 1fr auto; } .mine-mission .mine-bar { grid-column: 1 / -1; grid-row: 2; } .mine-price { grid-template-columns: 28px 1fr auto; } .mine-price .b { grid-column: 2 / -1; justify-self: end; min-height: 36px; } }
+@media (max-width: 600px) { .mine-wide { display: none; } .mine-pill { min-height: 30px; padding: 3px 10px; font-size: 12.5px; } .mine-wait-t > span { display: none; } .mine-mission { grid-template-columns: 1fr auto; } .mine-mission .mine-bar { grid-column: 1 / -1; grid-row: 2; } .mine-price { grid-template-columns: 28px 1fr auto; } .mine-price .b { grid-column: 2 / -1; justify-self: end; min-height: 36px; } }
 @media (max-width: 600px) { .mine-goalpill { margin-left: 0; } .mine-stage { height: 62vh; } }

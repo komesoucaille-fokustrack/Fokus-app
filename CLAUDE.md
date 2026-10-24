@@ -307,9 +307,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
 - **La mine** (jeu dans le labo, page 5, carte dans l'onglet Pomodoro) : `src/game/` (`data.js` mondes / minerais / améliorations,
   `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
+  **v2 premium** : matières peintes sans raccord (`makeTiles`, textures 4 × 4 cases remplies en motif, îlots de terre arrondis dans
+  la roche, coins des galeries arrondis), minerais facettés, bâtiments à plaques dorées, ciel en perspective atmosphérique, vignette ;
+  **galeries aléatoires** (`plan()` : tronçons de longueur variable, marches, montées, demi-tours, niveau du chantier `DESCENT`,
+  minerais repérés par la lampe `seeRange`, relance ailleurs si bloqué = `act 'move'`) ; **lumière** : tout est noir sous terre sauf
+  autour des **lanternes** posées par le mineur (`g.lamps`, `lampGap`, amélioration « Lanternes ») et de la lampe frontale ;
+  la lumière suit les galeries (`computeLight`) et n'éclaire qu'une case de paroi (image d'obscurité à 2 points par case) ;
+  monde 1 large de 240 cases (`fixGame` convertit les anciennes parties : `g.ww`),
   `components/Mine.jsx` (intro + histoire, jeu, lieux, collection, missions), partie dans `S.mine` (`setMine`), temps de jeu =
   `focusSecs()` (concentration Pomodoro depuis le début de l'aventure, impossible d'accélérer), monnaie **Fokoin** (Fk) ;
-  équilibrage : `node scripts/mine-sim.mjs` (monde 1 ≈ 12 h). Boutons de test « +1 h » réservés au labo.
+  équilibrage : `node scripts/mine-sim.mjs` (monde 1 ≈ 12 h, actuellement 12,5 h). Boutons de test « +1 h » réservés au labo.
   **Histoire** (`STORY`, 7 scènes racontées comme un récit, accords `{féminin|masculin}`) : le personnage n'a **jamais de pioche**
   pendant le récit (`drawMiner(..., { tool: false })`, sans casque à la maison : `helmet: false`) ; il la trouve dans la mine.
   **Surface** : Atelier (objectif du monde en 3 étapes : livre → pièces → départ), Boutique (rayons `SHOP_CATS`, niveaux, toutes

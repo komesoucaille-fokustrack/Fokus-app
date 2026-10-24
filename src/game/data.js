@@ -9,26 +9,26 @@ export const COIN = 'Fk';
 export const AIR = 0, DIRT = 1, ROCK = 2, BEDROCK = -1;
 
 /* Minerais du monde 1 (« La mine de ta ville », ancienne mine de charbon) :
-   value (Fk), hard (dureté : temps de creusage relatif), w (poids de tirage), deep (préférence de profondeur),
+   value (Fk), hard (dureté : temps de creusage relatif), w (poids de tirage), deep (préférence de profondeur), min (profondeur mini, en cases),
    colors = [base, clair, sombre] pour le dessin des cristaux / filons */
 export const WORLDS = [
   {
-    id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', seed: 1013, width: 120, depth: 120,
+    id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', seed: 1013, width: 240, depth: 120, veins: 0.42,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#2f4558',
     goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 3000, build: 9000, next: 'La région · Massif central' },
     tiles: {
-      [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#8a5a3b', '#a8714b', '#5e3b24'] },
-      [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#7b7f86', '#9aa0a8', '#52565c'] },
+      [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#6e4a32', '#8d6444', '#432c1c'] },
+      [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#5a534d', '#7a7168', '#37312d'] },
     },
     ores: [
-      { id: 'charbon', name: 'Charbon', value: 1, hard: 1.6, w: 40, deep: 0, colors: ['#2a2a2e', '#55555c', '#121214'] },
-      { id: 'cuivre', name: 'Cuivre', value: 2, hard: 1.8, w: 26, deep: 0.01, colors: ['#c8743c', '#f0a46a', '#7c3f19'] },
-      { id: 'fer', name: 'Fer', value: 10, hard: 2.1, w: 13, deep: 0.02, colors: ['#b58a6e', '#e2c0a6', '#6d4c3a'] },
-      { id: 'quartz', name: 'Quartz', value: 20, hard: 2.3, w: 8, deep: 0.03, colors: ['#e9eef5', '#ffffff', '#a8b4c6'] },
-      { id: 'argent', name: 'Argent', value: 50, hard: 2.5, w: 4.5, deep: 0.04, colors: ['#c9d2dc', '#f4f8fc', '#7e8894'] },
-      { id: 'or', name: 'Or', value: 100, hard: 2.7, w: 2.2, deep: 0.05, colors: ['#f2c230', '#fff0a0', '#a87a08'] },
-      { id: 'amethyste', name: 'Améthyste', value: 250, hard: 3, w: 0.7, deep: 0.06, colors: ['#9b5de5', '#d8b4fe', '#5b2a9a'] },
-      { id: 'geode', name: 'Géode géante', value: 1000, hard: 3.4, w: 0.08, deep: 0.07, colors: ['#5ec4d6', '#c8f4fb', '#1f6e7c'] },
+      { id: 'charbon', name: 'Charbon', value: 1, hard: 1.6, w: 40, deep: 0, min: 0, colors: ['#2a2a2e', '#55555c', '#121214'] },
+      { id: 'cuivre', name: 'Cuivre', value: 2, hard: 1.8, w: 26, deep: 0.01, min: 3, colors: ['#c8743c', '#f0a46a', '#7c3f19'] },
+      { id: 'fer', name: 'Fer', value: 10, hard: 2.1, w: 13, deep: 0.02, min: 8, colors: ['#b58a6e', '#e2c0a6', '#6d4c3a'] },
+      { id: 'quartz', name: 'Quartz', value: 20, hard: 2.3, w: 8, deep: 0.03, min: 14, colors: ['#e9eef5', '#ffffff', '#a8b4c6'] },
+      { id: 'argent', name: 'Argent', value: 50, hard: 2.5, w: 4.5, deep: 0.04, min: 20, colors: ['#c9d2dc', '#f4f8fc', '#7e8894'] },
+      { id: 'or', name: 'Or', value: 100, hard: 2.7, w: 2.2, deep: 0.05, min: 28, colors: ['#f2c230', '#fff0a0', '#a87a08'] },
+      { id: 'amethyste', name: 'Améthyste', value: 250, hard: 3, w: 0.7, deep: 0.06, min: 45, colors: ['#9b5de5', '#d8b4fe', '#5b2a9a'] },
+      { id: 'geode', name: 'Géode géante', value: 1000, hard: 3.4, w: 0.08, deep: 0.07, min: 70, colors: ['#5ec4d6', '#c8f4fb', '#1f6e7c'] },
     ],
   },
 ];
@@ -44,7 +44,8 @@ export const SHOP_CATS = [['tools', '⛏️ Outils'], ['gear', '🎒 Équipement
 export const UPGRADES = [
   { id: 'pick', cat: 'tools', name: 'Pioche', desc: 'Creuse plus vite', max: 12, base: 60, mult: 2.05, label: (n) => PICKS[n][0], fx: (n) => `× ${(1.3 ** n).toFixed(2)} vitesse` },
   { id: 'bag', cat: 'gear', name: 'Sac à dos', emoji: '🎒', desc: 'Plus de place avant de remonter', max: 12, base: 40, mult: 1.9, fx: (n) => `${bagCap(n)} places` },
-  { id: 'lamp', cat: 'gear', name: 'Lampe frontale', emoji: '🔦', desc: 'Éclaire plus loin : on voit les minerais autour', max: 6, base: 120, mult: 2.4, fx: (n) => `portée ${(3.4 + n * 0.8).toFixed(1).replace('.', ',')} cases` },
+  { id: 'lamp', cat: 'gear', name: 'Lampe frontale', emoji: '🔦', desc: 'Éclaire plus loin : le mineur repère les minerais cachés autour de lui et va les chercher', max: 6, base: 120, mult: 2.4, fx: (n) => `repère à ${1 + Math.floor(n / 2)} case${n > 1 ? 's' : ''} · lumière ${(3.5 + n * 0.7).toFixed(1).replace('.', ',')} cases` },
+  { id: 'lant', cat: 'gear', name: 'Lanternes', emoji: '🏮', desc: 'Le mineur accroche plus de lanternes : les galeries sont mieux éclairées', max: 4, base: 150, mult: 2.6, fx: (n) => `une lanterne toutes les ${[7, 6, 5, 4, 3][n]} cases` },
   { id: 'boots', cat: 'body', name: 'Chaussures', emoji: '🥾', desc: 'Marche plus vite dans les galeries', max: 10, base: 80, mult: 2, fx: (n) => `× ${(1 + 0.25 * n).toFixed(2)} vitesse` },
   { id: 'stam', cat: 'body', name: 'Endurance', emoji: '💪', desc: 'Mine plus longtemps avant de se reposer', max: 4, base: 600, mult: 3, fx: (n) => `${stamina(n) / 60} min de minage pour 10 min de repos` },
   { id: 'auto', cat: 'auto', name: 'Tri automatique', emoji: '♻️', desc: 'La terre et la pierre sont vendues sur place (ne prennent plus de place dans le sac)', max: 1, base: 250, mult: 1, fx: (n) => (n ? 'Activé' : 'Désactivé') },

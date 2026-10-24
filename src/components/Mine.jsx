@@ -8,7 +8,7 @@ import {
   recover, sell, setDir, stam, step, stockValue,
 } from '../game/sim.js';
 import { createView, drawFrame, hitBuilding, pop } from '../game/render.js';
-import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, paintSkyline } from '../game/art.js';
+import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, paintCave, paintSkyline } from '../game/art.js';
 import { LABO } from '../env';
 
 /* =====================================================================
@@ -43,13 +43,7 @@ function StoryArt({ scene, gender }) {
     let raf;
     const t0 = performance.now(), W = r.width, H = r.height, S = Math.min(W, H) / 4;
     const hero = (x, y, s, o) => drawMiner(ctx, x, y, s, { gender, face: 1, tool: false, ...o });
-    const cave = (cx, cy, lit) => {
-      ctx.fillStyle = '#0d0805'; ctx.fillRect(0, 0, W, H);
-      const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, W * lit);
-      g.addColorStop(0, '#7a5638'); g.addColorStop(0.55, '#3a2617'); g.addColorStop(1, '#0d0805');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.ellipse((i * 97) % W, (i * 53) % H, 18 + (i % 4) * 6, 10, i, 0, 7); ctx.fill(); }
-    };
+    const cave = (cx, cy, lit) => paintCave(ctx, W, H, cx, cy, lit);
     const draw = (now) => {
       const t = (now - t0) / 1000;
       ctx.clearRect(0, 0, W, H);
@@ -411,7 +405,7 @@ function Game({ initial }) {
         <div className="mine-hud">
           <span className="mine-pill mine-coins"><Fk n={g.coins} size={22} /></span>
           <span className="mine-pill">🎒 {g.bagN}/{cap(g)}</span>
-          {stockN > 0 && !g.up.seller ? <button type="button" className="mine-pill mine-sell" onClick={() => setSheet('market')}>📦 {stockN} au coffre · vendre</button> : <span className="mine-pill">📦 {stockN}</span>}
+          {stockN > 0 && !g.up.seller ? <button type="button" className="mine-pill mine-sell" onClick={() => setSheet('market')}><span>📦 {stockN}<span className="mine-wide"> au coffre</span> · vendre</span></button> : <span className="mine-pill">📦 {stockN}</span>}
           <span className="mine-pill">⬇ {depthM(g.y)} m</span>
           <span className="mine-pill">{g.hero.name} {working ? STATUS[g.act] || '' : g.act === 'rest' ? '💤 se repose' : '⏳ attend ta concentration'}</span>
         </div>

@@ -27,26 +27,34 @@ export function tileAt(W, x, y) {
   const d = y / W.depth;
   // filons : cellules de 3×3, plus fréquents en profondeur
   const cx = Math.floor(x / 3), cy = Math.floor(y / 3);
-  const pv = 0.26 + 0.16 * d;
+  const pv = (0.26 + 0.16 * d) * (W.veins || 1);
   if (y >= 2 && hash(cx, cy, W.seed + 1) < pv && hash(x, y, W.seed + 2) < 0.58) {
     const ores = W.ores;
     let tot = 0;
-    const ws = ores.map((o) => { const v = o.w * Math.exp(o.deep * y) * (y >= 6 + o.deep * 400 ? 1 : 0.02); tot += v; return v; });
+    const ws = ores.map((o) => { const v = o.w * Math.exp(o.deep * y) * (y >= (o.min ?? 6 + o.deep * 400) ? 1 : 0.02); tot += v; return v; });
     let u = hash(cx * 7 + 3, cy * 13 + 5, W.seed + 3) * tot;
-    for (let i = 0; i < ores.length; i++) { u -= ws[i]; if (u <= 0) return 3 + i; }
+    for (let i = 0; i < ores.length; i++) {
+      if ((u -= ws[i]) > 0) continue;
+      // pierres précieuses : une seule par filon (le reste du filon est du charbon)
+      return ores[i].value >= 250 && (x % 3 !== 1 || y % 3 !== 1) ? 3 : 3 + i;
+    }
     return 3;
   }
   // roche de base : terre en surface, pierre en profondeur (avec des poches)
-  const n = hash(Math.floor(x / 2), Math.floor(y / 2), W.seed + 4);
-  return y < 5 + n * 6 || (y < 18 && n < 0.18) ? DIRT : ROCK;
+  // limite terre / roche ondulée et continue (bruit lissé le long de x), quelques poches de terre plus bas
+  const n = (u) => hash(Math.floor(u), 0, W.seed + 4), sm = (u) => { const i = Math.floor(u), f = u - i, k = f * f * (3 - 2 * f); return n(i) * (1 - k) + n(i + 1) * k; };
+  const edge = 6 + sm(x / 7) * 4 + sm(x / 2.3 + 40) * 1.5;
+  if (y < edge) return DIRT;
+  const p = hash(Math.floor(x / 4), Math.floor(y / 4), W.seed + 5);
+  return y < 30 && p < 0.07 && hash(x, y, W.seed + 6) < 0.85 ? DIRT : ROCK;
 }
 export const tileInfo = (W, t) => (t >= 3 ? W.ores[t - 3] : W.tiles[t]);
 
 /* ---------- état ---------- */
 export function newGame({ gender, name, focus }) {
   return {
-    v: 1, w: 1, hero: { gender, name }, x: ENTRY, y: START_Y, dir: 'right', hdir: 'right', down: 0, act: 'dig', prog: 0, walk: 0, route: null,
-    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0, lamp: 0, seller: 0 },
+    v: 1, w: 1, ww: world(1).width, hero: { gender, name }, x: ENTRY, y: START_Y, dir: 'right', hdir: 'right', pref: 'right', seg: 0, lamps: [], act: 'dig', prog: 0, walk: 0, route: null,
+    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0, lamp: 0, lant: 0, seller: 0 },
     dug: [], found: {}, base0: focus, used: 0, tasks0: null, tasksPaid: 0, wall: Date.now(), bonus: 0, built: [], at: Date.now(),
     stock: {}, st: { dug: 0, sold: 0, focus: 0, tasks: 0, deep: 0 }, missions: [], mi: 0, badgesPaid: [],
   };
@@ -54,9 +62,20 @@ export function newGame({ gender, name, focus }) {
 /* Parties créées avant une mise à jour : on complète les champs manquants (rien n'est perdu) */
 export function fixGame(g) {
   const d = newGame({ gender: 'f', name: '', focus: 0 });
-  for (const k of ['stock', 'st', 'missions', 'mi', 'badgesPaid', 'hdir', 'down']) if (g[k] == null) g[k] = d[k];
+  for (const k of ['stock', 'st', 'missions', 'mi', 'badgesPaid', 'hdir', 'seg']) if (g[k] == null) g[k] = d[k];
   g.up = { ...d.up, ...g.up };
   g.st = { ...d.st, ...g.st };
+  if (!g.pref) g.pref = g.dir === 'down' ? 'down' : g.hdir || 'right';
+  const W0 = world(g.w);
+  if ((g.ww || 120) !== W0.width) { // le monde s'est élargi : on recalcule les numéros de cases
+    const ow = g.ww || 120, re = (k) => Math.floor(k / ow) * W0.width + (k % ow);
+    g.dug = g.dug.map(re); if (g.lamps) g.lamps = g.lamps.map(re); g.ww = W0.width;
+  }
+  if (!g.lamps) { // anciennes parties : lanternes posées le long des galeries déjà creusées
+    const W = world(g.w);
+    g.lamps = [];
+    for (const k of g.dug) placeLamp(W, g, k % W.width, Math.floor(k / W.width));
+  }
   return g;
 }
 export const dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -99,45 +118,123 @@ function routeTime(g, pts) {
   return t;
 }
 
-/* Déplacement automatique en « galeries » : tout droit à l'horizontale ; au bord, on descend de 3 tuiles puis on repart
-   dans l'autre sens (une galerie toutes les 3 tuiles : la vision permettra de repérer les minerais entre deux galeries).
-   « Descendre » (choisi par le joueur) : tout droit vers le bas jusqu'au fond, puis reprise des galeries. */
-const DIRS = { right: [1, 0], left: [-1, 0], down: [0, 1] };
-const GAP = 3;
-function target(W, g) {
-  const d = DIRS[g.dir];
-  return [g.x + d[0], g.y + d[1]];
-}
-function turn(W, g, set) {
-  if (g.dir === 'down') { // fond atteint (ou bord) : repartir à l'horizontale, du côté le moins creusé
-    g.down = 0;
-    const h = g.hdir === 'left' ? 'right' : g.hdir === 'right' ? 'left' : g.x < W.width / 2 ? 'right' : 'left';
-    for (const dir of [h, h === 'right' ? 'left' : 'right']) {
-      const [dx] = DIRS[dir];
-      if (tile(W, set, g.x + dx, g.y) !== BEDROCK && !edgeDone(W, set, g.x, g.y, dir)) { g.dir = dir; g.hdir = dir; return true; }
-    }
-    return false; // tout est creusé
+/* Galeries aléatoires (comme un vrai mineur qui suit la roche) : des tronçons de longueur variable, à l'horizontale
+   surtout, qui descendent d'une ou plusieurs cases, remontent parfois, changent de sens… Tout est tiré par la graine
+   de la mine et la position : même partie = mêmes galeries (aucun hasard « achetable »).
+   Le choix du joueur (◀ / ⬇ / ▶) n'est qu'une préférence ; un minerai repéré par la lampe frontale attire le mineur. */
+const DIRS = { right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] };
+const TOP = 2; // jamais de galerie plus haut (croûte de surface)
+const DESCENT = 70;
+const other = (d) => (d === 'left' ? 'right' : 'left');
+const diggable = (W, set, x, y) => { if (y < TOP) return false; const k = tile(W, set, x, y); return k !== AIR && k !== BEDROCK; };
+const isAir = (W, set, x, y) => y >= 0 && tile(W, set, x, y) === AIR;
+/* nombre de cases qu'on peut creuser d'affilée dans une direction sans longer une autre galerie */
+function openAhead(W, set, x, y, dir, n) {
+  const [dx, dy] = DIRS[dir];
+  let c = 0;
+  for (let i = 1; i <= n; i++) {
+    const nx = x + dx * i, ny = y + dy * i;
+    if (!diggable(W, set, nx, ny)) break;
+    const hug = dy ? isAir(W, set, nx - 1, ny) || isAir(W, set, nx + 1, ny) : isAir(W, set, nx, ny - 1) || isAir(W, set, nx, ny + 1);
+    if (hug && i > 1) break;
+    if (hug && i === 1 && !(dy === 1 && isAir(W, set, nx, ny - 1))) break;
+    c++;
   }
-  // bord atteint à l'horizontale : descendre de GAP tuiles
-  if (tile(W, set, g.x, g.y + 1) === BEDROCK) return false;
-  g.hdir = g.dir; g.dir = 'down'; g.down = GAP;
-  return true;
+  return c;
 }
-/* plus rien à creuser dans cette direction sur cette ligne (tout est déjà creusé jusqu'au bord) */
-function edgeDone(W, set, x, y, dir) {
-  const dx = DIRS[dir][0];
-  for (let i = x + dx; i >= 0 && i < W.width; i += dx) if (!set.has(key(W, i, y))) return false;
-  return true;
+/* portée de repérage des minerais (lampe frontale) */
+export const seeRange = (g) => 1 + Math.floor((g.up.lamp || 0) / 2);
+/* lanternes : une toutes les `lampGap` cases creusées */
+export const lampGap = (g) => [7, 6, 5, 4, 3][g.up.lant || 0];
+function placeLamp(W, g, x, y) {
+  const sp = lampGap(g);
+  for (let i = g.lamps.length - 1; i >= Math.max(0, g.lamps.length - 40); i--) {
+    const k = g.lamps[i], lx = k % W.width, ly = Math.floor(k / W.width);
+    if (Math.abs(lx - x) + Math.abs(ly - y) < sp) return;
+  }
+  g.lamps.push(key(W, x, y));
 }
-/* après chaque pas vers le bas en mode galeries : au bout de GAP tuiles, nouvelle galerie dans l'autre sens */
-function afterDown(W, g, set) {
-  if (g.dir !== 'down' || !g.down) return;
-  if (--g.down > 0) return;
-  const dir = g.hdir === 'right' ? 'left' : 'right';
-  g.dir = dir; g.hdir = dir;
-  if (tile(W, set, ...target(W, g)) === BEDROCK) turn(W, g, set);
+function plan(W, g, set) {
+  const r = (k) => hash(g.dug.length * 7 + k, g.x * 977 + g.y * 31, W.seed + 50);
+  // 1) un minerai visible à la lampe ? on va le chercher (sans plonger sous le niveau du chantier)
+  const R = seeRange(g), floor = g.pref === 'down' ? W.depth : Math.max(g.y, START_Y + 5 + g.dug.length / DESCENT);
+  let best = null;
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const d = Math.abs(dx) + Math.abs(dy);
+    if (!d || d > R) continue;
+    const x = g.x + dx, y = g.y + dy;
+    if (y < TOP || y > floor || tile(W, set, x, y) < 3) continue;
+    if (!best || d < best[2]) best = [x, y, d];
+  }
+  if (best) {
+    const dx = best[0] - g.x, dy = best[1] - g.y;
+    g.dir = Math.abs(dx) >= Math.abs(dy) && dx ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    if (g.dir === 'left' || g.dir === 'right') g.hdir = g.dir;
+    g.seg = 1;
+    return true;
+  }
+  // 2) un nouveau tronçon, tiré au sort parmi les directions possibles
+  // bord de la mine atteint du côté préféré : la préférence s'inverse (on repart dans l'autre sens)
+  if ((g.pref === 'left' && g.x < 4) || (g.pref === 'right' && g.x > W.width - 5)) g.pref = other(g.pref);
+  const h = g.hdir || 'right', pref = g.pref || h, wasH = g.dir === 'left' || g.dir === 'right';
+  const deep = pref === 'down';
+  // niveau visé : la mine s'enfonce peu à peu (une rangée toutes les DESCENT cases creusées), comme un vrai chantier
+  const lvl = START_Y + 2 + g.dug.length / DESCENT, hi = g.y < lvl - 2, lo = g.y > lvl + 2 && !g.free;
+  g.free = false;
+  const run = Math.min(1, (g.run || 0) / 16); // une galerie trop longue tout droit finit par tourner
+  const r3 = r(3), dlen = deep ? 2 + Math.floor(r3 * 5) : r3 < 0.75 ? 1 : r3 < 0.95 ? 2 : 3;
+  const opts = wasH ? [
+    [h, (deep ? 0.8 : 1.6) * (1 - run * 0.85), 2 + Math.floor(r(1) * 6)],
+    [other(h), pref === other(h) ? 4 : 0.22, 3 + Math.floor(r(2) * 5)],
+    ['down', deep ? 4 : hi ? 2.4 : lo ? 0.02 : 1.1, dlen],
+    ['up', g.y > 6 && !deep ? (lo ? 3 : hi ? 0.2 : 1.3) : 0, r(4) < 0.85 ? 1 : 2],
+  ] : [
+    [h, pref === other(h) ? 0.6 : 5, 2 + Math.floor(r(1) * 6)],
+    [other(h), pref === other(h) ? 5 : 1.1, 2 + Math.floor(r(2) * 6)],
+    ['down', deep ? 1.5 : hi ? 0.8 : lo ? 0.01 : 0.25, dlen],
+    ['up', lo && !deep && g.y > 6 ? 0.6 : 0, 1],
+  ];
+  let tot = 0;
+  const ok = opts.map(([dir, w, len]) => {
+    const c = w > 0 ? openAhead(W, set, g.x, g.y, dir, len) : 0;
+    const ww = c ? w * (0.35 + 0.65 * (c / len)) : 0;
+    tot += ww;
+    return [dir, ww, Math.min(len, c)];
+  });
+  // trop profond et seule la descente reste possible : on repart plutôt d'un endroit moins profond
+  if (lo && ok.every(([dir, w]) => !w || dir === 'down')) tot = 0;
+  if (tot > 0) {
+    let u = r(5) * tot;
+    for (const [dir, w, len] of ok) {
+      if ((u -= w) > 0 || !w) continue;
+      if (dir === 'left' || dir === 'right') { g.run = dir === g.hdir && wasH ? (g.run || 0) + len : len; g.hdir = dir; }
+      g.dir = dir; g.seg = len;
+      return true;
+    }
+  }
+  // 3) bloqué : on repart d'un autre endroit de la mine (le plus proche où l'on peut ouvrir une galerie,
+  //    de préférence pas plus bas que le niveau du chantier)
+  for (const strict of [true, false]) {
+    const prev = new Map([[key(W, g.x, g.y), -1]]), q = [key(W, g.x, g.y)];
+    for (let i = 0; i < q.length && i < 30000; i++) {
+      const k = q[i], x = k % W.width, y = Math.floor(k / W.width);
+      if (i > 0 && y >= TOP && (!strict || y <= lvl + 2) && (strict && y > lvl + 2 ? ['left', 'right'] : ['left', 'right', 'down']).some((dir) => openAhead(W, set, x, y, dir, 3) >= 2)) {
+        const pts = [];
+        for (let k2 = k; k2 !== -1; k2 = prev.get(k2)) pts.push([k2 % W.width, Math.floor(k2 / W.width)]);
+        g.route = pts.reverse(); g.walkTotal = routeTime(g, g.route) - SURFACE / walkSpeed(g); g.walk = g.walkTotal; g.act = 'move'; g.seg = 0;
+        g.free = !strict; // plus rien au niveau du chantier : on a le droit de descendre
+        return false;
+      }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy, nk = key(W, nx, ny);
+        if (nx < 0 || nx >= W.width || ny < 0 || prev.has(nk) || !set.has(nk)) continue;
+        prev.set(nk, k); q.push(nk);
+      }
+    }
+  }
+  g.act = 'done';
+  return false;
 }
-
 
 /* Avance la simulation de `sec` secondes de concentration. Renvoie les événements (pour l'affichage). */
 export const depthM = (y) => Math.max(0, y - 2) * 2; // profondeur affichée (1 case = 2 m)
@@ -169,17 +266,24 @@ export function step(g, sec, set = dugSet(g)) {
       } else { g.act = 'dig'; g.route = null; }
       continue;
     }
+    if (g.act === 'move') { // traversée des galeries jusqu'à un nouveau front de taille
+      const r = Math.min(t, g.walk);
+      g.walk -= r; t -= r; g.fat += r;
+      if (g.walk > 1e-6) continue;
+      const [ex, ey] = g.route[g.route.length - 1];
+      g.x = ex; g.y = ey; g.route = null; g.act = 'dig'; g.seg = 0; g.prog = 0;
+      continue;
+    }
+    if (g.act !== 'dig') break;
     // creuser
-    let [tx, ty] = target(W, g);
-    let tt = tile(W, set, tx, ty);
-    if (tt === BEDROCK) { if (!turn(W, g, set)) { g.act = 'done'; break; } continue; }
-    if (tt === AIR && g.dir !== 'down' && edgeDone(W, set, g.x, g.y, g.dir)) { if (!turn(W, g, set)) { g.act = 'done'; break; } continue; }
+    if (!(g.seg > 0) || !DIRS[g.dir]) { g.prog = 0; if (!plan(W, g, set)) { if (g.act === 'done') break; continue; } }
+    const [dx, dy] = DIRS[g.dir], tx = g.x + dx, ty = g.y + dy;
+    const tt = tile(W, set, tx, ty);
+    if (tt === BEDROCK || (ty < TOP && tt !== AIR)) { g.seg = 0; continue; }
     if (tt === AIR) { // galerie déjà creusée : on avance
-      const c = (ty !== g.y ? 1 / 0.6 : 1) / walkSpeed(g);
+      const c = (dy ? 1 / 0.6 : 1) / walkSpeed(g);
       if (t < c * (1 - g.prog)) { g.prog += t / c; g.fat += t; t = 0; break; }
-      const down = ty > g.y;
-      t -= c * (1 - g.prog); g.fat += c * (1 - g.prog); g.prog = 0; g.x = tx; g.y = ty;
-      if (down) afterDown(W, g, set);
+      t -= c * (1 - g.prog); g.fat += c * (1 - g.prog); g.prog = 0; g.x = tx; g.y = ty; g.seg--;
       continue;
     }
     const info = tileInfo(W, tt), need = (BASE_DIG * info.hard) / pickSpeed(g);
@@ -187,10 +291,9 @@ export function step(g, sec, set = dugSet(g)) {
     if (t < left) { g.prog += t / need; g.fat += t; t = 0; break; }
     t -= left; g.fat += left; g.prog = 0;
     set.add(key(W, tx, ty)); g.dug.push(key(W, tx, ty));
-    const wentDown = ty > g.y;
-    g.x = tx; g.y = ty; ev.dug++; g.st.dug++;
+    g.x = tx; g.y = ty; ev.dug++; g.st.dug++; g.seg--;
     g.st.deep = Math.max(g.st.deep, depthM(g.y));
-    if (wentDown) afterDown(W, g, set);
+    placeLamp(W, g, tx, ty);
     g.found[info.id] = (g.found[info.id] || 0) + 1;
     if (tt >= 3) ev.ores[info.id] = (ev.ores[info.id] || 0) + 1;
     if (tt >= 3) (ev.list = ev.list || []).push(info.id);
@@ -275,10 +378,11 @@ export function payTasks(g, doneTotal) {
   g.coins += n * TASK_REWARD; g.earned += n * TASK_REWARD; g.st.tasks += n;
   return n;
 }
-/* Choix du joueur : « tout droit » (à gauche / à droite) ou « descendre » (jusqu'au fond) */
+/* Choix du joueur : préférence de direction (les galeries restent irrégulières) */
 export const setDir = (g, dir) => {
-  g.dir = dir; g.down = 0; g.prog = 0;
+  g.pref = dir;
   if (dir !== 'down') g.hdir = dir;
+  if (g.act === 'dig') { g.seg = 0; g.prog = 0; }
   if (g.act === 'done') g.act = 'dig';
 };
 export const goalCost = (W) => W.goal.book + W.goal.build;
