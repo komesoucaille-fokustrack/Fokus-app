@@ -4,11 +4,11 @@ import Sheet from './Sheet';
 import { BADGES, focusSecs, getState, setMine, setPage, toast, useStore } from '../store';
 import { BADGE_FK, COIN, PICKS, SHOP_CATS, TASK_REWARD, UPGRADES, upCost, world } from '../game/data.js';
 import {
-  buy, cap, claim, dayKey, depthM, dugSet, fillMissions, fixGame, goalCost, missionProgress, newGame, payBadges, payTasks, price,
-  recover, sell, setDir, stam, step, stockValue,
+  buy, canTravel, cap, claim, dayKey, depthM, dugSet, fillMissions, fixGame, goalCost, missionProgress, newGame, payBadges, payTasks, price,
+  recover, sell, setDir, stam, step, stockValue, travel,
 } from '../game/sim.js';
 import { createView, drawFrame, hitBuilding, pop } from '../game/render.js';
-import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, paintCave, paintSkyline } from '../game/art.js';
+import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, drawWorkshop, paintCave, paintSkyline } from '../game/art.js';
 import { LABO } from '../env';
 
 /* =====================================================================
@@ -31,6 +31,13 @@ const STORY = [
   ['study', 'Depuis, sa vie a changé. Le jour, les cours à la fac. Le soir, les livres de géologie. {name} a un rêve fou : trouver les pierres les plus rares du monde… et partir un jour dans l’espace.'],
   ['go', 'Mais un rêve pareil ne se réalise pas seul. Chaque minute où tu te concentres, {name} creuse. Ton travail devient sa force.'],
   ['final', 'L’aventure commence ici, dans la mine de ta ville. Premier objectif : réunir assez de Fokoins pour fabriquer un vélo… et partir explorer la région. 🚲'],
+];
+/* chapitre 2 : en route vers les volcans d'Auvergne (monde 2) */
+const STORY2 = [
+  ['ride', 'Le vélo grince un peu, mais il roule. {name} pédale vers le sud, la pioche attachée sur le porte-bagages. À l’horizon se lèvent des montagnes rondes comme des bols renversés : les volcans d’Auvergne.'],
+  ['volcans', 'Ici, la terre a brûlé il y a des milliers d’années. Sous la cendre grise et la pouzzolane rouge dorment le soufre, l’obsidienne… et une vieille galerie que tout le monde a oubliée.'],
+  ['saphir', 'Au village, une vieille dame raconte la légende des saphirs du Velay, bleus comme un ciel d’été, cachés tout au fond. {name} sourit : avec du temps et de la patience, on finit toujours par trouver.'],
+  ['go2', 'Nouvel objectif : construire une voiture pour traverser le pays jusqu’à l’océan. Attention, le basalte est bien plus dur que la roche de la ville : il faudra de bonnes pioches… et toute ta concentration. 🚗'],
 ];
 const said = (s, g, name) => s.replace(/\{name\}/g, name).replace(/\{([^|}]*)\|([^}]*)\}/g, (_, f, m) => (g === 'f' ? f : m));
 
@@ -114,6 +121,34 @@ function StoryArt({ scene, gender }) {
           drawHeadframe(ctx, W * 0.72, H * 0.86, S * 0.55, t * 0.5, false);
           hero(W * 0.3, H * 0.93, S * 1.25, { anim: 'idle', t, wave: true });
         }
+      } else if (scene === 'ride' || scene === 'go2') {
+        paintSkyline(ctx, W, H, 10, 5, 'volcans');
+        ctx.fillStyle = '#6b5a4e'; ctx.fillRect(0, H * 0.88, W, H * 0.12); ctx.fillStyle = '#5cbf45'; ctx.fillRect(0, H * 0.86, W, H * 0.03);
+        if (scene === 'ride') {
+          const bx = W * 0.15 + ((t * 40) % (W * 0.7)), gy = H * 0.9, r = S * 0.28;
+          ctx.strokeStyle = '#2b1a16'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+          const bike = () => { ctx.beginPath(); ctx.arc(bx - S * 0.42, gy - r, r, 0, 7); ctx.moveTo(bx + S * 0.42 + r, gy - r); ctx.arc(bx + S * 0.42, gy - r, r, 0, 7); ctx.moveTo(bx - S * 0.42, gy - r); ctx.lineTo(bx - S * 0.05, gy - r - S * 0.34); ctx.lineTo(bx + S * 0.3, gy - r - S * 0.34); ctx.lineTo(bx + S * 0.42, gy - r); ctx.moveTo(bx - S * 0.05, gy - r - S * 0.34); ctx.lineTo(bx + S * 0.04, gy - r); ctx.lineTo(bx + S * 0.3, gy - r - S * 0.34); ctx.moveTo(bx + S * 0.3, gy - r - S * 0.34); ctx.lineTo(bx + S * 0.36, gy - r - S * 0.55); ctx.stroke(); };
+          bike(); ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; bike();
+          hero(bx, gy - r - S * 0.12, S * 1.05, { anim: 'walk', t, reach: false });
+        } else {
+          drawWorkshop(ctx, W * 0.5, H * 0.88, S * 0.8, false, 0.15, false, 'voiture');
+          hero(W * 0.22, H * 0.93, S * 1.2, { anim: 'idle', t, wave: true });
+        }
+      } else if (scene === 'volcans') {
+        paintSkyline(ctx, W, H, 19, 8, 'volcans');
+        ctx.fillStyle = '#4b4a57'; ctx.beginPath(); ctx.moveTo(W * 0.48, H); ctx.quadraticCurveTo(W * 0.7, H * 0.42, W * 0.98, H); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#2b1a16'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = '#16101a'; ctx.beginPath(); ctx.moveTo(W * 0.66, H); ctx.lineTo(W * 0.66, H * 0.78); ctx.quadraticCurveTo(W * 0.72, H * 0.68, W * 0.78, H * 0.78); ctx.lineTo(W * 0.78, H); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#b97a43'; ctx.fillRect(W * 0.65, H * 0.76, W * 0.14, H * 0.04); ctx.strokeRect(W * 0.65, H * 0.76, W * 0.14, H * 0.04);
+        ctx.fillStyle = '#6b5a4e'; ctx.fillRect(0, H * 0.9, W * 0.5, H * 0.1); ctx.fillStyle = '#5cbf45'; ctx.fillRect(0, H * 0.88, W * 0.5, H * 0.03);
+        hero(W * 0.3, H * 0.93, S * 1.2, { anim: 'idle', t, wave: (t % 4) < 1.6 });
+      } else if (scene === 'saphir') {
+        cave(W * 0.66, H * 0.62, 0.62);
+        const glow = 0.5 + Math.sin(t * 2.4) * 0.2, gx = W * 0.68, gy = H * 0.8;
+        const gg = ctx.createRadialGradient(gx, gy - S * 0.3, 2, gx, gy - S * 0.3, S * 1.5); gg.addColorStop(0, `rgba(120,170,255,${glow})`); gg.addColorStop(1, 'rgba(120,170,255,0)');
+        ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+        [[-0.5, 0.55], [0, 0.85], [0.45, 0.6]].forEach(([a, hh]) => { ctx.save(); ctx.translate(gx + a * S * 0.3, gy); ctx.rotate(a * 0.7); const w2 = S * 0.12, h2 = S * hh; ctx.beginPath(); ctx.moveTo(-w2, 0); ctx.lineTo(-w2, -h2 * 0.7); ctx.lineTo(0, -h2); ctx.lineTo(w2, -h2 * 0.7); ctx.lineTo(w2, 0); ctx.closePath(); ctx.fillStyle = '#2f6bd8'; ctx.fill(); ctx.fillStyle = '#a8c8ff'; ctx.beginPath(); ctx.moveTo(-w2, 0); ctx.lineTo(-w2, -h2 * 0.7); ctx.lineTo(0, -h2); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#2b1a16'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-w2, 0); ctx.lineTo(-w2, -h2 * 0.7); ctx.lineTo(0, -h2); ctx.lineTo(w2, -h2 * 0.7); ctx.lineTo(w2, 0); ctx.stroke(); ctx.restore(); });
+        hero(W * 0.3, H * 0.94, S * 1.2, { anim: 'idle', t, reach: true });
       } else { // aperçu du choix du personnage
         cave(W * 0.5, H * 0.55, 0.7);
         hero(W * 0.5, H * 0.92, S * 1.5, { anim: 'idle', t, wave: (t % 4) < 1.6 });
@@ -166,6 +201,25 @@ function Intro({ onStart }) {
         <button type="button" className="b on mine-go flex-1" onClick={() => (last ? onStart(gender, nm) : setI(i + 1))}>{last ? 'Prendre la pioche ⛏️' : 'Suivant'}</button>
       </div>
     </div>
+  );
+}
+
+/* Chapitre suivant (raconté au départ vers un nouveau monde) */
+function Chapter({ g, scenes, kicker, finish, onDone, onClose }) {
+  const [i, setI] = useState(0);
+  const [scene, text] = scenes[i], last = i === scenes.length - 1;
+  return (
+    <Sheet title={kicker} onClose={onClose} wide>
+      <div className="mine-intro mine-intro-sheet" key={i}>
+        <StoryArt scene={scene} gender={g.hero.gender} />
+        <p className="mine-story">{said(text, g.hero.gender, g.hero.name)}</p>
+        <div className="mine-dots">{scenes.map((_, k) => <i key={k} className={k <= i ? 'on' : ''} />)}</div>
+        <div className="flex gap-2">
+          {i > 0 && <button type="button" className="b" onClick={() => setI(i - 1)}>Retour</button>}
+          <button type="button" className="b on mine-go flex-1" onClick={() => (last ? onDone() : setI(i + 1))}>{last ? finish : 'Suivant'}</button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 
@@ -248,7 +302,7 @@ function Market({ g, onSell, onClose }) {
   );
 }
 
-function Workshop({ g, onBuy, onClose }) {
+function Workshop({ g, onBuy, onTravel, onClose }) {
   const W = world(g.w), G = W.goal, hasBook = g.built.includes(G.id + '-book'), built = g.built.includes(G.id);
   const need = hasBook ? G.build : G.book;
   return (
@@ -259,9 +313,10 @@ function Workshop({ g, onBuy, onClose }) {
           <span className={built ? 'ok' : hasBook ? 'cur' : ''}>2 · 🔩 Pièces et montage <Fk n={G.build} size={14} /></span>
           <span className={built ? 'ok cur' : ''}>3 · {G.emoji} Départ</span>
         </div>
-        <p>{built ? `Bravo ! ${G.name[0].toUpperCase() + G.name.slice(1)} est prêt. Le monde 2 arrive très bientôt dans le labo.`
+        <p>{built ? (canTravel(g) ? `Bravo ! ${G.name[0].toUpperCase() + G.name.slice(1)} est prêt. Le coffre sera vendu au cours du jour avant le départ ; tes Fokoins, tes améliorations et ta collection te suivent.` : `Bravo ! ${G.name[0].toUpperCase() + G.name.slice(1)} est prêt. La suite du voyage arrive bientôt dans le labo.`)
           : hasBook ? 'Le livre est sur l’établi. Il reste à acheter les pièces et à tout monter.'
             : 'D’abord, commander le livre de fabrication sur internet : il explique tout, pièce par pièce.'}</p>
+        {built && canTravel(g) && <button type="button" className="b on mine-go" onClick={onTravel}>Partir vers « {G.next} » {G.emoji}</button>}
         {!built && (
           <>
             <div className="mine-bar"><i style={{ width: Math.min(100, (g.coins / need) * 100) + '%' }} /></div>
@@ -323,6 +378,7 @@ function Game({ initial }) {
   const canvas = useRef(null), view = useRef(null), gr = useRef(null);
   const [, force] = useState(0);
   const [sheet, setSheet] = useState(null);
+  const [chapter, setChapter] = useState(false);
   if (!gr.current) { const g0 = fixGame(structuredClone(initial)); fillMissions(g0); gr.current = { g: g0, set: dugSet(g0) }; }
   const { g } = gr.current, W = world(g.w);
   const live = useRef(false);
@@ -340,10 +396,10 @@ function Game({ initial }) {
       G.used += budget;
       if (report && ev.dug) toast(`⛏️ Pendant ta concentration : ${ev.dug} blocs creusés${ev.sold ? ` · ${ev.sold} minerais rapportés` : ''}`, null, 5000);
       if (!report && view.current) {
-        (ev.list || []).forEach((id) => { const o = W.ores.find((x) => x.id === id); pop(view.current, `+1 ${o.name}`, G.x + 0.5, G.y + 0.2, o.colors[1]); });
+        (ev.list || []).forEach((id) => { const o = world(G.w).ores.find((x) => x.id === id); if (o) pop(view.current, `+1 ${o.name}`, G.x + 0.5, G.y + 0.2, o.colors[1]); });
         if (ev.home) pop(view.current, G.up.seller ? `+${fmt(ev.coins)} Fk` : '📦 au coffre', 15.4, -2.2, '#ffe08a');
       }
-      Object.keys(G.found).forEach((k) => { if (!before[k]) { const o = W.ores.find((x) => x.id === k); if (o) toast(`✨ Nouveau minerai découvert : ${o.name} (${fmt(o.value)} ${COIN})`, null, 4500); } });
+      Object.keys(G.found).forEach((k) => { if (!before[k]) { const o = world(G.w).ores.find((x) => x.id === k); if (o) toast(`✨ Nouveau minerai découvert : ${o.name} (${fmt(o.value)} ${COIN})`, null, 4500); } });
     } else recover(G, wall);
     const paid = payTasks(G, S.doneTotal);
     if (paid) toast(`✅ ${paid} tâche${paid > 1 ? 's' : ''} validée${paid > 1 ? 's' : ''} : +${paid * TASK_REWARD} ${COIN}`, null, 4000);
@@ -397,9 +453,20 @@ function Game({ initial }) {
   const onBuy = (id) => act((G) => {
     const goal = world(G.w).goal;
     if (id === 'book') { if (G.coins >= goal.book) { G.coins -= goal.book; G.built.push(goal.id + '-book'); toast('📖 Livre de fabrication commandé !'); } return; }
-    if (id === 'goal') { if (G.coins >= goal.build) { G.coins -= goal.build; G.built.push(goal.id); toast(`🎉 ${goal.emoji} ${goal.name[0].toUpperCase() + goal.name.slice(1)} est prêt ! Le voyage continue bientôt…`, null, 6000); } return; }
+    if (id === 'goal') { if (G.coins >= goal.build) { G.coins -= goal.build; G.built.push(goal.id); toast(`🎉 ${goal.emoji} ${goal.name[0].toUpperCase() + goal.name.slice(1)} est prêt ! Ouvre l’Atelier pour partir.`, null, 6000); } return; }
     if (buy(G, id)) toast(id === 'pick' ? `⛏️ ${PICKS[G.up.pick][0]} !` : 'Amélioration achetée ✓');
   });
+  const onTravel = () => { setSheet(null); setChapter(true); };
+  const doTravel = () => {
+    act((G) => {
+      const v = travel(G);
+      gr.current.set = dugSet(G);
+      if (view.current) { view.current.W = world(G.w); view.current.resize(); view.current.follow = true; }
+      const NW = world(G.w);
+      toast(`${NW.emoji} Bienvenue dans « ${NW.name} »${v ? ` · coffre vendu : +${fmt(v)} ${COIN}` : ''}`, null, 6000);
+    });
+    setChapter(false);
+  };
   const onSell = (t) => act((G) => { const v = sell(G, t); if (v) toast(`💰 Vendu : +${fmt(v)} ${COIN}`); });
   const onClaim = (i) => act((G) => { const v = claim(G, i); if (v) toast(`📜 Mission accomplie : +${fmt(v)} ${COIN}`); });
   const working = live.current;
@@ -411,6 +478,7 @@ function Game({ initial }) {
         <canvas ref={canvas} className="mine-canvas" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={() => { drag.current = null; }} />
         <div className="mine-hud">
           <span className="mine-pill mine-coins"><Fk n={g.coins} size={22} /></span>
+          <span className="mine-pill" title={W.name}>{W.emoji} <span className="mine-wide">Monde </span>{g.w}</span>
           <span className="mine-pill">🎒 {g.bagN}/{cap(g)}</span>
           {stockN > 0 && !g.up.seller ? <button type="button" className="mine-pill mine-sell" onClick={() => setSheet('market')}><span>📦 {stockN}<span className="mine-wide"> au coffre</span> · vendre</span></button> : <span className="mine-pill">📦 {stockN}</span>}
           <span className="mine-pill">⬇ {depthM(g.y)} m</span>
@@ -444,12 +512,14 @@ function Game({ initial }) {
         <div className="mine-test">
           🧪 Test (labo) : <button type="button" className="b" onClick={() => act((G) => { G.bonus += 3600; })}>+1 h de concentration</button>
           <button type="button" className="b" onClick={() => act((G) => { G.bonus += 600; })}>+10 min</button>
+          {!g.built.includes(W.goal.id) && <button type="button" className="b" onClick={() => act((G) => { const go = world(G.w).goal; G.built.push(go.id + '-book', go.id); toast(`${go.emoji} Débloqué pour le test : ouvre l’Atelier.`); })}>Débloquer {W.goal.emoji}</button>}
           <button type="button" className="b" onClick={() => { if (confirm('Recommencer la mine à zéro ?')) { setMine(null); location.reload(); } }}>Recommencer</button>
         </div>
       )}
       {sheet === 'shop' && <Shop g={g} onBuy={onBuy} onClose={() => setSheet(null)} />}
       {sheet === 'market' && <Market g={g} onSell={onSell} onClose={() => setSheet(null)} />}
-      {sheet === 'workshop' && <Workshop g={g} onBuy={onBuy} onClose={() => setSheet(null)} />}
+      {sheet === 'workshop' && <Workshop g={g} onBuy={onBuy} onTravel={onTravel} onClose={() => setSheet(null)} />}
+      {chapter && g.w === 1 && <Chapter g={g} scenes={STORY2} kicker="Chapitre 2 · Les volcans d’Auvergne" finish="Descendre dans le volcan 🌋" onDone={doTravel} onClose={() => setChapter(false)} />}
       {sheet === 'col' && <Collection g={g} onClose={() => setSheet(null)} />}
     </div>
   );

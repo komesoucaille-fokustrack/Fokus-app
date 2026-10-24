@@ -13,7 +13,7 @@ export const AIR = 0, DIRT = 1, ROCK = 2, BEDROCK = -1;
    colors = [base, clair, sombre] pour le dessin des cristaux / filons */
 export const WORLDS = [
   {
-    id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', seed: 1013, width: 240, depth: 120, veins: 0.42,
+    id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', theme: 'ville', emoji: '🏘️', mul: 1, seed: 1013, width: 240, depth: 120, veins: 0.42,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#2f4558',
     // couches de la coupe du sol (dessin) : [nom, couleur, clair, sombre], limites à la limite terre/roche puis à 30, 58, 88 cases
     layers: [['Terre', '#c98b55', '#e4ab76', '#99602f'], ['Argile', '#b9613f', '#d67f5a', '#87412b'], ['Schiste', '#8b4e6c', '#ab6b8c', '#5f3349'],
@@ -28,12 +28,34 @@ export const WORLDS = [
       { id: 'charbon', name: 'Charbon', value: 1, hard: 1.6, w: 40, deep: 0, min: 0, colors: ['#2a2a2e', '#55555c', '#121214'] },
       { id: 'cuivre', name: 'Cuivre', value: 2, hard: 1.8, w: 26, deep: 0.01, min: 3, colors: ['#c8743c', '#f0a46a', '#7c3f19'] },
       { id: 'fer', name: 'Fer', value: 10, hard: 2.1, w: 13, deep: 0.02, min: 8, colors: ['#b58a6e', '#e2c0a6', '#6d4c3a'] },
-      { id: 'quartz', name: 'Quartz', value: 20, hard: 2.3, w: 8, deep: 0.03, min: 14, colors: ['#e9eef5', '#ffffff', '#a8b4c6'] },
+      { id: 'quartz', name: 'Quartz', shape: 'crystal', value: 20, hard: 2.3, w: 8, deep: 0.03, min: 14, colors: ['#e9eef5', '#ffffff', '#a8b4c6'] },
       { id: 'argent', name: 'Argent', value: 50, hard: 2.5, w: 4.5, deep: 0.04, min: 20, colors: ['#c9d2dc', '#f4f8fc', '#7e8894'] },
       { id: 'or', name: 'Or', value: 100, hard: 2.7, w: 2.2, deep: 0.05, min: 28, colors: ['#f2c230', '#fff0a0', '#a87a08'] },
-      { id: 'amethyste', name: 'Améthyste', value: 250, hard: 3, w: 0.7, deep: 0.06, min: 45, colors: ['#9b5de5', '#d8b4fe', '#5b2a9a'] },
-      { id: 'geode', name: 'Géode géante', value: 1000, hard: 3.4, w: 0.08, deep: 0.07, min: 70, colors: ['#5ec4d6', '#c8f4fb', '#1f6e7c'] },
+      { id: 'amethyste', name: 'Améthyste', shape: 'crystal', value: 250, hard: 3, w: 0.7, deep: 0.06, min: 45, colors: ['#9b5de5', '#d8b4fe', '#5b2a9a'] },
+      { id: 'geode', name: 'Géode géante', shape: 'geode', value: 1000, hard: 3.4, w: 0.08, deep: 0.07, min: 70, colors: ['#5ec4d6', '#c8f4fb', '#1f6e7c'] },
     ],
+  },
+  {
+    id: 2, name: 'Les volcans d’Auvergne', place: 'La région · Massif central', theme: 'volcans', emoji: '🌋', mul: 6, tough: 8, seed: 2027, width: 240, depth: 140, veins: 0.42,
+    sky: ['#7ec8f2', '#bfe6ff'], town: '#3a3440',
+    goal: { id: 'voiture', name: 'la voiture', emoji: '🚗', book: 30000, build: 90000, next: 'Le pays · la côte atlantique' },
+    tiles: {
+      [DIRT]: { id: 'cendre', name: 'Cendre volcanique', value: 0.6, hard: 1.1, colors: ['#8d8682', '#b3aca6', '#5e5853'] },
+      [ROCK]: { id: 'basalte', name: 'Basalte', value: 3, hard: 1.6, colors: ['#4b4a57', '#6c6b7a', '#2e2d38'] },
+    },
+    ores: [
+      { id: 'pouzzolane', name: 'Pouzzolane', value: 6, hard: 1.7, w: 40, deep: 0, min: 0, colors: ['#c4472d', '#f2805e', '#7a2414'] },
+      { id: 'soufre', name: 'Soufre', value: 14, hard: 1.8, w: 26, deep: 0.01, min: 3, colors: ['#f2d22e', '#fff59a', '#a88a08'] },
+      { id: 'obsidienne', name: 'Obsidienne', value: 60, hard: 2.1, w: 13, deep: 0.02, min: 8, colors: ['#2b2236', '#6c5a8a', '#0d0a12'] },
+      { id: 'olivine', name: 'Olivine', shape: 'crystal', value: 120, hard: 2.3, w: 8, deep: 0.03, min: 14, colors: ['#8bc34a', '#d7f59a', '#4a7a1c'] },
+      { id: 'zircon', name: 'Zircon', shape: 'crystal', value: 300, hard: 2.5, w: 4.5, deep: 0.04, min: 20, colors: ['#ff8a3d', '#ffd0a8', '#a8460c'] },
+      { id: 'grenat', name: 'Grenat', shape: 'crystal', value: 600, hard: 2.7, w: 2.2, deep: 0.05, min: 28, colors: ['#c0283c', '#ff8a9a', '#6a0f1c'] },
+      { id: 'saphir', name: 'Saphir du Velay', shape: 'crystal', value: 1500, hard: 3, w: 0.7, deep: 0.06, min: 45, colors: ['#2f6bd8', '#a8c8ff', '#123a8a'] },
+      { id: 'lave', name: 'Cœur de lave', shape: 'geode', value: 6000, hard: 3.4, w: 0.08, deep: 0.07, min: 70, colors: ['#ff6a1f', '#ffe08a', '#a8240c'] },
+    ],
+    layers: [['Cendre', '#9a918b', '#bcb4ad', '#6b645f'], ['Pouzzolane', '#b4533c', '#d77a5f', '#80301f'], ['Basalte', '#4f4d5c', '#6e6c80', '#33313e'],
+      ['Lave figée', '#3d2c3f', '#5b4560', '#251a28'], ['Braises', '#5a2a24', '#8a3f2c', '#3a1814']],
+    layerAt: [32, 64, 100],
   },
 ];
 
@@ -67,8 +89,8 @@ export const WELCOME_FK = 1500; // prime de bienvenue maximale pour les badges o
 /* Missions (3 à la fois, renouvelées) : [type, cible, récompense, texte] — {n} = cible */
 export const MISSIONS = [
   ['dig', 40, 60, 'Creuse {n} blocs'], ['dig', 120, 150, 'Creuse {n} blocs'], ['dig', 300, 320, 'Creuse {n} blocs'],
-  ['ore:cuivre', 6, 80, 'Trouve {n} cuivre'], ['ore:fer', 4, 120, 'Trouve {n} fer'], ['ore:quartz', 3, 160, 'Trouve {n} quartz'],
-  ['ore:argent', 2, 220, 'Trouve {n} argent'], ['ore:or', 1, 300, 'Trouve {n} pépite d’or'],
+  ['ore#1', 6, 80, 'Trouve {n} {ore}'], ['ore#2', 4, 120, 'Trouve {n} {ore}'], ['ore#3', 3, 160, 'Trouve {n} {ore}'],
+  ['ore#4', 2, 220, 'Trouve {n} {ore}'], ['ore#5', 1, 300, 'Trouve {n} {ore}'],
   ['depth', 20, 120, 'Descends à {n} m'], ['depth', 50, 260, 'Descends à {n} m'], ['depth', 100, 500, 'Descends à {n} m'],
   ['focus', 50, 100, 'Concentre-toi {n} min'], ['focus', 120, 220, 'Concentre-toi {n} min'],
   ['tasks', 3, 90, 'Valide {n} tâches dans Fokus'], ['tasks', 8, 200, 'Valide {n} tâches dans Fokus'],

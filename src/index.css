@@ -474,7 +474,8 @@
   .empty-i { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; margin-bottom: 6px; background: rgba(134, 239, 172, 0.12); color: #86efac; font-weight: 900; }
 }
 
-@media (max-width: 639px) { .navseg button { font-size: 13.5px; } }
+@media (max-width: 639px) { .navseg button { font-size: 13.5px; } .navseg.n5 button { font-size: 12.5px; padding: 0 3px; } }
+.navseg.n5 { grid-template-columns: repeat(5, 1fr); }
 @media (min-width: 640px) { .navseg { order: 0; width: auto; display: flex; } .navseg button { padding: 0 14px; } }
 @layer components {
   .grip[data-auto] { opacity: 0.35; border-style: dashed; cursor: not-allowed; }
@@ -916,6 +917,7 @@
 .mine-ore em { font-style: normal; font-size: 12px; color: var(--color-mut); }
 .mine-ore.unk { opacity: .55; }
 .mine-ore.unk i { filter: grayscale(1) brightness(.5); }
+.mine-intro-sheet { padding: 0 !important; background: none !important; border: 0 !important; }
 .mine-intro { max-width: 620px; margin: 0 auto; display: grid; gap: 14px; padding: 18px; border-radius: 24px; background: rgba(14,11,9,.88); border: 1px solid rgba(255,220,150,.18); }
 .mine-intro h2 { margin: 0; font-size: 24px; font-weight: 800; }
 .mine-intro p { margin: 0; color: var(--color-text-2); line-height: 1.5; }

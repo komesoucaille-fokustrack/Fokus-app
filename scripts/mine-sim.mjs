@@ -1,13 +1,13 @@
 /* Équilibrage de la mine : joue des parties avec une stratégie simple (achète l'amélioration la moins chère utile)
    et mesure les heures de concentration nécessaires pour fabriquer l'objectif du monde 1.  node scripts/mine-sim.mjs */
 import { UPGRADES, upCost, world } from '../src/game/data.js';
-import { newGame, step, buy, dugSet, recover, goalCost, sell, fillMissions, claim, missionProgress } from '../src/game/sim.js';
-const W = world(1);
+import { newGame, step, buy, dugSet, recover, goalCost, sell, fillMissions, claim, missionProgress, travel } from '../src/game/sim.js';
+let W = world(1), h1 = 0;
 const g = newGame({ gender: 'f', name: 'Maé', focus: 0 });
-const set = dugSet(g);
+let set = dugSet(g);
 let h = 0, log = [];
 const prio = ['auto', 'pick', 'bag', 'pick', 'boots', 'bag', 'stam'];
-while (h < 60) {
+while (h < 90) {
   for (let i = 0; i < 2; i++) { step(g, 25 * 60, set); recover(g, 5 * 60); } // pomodoros 25/5
   h += 50 / 60;
   g.st.tasks += 3; // ~3 tâches validées par heure
@@ -23,6 +23,11 @@ while (h < 60) {
     buy(g, o.u.id);
   }
   if (Math.abs(h % 2) < 0.84) log.push(`${h.toFixed(1)} h · ${Math.round(g.coins)} Fk (gagnés ${Math.round(g.earned)}) · prof ${g.y} · pioche ${g.up.pick} sac ${g.up.bag} bottes ${g.up.boots} end ${g.up.stam} tri ${g.up.auto} · trouvés ${JSON.stringify(g.found)}`);
-  if (g.coins >= goalCost(W)) { log.push(`→ OBJECTIF (${goalCost(W)} Fk) atteint en ${h.toFixed(1)} h`); break; }
+  if (g.coins >= goalCost(W)) {
+    log.push(`→ OBJECTIF du monde ${g.w} (${goalCost(W)} Fk) atteint en ${h.toFixed(1)} h${g.w > 1 ? ` (${(h - h1).toFixed(1)} h dans ce monde)` : ''}`);
+    if (g.w >= 2 || process.argv[2] === '1') break;
+    g.coins -= goalCost(W); g.built.push(W.goal.id + '-book', W.goal.id);
+    travel(g); W = world(g.w); set = dugSet(g); h1 = h;
+  }
 }
 console.log(log.join('\n'));

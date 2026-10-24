@@ -28,7 +28,7 @@ export function createView(canvas, W) {
     v.w = r.width; v.h = r.height;
     v.TS = r.width < 600 ? 40 : 52;
     canvas.width = Math.round(r.width * v.dpr); canvas.height = Math.round(r.height * v.dpr);
-    v.tiles = makeTiles(W, Math.round(v.TS * v.dpr));
+    v.tiles = makeTiles(v.W, Math.round(v.TS * v.dpr));
     const ctx = v.ctx, T = v.tiles;
     v.pat = { layer: T.layer.map((c) => ctx.createPattern(c, 'repeat')), cave: T.cave.map((c) => ctx.createPattern(c, 'repeat')) };
     v.vig = document.createElement('canvas'); v.vig.width = 256; v.vig.height = 256;
@@ -137,10 +137,10 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
 
   // ciel + puys + ville (préparés pour l'heure courante et la taille de l'écran)
   const hour = new Date().getHours(), night = skyColors(hour)[2];
-  const skyH = SKY_ROWS * TS, key = `${v.w}x${skyH}@${hour}`;
+  const skyH = SKY_ROWS * TS, key = `${v.w}x${skyH}@${hour}:${W.id}`;
   if (v.skyKey !== key) {
     v.sky = document.createElement('canvas'); v.sky.width = Math.round(v.w * dpr); v.sky.height = Math.round(skyH * dpr);
-    const sc = v.sky.getContext('2d'); sc.scale(dpr, dpr); paintSkyline(sc, v.w, skyH, hour); v.skyKey = key;
+    const sc = v.sky.getContext('2d'); sc.scale(dpr, dpr); paintSkyline(sc, v.w, skyH, hour, 7, W.theme); v.skyKey = key;
   }
   const groundY = -cy; // ligne du sol à l'écran
   ctx.fillStyle = W.layers[W.layers.length - 1][3]; ctx.fillRect(0, 0, v.w, v.h);
@@ -298,7 +298,7 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
       if (h2(x, 9) < 0.18) { const fx = bx + TS * h2(x, 3); ctx.fillStyle = ['#ffffff', '#ffd34d', '#ff7a9c'][Math.floor(h2(x, 4) * 3)]; ctx.beginPath(); ctx.arc(fx, groundY - TS * 0.16, TS * 0.045, 0, 7); ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1; ctx.stroke(); }
     }
     for (const [tx3, sd] of [[8.5, 3], [19.2, 7], [24.5, 9], [30, 4]]) drawTree(ctx, tx3 * TS - cx, groundY - TS * 0.06, TS, night, sd);
-    drawWorkshop(ctx, 0.2 * TS - cx, groundY - TS * 0.06, TS, night, goal.progress, goal.built);
+    drawWorkshop(ctx, 0.2 * TS - cx, groundY - TS * 0.06, TS, night, goal.progress, goal.built, W.goal.id);
     drawShop(ctx, 4.4 * TS - cx, groundY - TS * 0.06, TS, night);
     drawHeadframe(ctx, (ENTRY + 0.5) * TS - cx, groundY - TS * 0.06, TS, live && g.act !== 'rest' ? t : 0, night);
     drawMarket(ctx, 13.6 * TS - cx, groundY - TS * 0.06, TS, night, t);

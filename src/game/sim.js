@@ -1,4 +1,4 @@
-import { AIR, BADGE_FK, WELCOME_FK, BASE_DIG, BEDROCK, DIRT, MISSIONS, REST, ROCK, TASK_REWARD, UPGRADES, WALK, bagCap, priceMul, stamina, upCost, world } from './data.js';
+import { AIR, BADGE_FK, WELCOME_FK, BASE_DIG, BEDROCK, DIRT, MISSIONS, REST, ROCK, TASK_REWARD, UPGRADES, WALK, WORLDS, bagCap, priceMul, stamina, upCost, world } from './data.js';
 
 /* =====================================================================
    LA MINE — génération de la mine et simulation (pure : aucun DOM, testable dans Node).
@@ -288,7 +288,7 @@ export function step(g, sec, set = dugSet(g)) {
       t -= c * (1 - g.prog); g.fat += c * (1 - g.prog); g.prog = 0; g.x = tx; g.y = ty; g.seg--;
       continue;
     }
-    const info = tileInfo(W, tt), need = (BASE_DIG * info.hard) / pickSpeed(g);
+    const info = tileInfo(W, tt), need = (BASE_DIG * info.hard * (W.tough || 1)) / pickSpeed(g);
     const left = need * (1 - g.prog);
     if (t < left) { g.prog += t / need; g.fat += t; t = 0; break; }
     t -= left; g.fat += left; g.prog = 0;
@@ -335,7 +335,11 @@ export function fillMissions(g) {
     // ordre mélangé mais le même pour tout le monde ; on évite deux missions du même type en même temps
     const k = (g.mi * 7 + 3) % MISSIONS.length;
     g.mi++;
-    const [type, n, reward, text] = MISSIONS[k];
+    const W = world(g.w), mul = W.mul || 1;
+    let [type, n, reward, text] = MISSIONS[k];
+    if (type.startsWith('ore#')) { const o = W.ores[+type.slice(4)]; type = 'ore:' + o.id; text = text.replace('{ore}', o.name.toLowerCase()); }
+    if (type === 'sold') n *= mul;
+    reward *= mul;
     if (g.missions.some((m) => m.type === type)) continue;
     if (type === 'depth' && g.st.deep >= n) continue;
     g.missions.push({ type, n, reward, text: text.replace('{n}', n.toLocaleString('fr-FR')), start: type === 'depth' ? 0 : mval(g, type) });
@@ -388,3 +392,16 @@ export const setDir = (g, dir) => {
   if (g.act === 'done') g.act = 'dig';
 };
 export const goalCost = (W) => W.goal.book + W.goal.build;
+/* Voyage vers le monde suivant (le véhicule de l'objectif est construit) : le coffre est vendu au cours du jour,
+   une nouvelle mine commence ; Fokoins, améliorations, collection et badges payés sont gardés. Renvoie la vente. */
+export const canTravel = (g) => g.built.includes(world(g.w).goal.id) && WORLDS.some((w) => w.id === g.w + 1);
+export function travel(g) {
+  if (!canTravel(g)) return 0;
+  const v = sell(g);
+  const d = newGame({ gender: g.hero.gender, name: g.hero.name, focus: 0 });
+  g.w += 1; g.ww = world(g.w).width;
+  for (const k of ['x', 'y', 'dir', 'hdir', 'pref', 'seg', 'act', 'prog', 'walk', 'route', 'bag', 'bagN', 'stock']) g[k] = structuredClone(d[k]);
+  g.dug = []; g.lamps = []; g.missions = []; g.st.deep = 0; g.run = 0; g.free = false;
+  fillMissions(g);
+  return v;
+}

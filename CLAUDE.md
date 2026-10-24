@@ -305,7 +305,14 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Labo (`src/env.js` `LABO`, `src/lib/labo.js` importé en premier) : clés du stockage préfixées `labo:` (données séparées de l'app),
   copie IndexedDB `labo-backup`, caches du service worker `labo-`, pas de compte ni de synchronisation, pas de statistiques,
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
-- **La mine** (jeu dans le labo, page 5, carte dans l'onglet Pomodoro) : `src/game/` (`data.js` mondes / minerais / améliorations,
+- **La mine** (jeu dans le labo, page 5 = **onglet « ⛏️ La mine » entre Pomodoro et Progression** dans l'en-tête, seulement dans le labo,
+  pour regarder le mineur creuser pendant la concentration ; carte aussi dans l'onglet Pomodoro) :
+  **Mondes** : monde 1 « La mine de ta ville » (vélo, ≈ 12,5 h) puis **monde 2 « Les volcans d'Auvergne »** (`theme 'volcans'`,
+  `mul` 6 = valeurs et missions ×6, `tough` 5 = roche 5× plus dure ; cendre, pouzzolane, soufre, obsidienne, olivine, zircon, grenat,
+  saphir du Velay, cœur de lave ; objectif la voiture 120 000 Fk ≈ 20 h). Départ depuis l'Atelier une fois le véhicule construit :
+  chapitre 2 raconté (`STORY2`), `travel()` vend le coffre et ouvre une nouvelle mine (Fokoins, améliorations, collection gardés) ;
+  bouton de test « Débloquer » réservé au labo. Missions par indice de minerai (`ore#i`), récompenses × `mul`.
+  Personnage complet dans `hero.js` (bras, jambes, salopette à l'anneau Fokus, foulard, casque à pastille Fokus) ; `src/game/` (`data.js` mondes / minerais / améliorations,
   `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
   **DA « Fokus Mine » (v4, choisie par l'utilisateur d'après Idle Miner Tycoon, mais avec notre identité)** : dessin animé net et
   coloré, contours épais `OUT`, aplats + une ombre et un reflet ; coupe du sol en **couches** colorées (`W.layers`, `W.layerAt`,

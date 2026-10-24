@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { pomoElapsed, setModal, setPage, toast, useStore } from '../store';
 import Icon from './Icons';
+import { LABO } from '../env';
 import { openPip, pipActive, pipSupported } from '../lib/pip';
 
 /* Plein écran (Safari iPad : API préfixée webkit) */
@@ -66,7 +67,7 @@ export default function Header() {
   const nav = useRef(null), ind = useRef(null), first = useRef(true);
   useLayoutEffect(() => {
     const place = (anim) => {
-      const b = nav.current?.querySelector(`[data-p="${UI.page === 5 ? 4 : UI.page}"]`); // la mine (labo) est rangée sous Pomodoro
+      const b = nav.current?.querySelector(`[data-p="${UI.page}"]`);
       if (!b) return;
       const to = { x: b.offsetLeft, y: b.offsetTop, width: b.offsetWidth, height: b.offsetHeight };
       if (anim) gsap.to(ind.current, { ...to, duration: 0.55, ease: 'expo.out' });
@@ -85,10 +86,10 @@ export default function Header() {
       style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
     >
       <FokusLogo />
-      <nav className="navseg" ref={nav}>
+      <nav className={'navseg' + (LABO ? ' n5' : '')} ref={nav}>
         <i className="navind" ref={ind} aria-hidden="true" />
-        {[[1, 'Mes Tâches', 'Tâches'], [3, 'À venir', 'À venir', upcoming || ''], [4, 'Pomodoro', 'Pomodoro', live], [2, 'Ma Progression', 'Progrès']].map(([n, l, sl, x]) => (
-          <button key={n} data-p={n} className={UI.page === n || (n === 4 && UI.page === 5) ? 'on' : ''} onClick={() => setPage(n)} aria-current={UI.page === n ? 'page' : undefined}>
+        {[[1, 'Mes Tâches', 'Tâches'], [3, 'À venir', 'À venir', upcoming || ''], [4, 'Pomodoro', LABO ? 'Pomo' : 'Pomodoro', live], ...(LABO ? [[5, '⛏️ La mine', '⛏️ Mine']] : []), [2, 'Ma Progression', 'Progrès']].map(([n, l, sl, x]) => (
+          <button key={n} data-p={n} className={UI.page === n ? 'on' : ''} onClick={() => setPage(n)} aria-current={UI.page === n ? 'page' : undefined}>
             <span className="hidden sm:inline">{l}</span><span className="sm:hidden">{sl}</span>
             {x ? <span className="ml-1 text-[11px] opacity-60 tabular-nums">{x}</span> : null}
           </button>

@@ -96,7 +96,6 @@ function paintCavity(ctx, N, S, cols, rnd) {
 }
 
 /* ---------- minerais : pépites et cristaux cernés, bien brillants ---------- */
-const CRYSTALS = ['quartz', 'amethyste'];
 function nugget(ctx, x, y, r, c, cl, cd, rnd, S) {
   const k = 6 + Math.floor(rnd() * 2), a0 = rnd() * 6, pts = [];
   for (let j = 0; j < k; j++) { const a = a0 + (j / k) * 6.283; pts.push([x + Math.cos(a) * r * (0.82 + rnd() * 0.3), y + Math.sin(a) * r * (0.75 + rnd() * 0.3)]); }
@@ -123,7 +122,7 @@ function paintOre(ctx, S, ore, rnd) {
   const [c, cl, cd] = ore.colors, cx = S / 2, cy = S / 2;
   // logement sombre dans la roche
   ctx.fillStyle = 'rgba(30,16,14,.35)'; blob(ctx, cx, cy + S * 0.04, S * 0.36, rnd, 8, 0.25, 0.8); ctx.fill();
-  if (ore.id === 'geode') {
+  if (ore.shape === 'geode') {
     const R = S * 0.33;
     ctx.fillStyle = '#8d8f99'; ctx.beginPath(); ctx.ellipse(cx, cy, R, R * 0.92, 0, 0, 7); ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = S / 18; ctx.stroke();
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.75); g.addColorStop(0, '#ffffff'); g.addColorStop(0.3, cl); g.addColorStop(1, cd);
@@ -136,7 +135,7 @@ function paintOre(ctx, S, ore, rnd) {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx - R * 0.5, cy - R * 0.55, R * 0.2, R * 0.1, -0.6, 0, 7); ctx.fill();
     return;
   }
-  if (CRYSTALS.includes(ore.id)) {
+  if (ore.shape === 'crystal') {
     const bx = S * (0.4 + rnd() * 0.2), by = S * (0.72 + rnd() * 0.08);
     const n = 3 + Math.floor(rnd() * 2);
     for (let i = 0; i < n; i++) {
@@ -230,7 +229,7 @@ const SKIES = {
 };
 const skyKind = (h) => (h < 6 || h >= 21 ? 'night' : h < 8 ? 'dawn' : h >= 18 ? 'dusk' : 'day');
 export function skyColors(h) { const s = SKIES[skyKind(h)]; return [s[0], s[3], skyKind(h) === 'night']; }
-export function paintSkyline(ctx, w, h, hour, seed = 7) {
+export function paintSkyline(ctx, w, h, hour, seed = 7, theme = 'ville') {
   const kind = skyKind(hour), P = SKIES[kind], night = kind === 'night', rnd = rng(seed);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, P[0]); g.addColorStop(0.45, P[1]); g.addColorStop(0.8, P[2]); g.addColorStop(1, P[3]);
@@ -262,13 +261,19 @@ export function paintSkyline(ctx, w, h, hour, seed = 7) {
     ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
     if (snow) { ctx.fillStyle = dim('#f4f8ff'); for (let i = 1; i < pts.length - 1; i += 2) { const [px, py] = pts[i], [ax, ay] = pts[i - 1], [bx, by] = pts[i + 1], k = 0.28; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + (ax - px) * k, py + (ay - py) * k); ctx.lineTo(px + (ax - px) * k * 0.6, py + (ay - py) * k * 0.9 + 3); ctx.lineTo(px, py + (ay - py) * k * 0.7); ctx.lineTo(px + (bx - px) * k * 0.6, py + (by - py) * k * 0.9 + 3); ctx.lineTo(px + (bx - px) * k, py + (by - py) * k); ctx.closePath(); ctx.fill(); } }
   };
-  peaks(0.6, 0.28, '#8fb3d9', true, 9);
+  const volc = theme === 'volcans';
+  if (!volc) peaks(0.6, 0.28, '#8fb3d9', true, 9);
   // puys (volcans arrondis d'Auvergne, avec leur cratère)
   const puy = (x, base, r, col) => {
     ctx.fillStyle = dim(col); ctx.beginPath(); ctx.moveTo(x - r * 1.6, base); ctx.quadraticCurveTo(x - r * 0.9, base - r * 0.95, x - r * 0.28, base - r);
     ctx.quadraticCurveTo(x, base - r * 0.86, x + r * 0.28, base - r); ctx.quadraticCurveTo(x + r * 0.9, base - r * 0.95, x + r * 1.6, base); ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.moveTo(x - r * 1.2, base); ctx.quadraticCurveTo(x - r * 0.8, base - r * 0.8, x - r * 0.3, base - r * 0.96); ctx.quadraticCurveTo(x - r * 0.5, base - r * 0.5, x - r * 0.6, base); ctx.closePath(); ctx.fill();
   };
+  if (volc) { // chaîne des Puys : grands volcans au premier plan, un panache de vapeur
+    for (let i = 0; i < 4; i++) puy(w * (0.1 + i * 0.28 + rnd() * 0.06), h * 0.76, h * (0.28 + rnd() * 0.1), '#7a9a6a');
+    const vx = w * 0.62, vy = h * 0.76 - h * 0.36;
+    for (let j = 0; j < 5; j++) { ctx.fillStyle = night ? 'rgba(160,170,200,.18)' : 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(vx + j * h * 0.03, vy - j * h * 0.05, h * (0.025 + j * 0.008), 0, 7); ctx.fill(); }
+  }
   for (let i = 0; i < 5; i++) puy(w * (0.08 + i * 0.22 + rnd() * 0.08), h * 0.8, h * (0.16 + rnd() * 0.08), i % 2 ? '#6fae6a' : '#5f9f63');
   // collines et rideau d'arbres
   ctx.fillStyle = dim('#79c15f'); ctx.beginPath(); ctx.moveTo(0, h);
@@ -281,9 +286,9 @@ export function paintSkyline(ctx, w, h, hour, seed = 7) {
   const lit = night || kind === 'dusk';
   while (x < w * 0.98) {
     const bw = w * (0.032 + rnd() * 0.03), bh = h * (0.08 + rnd() * 0.08), top = ground - bh;
-    ctx.fillStyle = dim(['#f4e6cf', '#f0dcc0', '#e9d3b4', '#fbefdc'][Math.floor(rnd() * 4)]); ctx.strokeStyle = dim('#6b4b3a'); ctx.lineWidth = 1.2;
+    ctx.fillStyle = dim(volc ? ['#8c8a92', '#9d9aa3', '#7c7a84', '#a8a39c'][Math.floor(rnd() * 4)] : ['#f4e6cf', '#f0dcc0', '#e9d3b4', '#fbefdc'][Math.floor(rnd() * 4)]); ctx.strokeStyle = dim('#4b3f3a'); ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.rect(x, top, bw, bh); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = dim(rnd() < 0.6 ? '#d0583f' : '#5b6578'); ctx.beginPath(); ctx.moveTo(x - bw * 0.1, top); ctx.lineTo(x + bw / 2, top - bw * 0.5); ctx.lineTo(x + bw * 1.1, top); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = dim(volc ? (rnd() < 0.6 ? '#3e3c48' : '#a8503a') : rnd() < 0.6 ? '#d0583f' : '#5b6578'); ctx.beginPath(); ctx.moveTo(x - bw * 0.1, top); ctx.lineTo(x + bw / 2, top - bw * 0.5); ctx.lineTo(x + bw * 1.1, top); ctx.closePath(); ctx.fill(); ctx.stroke();
     for (let wy = top + bh * 0.22; wy < ground - bh * 0.18; wy += bh * 0.3) for (let wx = x + bw * 0.2; wx < x + bw * 0.78; wx += bw * 0.34) {
       ctx.fillStyle = lit && rnd() < 0.6 ? '#ffd56a' : dim('#7fb6dc'); ctx.fillRect(wx, wy, bw * 0.17, bh * 0.14);
     }
@@ -433,7 +438,7 @@ export function drawShop(ctx, x, groundY, S, night) {
   ctx.restore();
 }
 /* Atelier : garage en briques rouges, porte en arc ouverte, établi ; le vélo se dessine avec la progression */
-export function drawWorkshop(ctx, x, groundY, S, night, progress, built) {
+export function drawWorkshop(ctx, x, groundY, S, night, progress, built, vehicle = 'velo') {
   const w = S * 3.6, h = S * 2.1;
   ctx.save(); ctx.lineJoin = 'round';
   groundShadow(ctx, x, groundY, w, S);
@@ -467,8 +472,18 @@ export function drawWorkshop(ctx, x, groundY, S, night, progress, built) {
     ctx.moveTo(cx + S * 0.3, cy - S * 0.36); ctx.lineTo(cx + S * 0.38, cy - S * 0.58); ctx.lineTo(cx + S * 0.5, cy - S * 0.6);
     ctx.moveTo(cx - S * 0.13, cy - S * 0.45); ctx.lineTo(cx, cy - S * 0.45); ctx.stroke();
   };
-  ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(3, S / 9); bike();
-  ctx.strokeStyle = built ? '#34d399' : '#f2c14e'; ctx.lineWidth = Math.max(1.6, S / 18); bike();
+  if (vehicle === 'voiture') { // petite voiture ronde (la carrosserie se remplit avec la progression)
+    const car = new Path2D(), bx = dx + dw * 0.08, bw = dw * 0.84, by = groundY - S * 0.62;
+    car.moveTo(bx, by + S * 0.3); car.lineTo(bx, by + S * 0.08); car.quadraticCurveTo(bx + bw * 0.12, by - S * 0.02, bx + bw * 0.25, by - S * 0.02);
+    car.lineTo(bx + bw * 0.35, by - S * 0.32); car.quadraticCurveTo(bx + bw * 0.5, by - S * 0.4, bx + bw * 0.68, by - S * 0.32); car.lineTo(bx + bw * 0.8, by - S * 0.02);
+    car.quadraticCurveTo(bx + bw, by, bx + bw, by + S * 0.3); car.closePath();
+    ctx.fillStyle = built ? '#34d399' : 'rgba(242,193,78,.35)'; ctx.fill(car); ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(2, S / 14); ctx.stroke(car);
+    for (const wx of [bx + bw * 0.22, bx + bw * 0.78]) { ctx.beginPath(); ctx.arc(wx, by + S * 0.32, S * 0.17, 0, 7); ctx.fillStyle = '#2b2b30'; ctx.fill(); ctx.stroke(); ctx.fillStyle = '#c9ced6'; ctx.beginPath(); ctx.arc(wx, by + S * 0.32, S * 0.07, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#bfe6ff'; ctx.beginPath(); ctx.moveTo(bx + bw * 0.38, by - S * 0.05); ctx.lineTo(bx + bw * 0.43, by - S * 0.24); ctx.lineTo(bx + bw * 0.62, by - S * 0.24); ctx.lineTo(bx + bw * 0.7, by - S * 0.05); ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else {
+    ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(3, S / 9); bike();
+    ctx.strokeStyle = built ? '#34d399' : '#f2c14e'; ctx.lineWidth = Math.max(1.6, S / 18); bike();
+  }
   ctx.globalAlpha = 1; ctx.lineCap = 'butt';
   sign(ctx, x + w / 2 + S * 0.35, groundY - h - S * 1.45, S, 'ATELIER', '#e5484d');
   ctx.restore();
