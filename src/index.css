@@ -525,6 +525,11 @@
   .tl-txt { flex: 1; min-width: 0; text-align: left; font-size: 14px; min-height: 40px; display: flex; flex-direction: column; justify-content: center; }
   .tl-txt em { font-style: normal; font-size: 11.5px; color: var(--color-mut); }
   .tl-warn { margin-top: 8px; font-size: 12.5px; color: #fdba74; }
+  .tl-tip { margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--color-mut); }
+  .tl-hint { margin-top: 8px; padding: 8px 10px; border-radius: 10px; font-size: 13px; line-height: 1.4; color: #e0f2fe; background: rgba(147, 197, 253, 0.12); border: 1px solid rgba(147, 197, 253, 0.35); }
+  .tl-item.armed { border-color: #93c5fd; box-shadow: 0 0 0 1px #93c5fd; }
+  .tl-item.armed .grip { color: #93c5fd; border-color: #93c5fd; }
+  .tl-grid.armed { cursor: copy; box-shadow: inset 0 0 0 1.5px rgba(147, 197, 253, 0.55); }
   .tl-grid { position: relative; border-radius: 16px; border: 1px solid var(--color-line); background: rgba(14, 14, 17, 0.6); overflow: hidden; }
   .tl-hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
   .tl-hour span { position: absolute; left: 8px; top: 3px; font-size: 11px; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }

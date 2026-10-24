@@ -8,7 +8,9 @@ import { setOpen, setTaskField, taskDur, toast, toggleSel, todayKey, useStore } 
    - Tâches à heure fixe = blocs (hauteur ∝ durée, couleur de l'étiquette), chevauchements signalés.
    - Colonne « À caser » : tâches sans heure, à glisser dans la journée.
    - Au doigt : appui long sur un bloc pour le déplacer, poignée du bas pour le redimensionner,
-     poignée « 6 points » pour sortir une tâche de « À caser ». Pas de 5 min.
+     poignée « 6 points » pour sortir une tâche de « À caser ». Pas de 5 min. La page défile toute seule
+     quand le doigt approche du haut ou du bas de l'écran (sinon les heures hors écran sont inatteignables).
+   - Sans glisser : toucher la poignée d'une tâche « À caser » puis toucher une heure de la grille (quart d'heure).
    - Un tap sélectionne la tâche : la validation reste la même (bouton flottant + animation 3D).
    ===================================================================== */
 const H0 = 6, H1 = 24, PX = 64 / 60; // pixels par minute
@@ -47,7 +49,8 @@ function useNowMin() {
 export default function Timeline({ tasks, sel, busy }) {
   const { S, UI } = useStore();
   const openT = UI.open && S.tasks.find((x) => x.id === UI.open);
-  const grid = useRef(null), ghost = useRef(null), drag = useRef(null);
+  const grid = useRef(null), ghost = useRef(null), drag = useRef(null), raf = useRef(0);
+  const [armed, setArmed] = useState(null); // tâche « à caser » touchée : le prochain tap dans la grille lui donne son heure
   const nowM = useNowMin();
   // couleur du bloc : catégorie, sinon première étiquette
   const color = (t) => S.cats.find((c) => c.id === t.cat)?.color || S.tags.find((g) => g.id === t.tags[0])?.color || '#9ca3af';
@@ -63,7 +66,22 @@ export default function Timeline({ tasks, sel, busy }) {
   const begin = (e, kind, t, el) => {
     if (busy) return;
     const r = el.getBoundingClientRect();
-    drag.current = { kind, t, el, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height, moved: false };
+    drag.current = { kind, t, el, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height, moved: false, last: { clientX: e.clientX, clientY: e.clientY } };
+    let t0 = performance.now();
+    const auto = (now) => { // défilement automatique près des bords (vitesse ∝ proximité du bord, pilotée par le temps)
+      const d = drag.current;
+      if (!d) return;
+      const y = d.last.clientY, E = 90, dt = Math.min(50, now - t0);
+      t0 = now;
+      const k = y < E ? -(E - Math.max(0, y)) / E : y > innerHeight - E ? (Math.min(innerHeight, y) - innerHeight + E) / E : 0;
+      if (k && d.moved) {
+        const before = scrollY;
+        scrollBy(0, k * 1.1 * dt);
+        if (scrollY !== before) (d.kind === 'resize' ? move : place)(d.last);
+      }
+      raf.current = requestAnimationFrame(auto);
+    };
+    raf.current = requestAnimationFrame(auto);
     addEventListener('touchmove', stopScroll, { passive: false });
     addEventListener('pointermove', move);
     addEventListener('pointerup', end, { once: true });
@@ -105,6 +123,7 @@ export default function Timeline({ tasks, sel, busy }) {
   const move = (e) => {
     const d = drag.current;
     if (!d) return;
+    d.last = { clientX: e.clientX, clientY: e.clientY };
     if (Math.abs(e.clientY - d.y0) + Math.abs(e.clientX - d.x0) > 4) d.moved = true;
     if (d.kind === 'resize') {
       const top = toMin(d.t.time), m = snap(minuteAt(e.clientY, 0));
@@ -114,6 +133,7 @@ export default function Timeline({ tasks, sel, busy }) {
     } else place(e);
   };
   const cleanup = () => {
+    cancelAnimationFrame(raf.current);
     removeEventListener('touchmove', stopScroll);
     removeEventListener('pointermove', move);
     removeEventListener('pointercancel', cancel);
@@ -126,12 +146,26 @@ export default function Timeline({ tasks, sel, busy }) {
     drag.current = null;
     if (!d) return;
     if (d.kind === 'resize') { if (d.moved && d.dur) setTaskField(d.t.id, { est: d.dur }); else toggleSel(d.t.id); return; }
-    if (!d.moved) { if (d.kind === 'block') toggleSel(d.t.id); return; }
+    if (!d.moved) {
+      if (d.kind === 'block') toggleSel(d.t.id);
+      else setArmed((a) => (a === d.t.id ? null : d.t.id));
+      return;
+    }
+    setArmed(null);
     const time = ghost.current.dataset.time;
     if (d.inside && time) setTaskField(d.t.id, { time });
     else if (d.kind === 'block') { setTaskField(d.t.id, { time: null }); toast('Remise dans « À caser ».'); }
   };
   const cancel = () => { cleanup(); drag.current = null; };
+  // tap dans la grille avec une tâche « armée » : placée au quart d'heure touché
+  const armedT = armed && loose.find((t) => t.id === armed);
+  const onGridClick = (e) => {
+    if (!armedT || e.target.closest('.tl-block')) return;
+    const m = clampDay(Math.floor(minuteAt(e.clientY, 0) / 15) * 15, taskDur(armedT, S));
+    setTaskField(armedT.id, { time: toHM(m) });
+    setArmed(null);
+    toast(`« ${armedT.text} » à ${toHM(m)} ✓`);
+  };
 
   // bloc : appui long (250 ms) pour déplacer ; un tap court sélectionne
   const onBlockDown = (e, t) => {
@@ -161,17 +195,19 @@ export default function Timeline({ tasks, sel, busy }) {
       <div className="tl-loose">
         <div className="tl-head">À caser <span className="tabular-nums">{loose.length}</span></div>
         {loose.length ? loose.map((t) => (
-          <div key={t.id} className={'tl-item ' + (sel.has(t.id) ? 'sel ' : '') + (t.done ? 'done' : '')} style={{ '--tc': color(t) }}>
+          <div key={t.id} className={'tl-item ' + (sel.has(t.id) ? 'sel ' : '') + (t.done ? 'done ' : '') + (armed === t.id ? 'armed' : '')} style={{ '--tc': color(t) }}>
             <button className="tl-sel" onClick={() => toggleSel(t.id)} aria-label="Sélectionner" />
             <button className="tl-txt" onClick={() => setOpen(t.id)}>{t.prio && <span className="star">★ </span>}{t.text}<em>{fmtMin(taskDur(t, S))}</em></button>
-            <span className="grip" onPointerDown={(e) => { e.preventDefault(); begin(e, 'loose', t, e.currentTarget.parentElement); }} title="Glisser dans la journée" aria-label="Glisser dans la journée">
+            <span className="grip" onPointerDown={(e) => { e.preventDefault(); begin(e, 'loose', t, e.currentTarget.parentElement); }} title="Glisser dans la journée (ou toucher, puis toucher une heure)" aria-label="Glisser dans la journée, ou toucher puis toucher une heure">
               <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">{[3, 8, 13].map((y) => [2.5, 7.5].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.35" fill="currentColor" />))}</svg>
             </span>
           </div>
         )) : <p className="text-[13px] text-mut">Tout a une heure. 👌</p>}
+        {armedT ? <p className="tl-hint">👉 Touche une heure dans la journée pour placer « {armedT.text} ».</p>
+          : loose.length > 0 && <p className="tl-tip">Glisse la poignée ⠿ vers une heure, ou touche-la puis touche l’heure voulue.</p>}
         {overlaps > 0 && <p className="tl-warn">⚠️ {overlaps} tâches se chevauchent</p>}
       </div>
-      <div className="tl-grid" ref={grid} style={{ height: (H1 - H0) * 60 * PX }}>
+      <div className={'tl-grid' + (armedT ? ' armed' : '')} ref={grid} style={{ height: (H1 - H0) * 60 * PX }} onClick={onGridClick}>
         {hours.map((h) => (
           <div key={h} className="tl-hour" style={{ top: (h - H0) * 60 * PX }}><span>{String(h % 24).padStart(2, '0')}:00</span></div>
         ))}
