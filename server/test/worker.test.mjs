@@ -181,6 +181,64 @@ assert.equal(inbox.at(-1).reply_to, 'jeune@x.fr', 'connecté : l’adresse du co
 assert.equal(inbox.length, before + 2);
 console.log('✓ contact : message envoyé au propriétaire, réponse à l’utilisateur, texte échappé, adresse du compte vérifiée');
 
+// agenda : lien d'abonnement signé → flux iCal (tâche validée barrée à l'heure de validation) ; nouveau lien = ancien révoqué
+const get = (path) => worker.fetch(new Request('https://w' + path), env);
+const dk = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10), D3 = dk(3), D0 = dk(0), Dm4 = dk(-4), C = (k) => k.replace(/-/g, '');
+r = await post('/sync/get', { session: s1, have: -1 });
+r = await post('/sync/put', { session: s1, base: r.rev, data: { tz: 'Europe/Paris', set: { defDur: 30 }, cats: [{ id: 'c-sport', name: 'Sport', emoji: '🏃' }],
+  tasks: [{ id: 'run', text: 'Courir', date: D3, time: '17:00', est: 45, cat: 'c-sport', done: false },
+    { id: 'lu', text: 'Lire, un peu; beaucoup', date: D3, time: null, done: false },
+    { id: 'ok', text: 'Courir', date: D0, time: '17:00', done: true, doneAt: D0 + 'T14:05' }],
+  arch: [{ id: 'old', text: 'Ancienne', date: Dm4, done: true, doneAt: Dm4 + 'T09:30' }] } });
+assert.ok(r.rev > 0);
+const link = await post('/cal/link', { session: s1 });
+assert.match(link.url, /^https:\/\/w\/cal\/[0-9a-f]{32}\.1\.[\w-]{27}\.ics$/);
+let ics = await get(new URL(link.url).pathname);
+assert.equal(ics.status, 200); assert.match(ics.headers.get('Content-Type'), /text\/calendar/);
+ics = await ics.text();
+assert.ok(ics.includes('X-WR-TIMEZONE:Europe/Paris') && ics.includes('\r\n'), 'en-têtes, fins de ligne CRLF');
+assert.ok(ics.includes(`DTSTART;TZID=Europe/Paris:${C(D3)}T170000`) && ics.includes(`DTEND;TZID=Europe/Paris:${C(D3)}T174500`), 'heure + durée estimée');
+assert.ok(ics.includes('SUMMARY:🏃 Courir'), 'emoji de la catégorie');
+assert.ok(ics.includes(`DTSTART;VALUE=DATE:${C(D3)}`) && ics.includes('Lire\\, un peu\\; beaucoup'), 'sans heure = toute la journée, texte échappé');
+assert.ok(ics.includes(`DTSTART;TZID=Europe/Paris:${C(D0)}T140500`) && ics.includes('✅ C\u0336o\u0336u\u0336r\u0336i\u0336r\u0336'), 'validée : barrée, à l’heure de validation');
+assert.ok(ics.includes('UID:old@fokus-track.com'), 'tâches archivées après minuit gardées');
+assert.ok(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75), 'lignes de 75 octets au plus');
+assert.equal((await get('/cal/abc.1.xxxxxxxxxxxxxxxxxxxxxxxxxxx.ics')).status, 404, 'lien inventé');
+const link2 = await post('/cal/link', { session: s1, reset: true });
+assert.notEqual(link2.url, link.url);
+assert.equal((await get(new URL(link.url).pathname)).status, 404, 'ancien lien révoqué');
+assert.equal((await get(new URL(link2.url).pathname)).status, 200);
+assert.equal((await post('/cal/link', { session: 'faux' })).status, 401);
+console.log('✓ agenda : lien signé, flux iCal (heures, durée, toute la journée, validée barrée à son heure, archives), nouveau lien = ancien révoqué');
+
+// agenda externe : lu par le serveur (https seulement, pas d'adresse locale, contenu iCal vérifié)
+const prevFetch = globalThis.fetch;
+globalThis.fetch = async (u, init) => (String(u).startsWith('https://calendar.google.com/') ? new Response('BEGIN:VCALENDAR\r\nEND:VCALENDAR') : String(u).startsWith('https://pas-un-agenda.fr/') ? new Response('<html>') : prevFetch(u, init));
+const raw = async (path, body) => { const x = await worker.fetch(new Request('https://w' + path, { method: 'POST', headers: { Origin: 'https://fokus-track.com' }, body: JSON.stringify(body) }), env); return { status: x.status, text: await x.text() }; };
+r = await raw('/cal/fetch', { session: s1, url: 'webcal://calendar.google.com/calendar/ical/x/basic.ics' });
+assert.equal(r.status, 200); assert.ok(r.text.startsWith('BEGIN:VCALENDAR'), 'webcal:// accepté');
+for (const bad of ['http://calendar.google.com/x.ics', 'https://localhost/x.ics', 'https://127.0.0.1/x.ics', 'https://intranet/x.ics', 'https://a:b@calendar.google.com/x', 'file:///etc/passwd']) {
+  assert.equal((await raw('/cal/fetch', { session: s1, url: bad })).status, 400, bad);
+}
+assert.equal((await raw('/cal/fetch', { session: s1, url: 'https://pas-un-agenda.fr/x' })).status, 422, 'pas un iCal');
+assert.equal((await raw('/cal/fetch', { url: 'https://calendar.google.com/x.ics' })).status, 401, 'session requise');
+globalThis.fetch = prevFetch;
+console.log('✓ agenda externe : webcal → https, adresses locales / http refusées, contenu vérifié, session requise');
+
+// mot de passe : défini dans Réglages → Compte, puis connexion e-mail + mot de passe ; 5 essais ratés → attente
+assert.equal((await post('/auth/password/set', { session: s1, password: 'court' })).status, 400, 'trop court');
+assert.equal((await post('/auth/password/set', { session: s1, password: '12345678' })).status, 400, 'trop facile');
+assert.equal((await post('/auth/password/login', { email: 'lea@exemple.fr', password: 'Fokus-2026!' })).status, 401, 'pas encore de mot de passe');
+r = await post('/auth/password/set', { session: s1, password: 'Fokus-2026!' });
+assert.equal(r.ok, true); assert.equal(r.user.hasPw, true);
+r = await post('/auth/password/login', { email: ' LEA@exemple.fr ', password: 'Fokus-2026!' });
+assert.match(r.session, /^v2\./); assert.equal(r.user.email, 'lea@exemple.fr');
+for (let i = 0; i < 5; i++) assert.equal((await post('/auth/password/login', { email: 'lea@exemple.fr', password: 'mauvais-mdp' })).status, 401);
+r = await post('/auth/password/login', { email: 'lea@exemple.fr', password: 'Fokus-2026!' });
+assert.equal(r.status, 429, 'bloqué 15 min après 5 essais ratés'); assert.match(r.error, /15 minutes/);
+assert.equal((await post('/auth/password/set', { session: s1, password: '' })).user.hasPw, false, 'mot de passe retiré');
+console.log('✓ mot de passe : règles, connexion (adresse normalisée), 5 essais ratés → attente, retrait');
+
 // statistiques, suppression
 r = await worker.fetch(new Request('https://w/stats'), env).then((x) => x.json());
 assert.equal(r.accounts, 4);

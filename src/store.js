@@ -40,12 +40,12 @@ export const DEF_SET = {
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: false, pipMode: 'auto',
-  style: 'fokus', meteo: true, ambSharp: true, lock: false, lockShortcut: '',
+  style: 'fokus', meteo: true, ambSharp: true, lock: false, lockShortcut: '', calAllDay: true, cals: [],
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
   set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
-  sessions: [], ideas: [], pushId: '', mood: { d: '', v: '' },
+  sessions: [], ideas: [], pushId: '', mood: { d: '', v: '' }, arch: [], tz: '',
 });
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -160,6 +160,9 @@ export function migrate(raw) {
       .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c', x[4] ? 1 : 0, arr(x[5]).map(String), String(x[6] || '').slice(0, 40), x[7] ? String(x[7]) : null])),
     ideas: arr(o.ideas).filter((x) => x && x.text).map((x) => ({ id: String(x.id || uid()), text: String(x.text), at: +x.at || Date.now() })),
     pushId: typeof o.pushId === 'string' ? o.pushId : '',
+    // agenda (flux iCal du serveur) : tâches validées archivées à minuit (60 jours) et fuseau horaire de l'appareil
+    arch: arr(o.arch).filter((x) => x && x.id && x.text).slice(-600),
+    tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } })(),
     mood: o.mood && isKey(o.mood.d) && METEO.some((m) => m[0] === o.mood.v) ? { d: o.mood.d, v: o.mood.v } : { d: '', v: '' },
   };
 }
@@ -533,7 +536,7 @@ export function deleteTask(id, silent) {
 export function uncheck(id) {
   const t = S.tasks.find((x) => x.id === id);
   if (!t || !t.done || UI.busy) return;
-  patch(id, { done: false });
+  patch(id, { done: false, doneAt: null });
   set({ doneTotal: Math.max(0, S.doneTotal - 1) });
 }
 /* Réorganisation relative à une tâche cible (la liste affichée peut être filtrée ou triée) */
@@ -557,11 +560,14 @@ export function toggleSel(id) {
 }
 export const select = (id) => { const sel = new Set(UI.sel); sel.add(id); setUI({ sel }); };
 
+/* Moment de la validation (heure locale 'AAAA-MM-JJTHH:MM') : l'agenda Fokus place la tâche faite à cette heure-là */
+const doneStamp = () => { const d = now(); return K(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 /* Valide la sélection ; renvoie l'ancien et le nouveau pourcentage */
 export function validateSelection() {
   const old = stats().p;
   const ids = S.tasks.filter((t) => UI.sel.has(t.id) && !t.done && isToday(t)).map((t) => t.id);
-  const tasks = S.tasks.map((t) => (ids.includes(t.id) ? { ...t, done: true } : t));
+  const at = doneStamp();
+  const tasks = S.tasks.map((t) => (ids.includes(t.id) ? { ...t, done: true, doneAt: at } : t));
   UI = { ...UI, sel: new Set() };
   set({ tasks, doneTotal: S.doneTotal + ids.length });
   buzz(18);
@@ -574,7 +580,7 @@ export function afterValidate(ids) {
     label: 'Annuler',
     fn: () => {
       const back = S.tasks.filter((t) => ids.includes(t.id) && t.done).length;
-      set({ tasks: S.tasks.map((t) => (ids.includes(t.id) ? { ...t, done: false } : t)), doneTotal: Math.max(0, S.doneTotal - back) });
+      set({ tasks: S.tasks.map((t) => (ids.includes(t.id) ? { ...t, done: false, doneAt: null } : t)), doneTotal: Math.max(0, S.doneTotal - back) });
       toast('Validation annulée.');
     },
   });
@@ -988,6 +994,10 @@ export function checkDay() {
   const hist = { ...S.hist }, keys = [S.last];
   hist[S.last] = entry(S.tasks, S.last, S);
   let rest = S.tasks.filter((t) => !t.done);
+  // tâches faites gardées 60 jours pour l'agenda (rayées à leur heure de validation)
+  const lim = addDays(tk, -62);
+  const arch = [...S.arch, ...S.tasks.filter((t) => t.done).map((t) => ({ id: t.id, text: t.text, date: t.date, time: t.time, est: t.est, cat: t.cat, done: true, doneAt: t.doneAt || null }))]
+    .filter((a) => (a.doneAt || a.date || '') >= lim).slice(-600);
   for (let k = addDays(S.last, 1), i = 0; k < tk && i < 800; k = addDays(k, 1), i++) { hist[k] = entry(rest, k, S); keys.push(k); }
   const jk = applyJokers(hist, keys, S.set);
   rest = rest.map((t) => (t.date && t.date < tk ? { ...t, date: tk, carried: t.carried + 1 } : t));
@@ -995,7 +1005,7 @@ export function checkDay() {
   let pc = 0;
   rest = rest.map((t) => (t.prio && isToday(t, tk) ? (++pc > 3 ? { ...t, prio: false } : t) : t));
   UI = { ...UI, sel: new Set(), open: null };
-  set({ hist, last: tk, ...spawn(rest, S.rec, tk) });
+  set({ hist, arch, last: tk, ...spawn(rest, S.rec, tk) });
   if (jk) toast(jk > 1 ? `${jk} jokers utilisés, ta série continue 🔥` : 'Joker utilisé, ta série continue 🔥', null, 4500);
   checkBadges();
   return true;

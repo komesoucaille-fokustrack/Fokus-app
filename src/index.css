@@ -847,3 +847,18 @@
 .lock-steps { margin: 10px 0 12px; padding-left: 20px; display: grid; gap: 8px; font-size: 13px; line-height: 1.5; color: var(--color-text-2); }
 .lock-steps b { color: var(--color-text); }
 .lock-steps code { font-size: 12px; padding: 1px 5px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); user-select: all; -webkit-user-select: all; }
+
+/* Agendas (Réglages → Agendas, Chronologie) */
+.cal-feed { display: grid; gap: 10px; }
+.cal-feed .field { font-size: 12.5px; }
+.cal-how { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--color-text-2); }
+.cal-how b { color: var(--color-text); }
+.cal-add { display: grid; gap: 8px; }
+.cal-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.tl-ev { --ec: #93c5fd; position: absolute; right: 4px; width: calc(var(--evw) - 6px); z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 1px;
+  padding: 4px 8px; border-radius: 10px; text-align: left; overflow: hidden; border: 1px dashed color-mix(in srgb, var(--ec) 60%, transparent);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ec) 13%, transparent) 0 8px, color-mix(in srgb, var(--ec) 6%, transparent) 8px 16px); }
+.tl-ev span { font-size: 12.5px; font-weight: 600; color: color-mix(in srgb, var(--ec) 70%, #fff); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-ev em { font-style: normal; font-size: 11px; color: rgba(255, 255, 255, 0.55); font-variant-numeric: tabular-nums; }
+.tl-allday { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-evchip { --ec: #93c5fd; min-height: 32px; padding: 4px 10px; border-radius: 99px; font-size: 12.5px; border: 1px dashed color-mix(in srgb, var(--ec) 60%, transparent); background: color-mix(in srgb, var(--ec) 12%, transparent); }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Sheet from './Sheet';
 import { exportJSON, getState } from '../store';
-import { deleteAccount, loginRequired, logout, pull, push, renderGoogleButton, resolveChoice, useCloud } from '../lib/cloud';
+import { deleteAccount, loginRequired, logout, pull, push, renderGoogleButton, resolveChoice, setPassword, useCloud } from '../lib/cloud';
 import { LoginMethods } from './Login';
 import { ProfileForm } from './Profile';
 
@@ -26,6 +26,41 @@ export function GoogleButton() {
       <div ref={el} className="gbtn" />
       {err && <p className="cloud-err">{err}</p>}
     </>
+  );
+}
+
+/* Mot de passe : créer, changer ou retirer (8 caractères minimum, vérifié aussi par le serveur) */
+function PasswordForm({ has, email }) {
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const save = async (e) => {
+    e.preventDefault();
+    if (pw.length < 8) { setMsg('Au moins 8 caractères.'); return; }
+    if (pw !== pw2) { setMsg('Les deux mots de passe ne sont pas identiques.'); return; }
+    setBusy(true); setMsg('');
+    try { await setPassword(pw); setPw(''); setPw2(''); setMsg('✓ Mot de passe enregistré.'); } catch (x) { setMsg(x.message); }
+    setBusy(false);
+  };
+  const remove = async () => {
+    if (!confirm('Retirer ton mot de passe ? Tu te connecteras avec un code par e-mail.')) return;
+    setBusy(true);
+    try { await setPassword(''); setMsg('Mot de passe retiré.'); } catch (x) { setMsg(x.message); }
+    setBusy(false);
+  };
+  return (
+    <form className="login-form prof-compact" onSubmit={save}>
+      <input type="email" autoComplete="username" value={email || ''} readOnly hidden />
+      <span className="si-d">{has ? 'Un mot de passe est défini. Tu peux le changer :' : 'Aucun mot de passe : tu te connectes avec un code par e-mail.'}</span>
+      <input className="field" type="password" autoComplete="new-password" placeholder={has ? 'Nouveau mot de passe' : 'Mot de passe (8 caractères min.)'} value={pw} onChange={(e) => setPw(e.target.value)} aria-label="Mot de passe" />
+      <input className="field" type="password" autoComplete="new-password" placeholder="Confirme le mot de passe" value={pw2} onChange={(e) => setPw2(e.target.value)} aria-label="Confirmation du mot de passe" />
+      <span className="flex flex-wrap gap-2">
+        <button className="b on login-go" disabled={busy || !pw}>{has ? 'Changer' : 'Créer mon mot de passe'}</button>
+        {has && <button type="button" className="b" onClick={remove} disabled={busy}>Retirer</button>}
+      </span>
+      {msg && <span className={'si-d ' + (msg.startsWith('✓') ? '' : 'cloud-err')} role="status">{msg}</span>}
+    </form>
   );
 }
 
@@ -80,6 +115,9 @@ export function AccountSettings({ Group }) {
       </Group>
       <Group title="Mon profil">
         <div className="si col"><ProfileForm compact /></div>
+      </Group>
+      <Group title="Mot de passe" foot="Facultatif : pour te connecter sans attendre de code. Oublié ? Le code par e-mail marche toujours.">
+        <div className="si col"><PasswordForm has={!!u.hasPw} email={u.email} /></div>
       </Group>
       <Group foot="Chaque modification est sauvegardée en quelques secondes. Connecte-toi avec la même adresse sur un autre appareil pour tout y retrouver.">
         <div className="si"><span className="si-l"><span className="si-t">Se déconnecter</span>

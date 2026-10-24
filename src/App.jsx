@@ -12,6 +12,7 @@ import DayStrip from './components/DayStrip';
 import { getColorForPercentage, setPalette } from './lib/colors';
 import { StyleCard } from './components/Style';
 import { useFocusLock } from './lib/lock';
+import { startCalendars } from './lib/calendars';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
@@ -161,6 +162,7 @@ export default function App() {
   usePomodoro();
   usePushSync();
   useFocusLock();
+  useEffect(() => { if ((getState().set.cals || []).length) startCalendars(); }, [S.set.cals]);
   useAmbient(S);
   const fmt = scoreFmt(S);
 

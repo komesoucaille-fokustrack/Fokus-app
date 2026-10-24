@@ -84,7 +84,34 @@ export function checkProfile(b) {
 export const MIN_AGE = 15;
 // l'âge vieillit tout seul : âge donné + années écoulées depuis qu'il a été donné
 export const ageNow = (age, at, now = Date.now()) => (age ? age + Math.floor((now - (at || now)) / (365.25 * 864e5)) : 0);
-const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '', age: ageNow(meta.age, meta.ageAt), blocked: meta.blocked || '' });
+const profileOf = (meta) => ({ name: meta.name || '', email: meta.email || '', picture: meta.picture || '', first: meta.first || '', last: meta.last || '', pseudo: meta.pseudo || '', age: ageNow(meta.age, meta.ageAt), blocked: meta.blocked || '', hasPw: !!meta.pw });
+
+/* Mot de passe (facultatif, en plus du code par e-mail) : PBKDF2-SHA256, 100 000 itérations (maximum des Workers), sel aléatoire.
+   Le mot de passe n'est jamais stocké ; 5 essais ratés → 15 minutes d'attente. Oublié ? Le code par e-mail marche toujours. */
+export const PW_MIN = 8;
+const PW_IT = 100_000;
+export async function pwHash(password, salt, it = PW_IT) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  return b64u(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unb64u(salt), iterations: it }, key, 256));
+}
+export function checkPassword(pw) {
+  pw = String(pw || '');
+  if (pw.length < PW_MIN) return `Au moins ${PW_MIN} caractères.`;
+  if (pw.length > 200) return 'Mot de passe trop long.';
+  if (/^(.)\1+$/.test(pw) || /^(?:12345678|motdepasse|password|azertyui|qwertyui)/i.test(pw)) return 'Mot de passe trop facile à deviner.';
+  return '';
+}
+
+/* Lien d'agenda (flux iCal en lecture seule) : « <compte>.<version>.<signature> ». Changer de version révoque l'ancien lien. */
+export async function calToken(id, v, secret) {
+  const sig = b64u(await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(`cal:${id}:${v}`))).slice(0, 27);
+  return `${id}.${v}.${sig}`;
+}
+export async function readCalToken(tok, secret) {
+  const m = /^([a-f0-9]{32})\.(\d{1,6})\.([\w-]{27})$/.exec(String(tok || ''));
+  if (!m) return null;
+  return (await calToken(m[1], +m[2], secret)) === tok ? { id: m[1], v: +m[2] } : null;
+}
 
 /* code à 6 chiffres (tirage sans biais) et son empreinte (le code lui-même n'est jamais stocké) */
 export function newCode() {
@@ -136,6 +163,25 @@ export class Account {
       await st.put('code', { sends: c.sends }); // code utilisé : il ne resservira pas
       return Response.json({ ok: true });
     }
+    if (path === '/pwcheck') { // connexion par mot de passe (avant toute session)
+      const now = Date.now(), f = meta.pwFail || { n: 0, t: 0 };
+      if (f.n >= 5 && now - f.t < 15 * 60e3) return Response.json({ error: 'Trop d’essais : réessaie dans 15 minutes, ou connecte-toi avec un code par e-mail.' }, { status: 429 });
+      if (!meta.pw) return Response.json({ error: 'E-mail ou mot de passe incorrect.' }, { status: 401 });
+      if ((await pwHash(String(b.password || ''), meta.pw.salt, meta.pw.it)) !== meta.pw.hash) {
+        meta.pwFail = { n: (now - f.t < 15 * 60e3 ? f.n : 0) + 1, t: now };
+        await st.put('meta', meta);
+        return Response.json({ error: 'E-mail ou mot de passe incorrect.' }, { status: 401 });
+      }
+      delete meta.pwFail;
+      await st.put('meta', meta);
+      return Response.json({ ok: true });
+    }
+    if (path === '/caldata') { // flux d'agenda : appelé par le Worker après vérification de la signature du lien
+      if (meta.blocked || !meta.calv || meta.calv !== b.v || !meta.n) return Response.json({ error: 'not found' }, { status: 404 });
+      let text = '';
+      for (let i = 0; i < meta.n; i++) text += (await st.get('c' + i)) || '';
+      return new Response(text, { headers: { 'Content-Type': 'application/json' } });
+    }
     if (path === '/unblock') { // appelé seulement par le Worker, après vérification du propriétaire
       delete meta.blocked; delete meta.blockedAt;
       Object.assign(meta, { age: 0, ageAt: 0 }); // l'âge sera redemandé à la prochaine ouverture
@@ -156,6 +202,20 @@ export class Account {
       return Response.json({ ok: true, user: profileOf(meta) });
     }
 
+    if (path === '/pwset') { // définir, changer (password) ou retirer (password vide) le mot de passe
+      if (b.password) {
+        const salt = b64u(crypto.getRandomValues(new Uint8Array(16)));
+        meta.pw = { salt, it: PW_IT, hash: await pwHash(String(b.password), salt), at: Date.now() };
+      } else delete meta.pw;
+      delete meta.pwFail;
+      await st.put('meta', meta);
+      return Response.json({ ok: true, user: profileOf(meta) });
+    }
+    if (path === '/calv') { // version du lien d'agenda (créée au premier appel, +1 pour révoquer l'ancien lien)
+      if (!meta.calv || b.reset) meta.calv = (meta.calv || 0) + 1;
+      await st.put('meta', meta);
+      return Response.json({ v: meta.calv });
+    }
     if (path === '/get') {
       if (meta.blocked) return Response.json({ rev: meta.rev, at: meta.at, same: true, user }); // compte bloqué : pas de données
       if (b.have === meta.rev) return Response.json({ rev: meta.rev, at: meta.at, same: true, user });

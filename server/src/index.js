@@ -20,6 +20,11 @@
      POST /sync/delete { session }                     → efface le compte du serveur
      POST /contact { session? | email, topic, message } → message au propriétaire (Resend, réponse = e-mail de l'utilisateur)
      POST /admin/unblock { session, email }            → débloque un compte (âge saisi par erreur ; l'âge sera redemandé)
+     POST /auth/password/login { email, password }    → { session, user } (mot de passe défini dans Réglages → Compte)
+     POST /auth/password/set   { session, password }  → définit / change (vide = retire) le mot de passe
+     POST /cal/link  { session, reset? }               → { url } lien d'abonnement à l'agenda Fokus (iCal)
+     GET  /cal/<lien>.ics                              → flux iCal des tâches (Apple Calendrier, Google Agenda…)
+     POST /cal/fetch { session, url }                  → contenu d'un agenda externe (.ics) pour l'afficher dans l'app
      POST /profile/set { session, first, last, pseudo, age } → profil (âge < 15 ans : compte bloqué) (première connexion, puis Réglages → Compte)
      GET  /stats                                       → { accounts } nombre de comptes créés
    Statistiques (voir stats.js) :
@@ -30,7 +35,8 @@
    notification (précision de l'ordre de la seconde).
    ===================================================================== */
 import { generateVapid, sendPush } from './webpush.js';
-import { Account, EMAIL, MIN_AGE, accountId, checkProfile, makeSession, normEmail, readSession, verifyGoogle } from './account.js';
+import { Account, EMAIL, MIN_AGE, accountId, calToken, checkPassword, checkProfile, makeSession, normEmail, readCalToken, readSession, verifyGoogle } from './account.js';
+import { buildIcs } from './ical.js';
 import { Stats } from './stats.js';
 
 export { Account, Stats };
@@ -65,9 +71,10 @@ export default {
       }
       if (req.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'fokus-push', google: !!env.GOOGLE_CLIENT_ID, email: !!env.RESEND_API_KEY }, 200, h);
       if (req.method === 'GET' && url.pathname === '/stats') return json(await keys(env, '/stats'), 200, h);
+      if (req.method === 'GET' && url.pathname.startsWith('/cal/')) return await calFeed(env, url);
       if (req.method !== 'POST') return json({ error: 'not found' }, 404, h);
       if (url.pathname === '/auth/google/redirect') return await redirectLogin(req, env);
-      if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/sync/') || url.pathname.startsWith('/admin/') || url.pathname === '/profile/set') return await accountRoute(req, env, url.pathname, h);
+      if (/^\/(auth|sync|admin|cal)\//.test(url.pathname) || url.pathname === '/profile/set') return await accountRoute(req, env, url.pathname, h);
       if (url.pathname === '/ping') return await ping(req, env, h);
       if (url.pathname === '/contact') return await contact(req, env, h);
       const text = await req.text();
@@ -190,9 +197,29 @@ async function accountRoute(req, env, path, h) {
     if (!r.ok) return json(await r.json(), r.status, h);
     return json(await openSession(env, email, 'email'), 200, h);
   }
+  if (path === '/auth/password/login') { // e-mail + mot de passe (défini dans Réglages → Compte)
+    const email = normEmail(b.email);
+    if (!EMAIL.test(email) || email.length > 254) return json({ error: 'Adresse e-mail invalide.' }, 400, h);
+    const r = await account(env, await accountId(email), '/pwcheck', { password: String(b.password || '').slice(0, 200) });
+    if (!r.ok) return json(await r.json(), r.status, h);
+    return json(await openSession(env, email, 'password'), 200, h);
+  }
   const { secret } = await keys(env, '/auth');
   const s = await readSession(b.session, secret);
   if (!s) return json({ error: 'session invalide' }, 401, h);
+  if (path === '/auth/password/set') {
+    const err = b.password ? checkPassword(b.password) : '';
+    if (err) return json({ error: err }, 400, h);
+    const r = await account(env, s.id, '/pwset', { password: b.password || '', iat: s.iat });
+    return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
+  }
+  if (path === '/cal/link') { // lien d'abonnement à l'agenda Fokus (reset = nouveau lien, l'ancien cesse de marcher)
+    const r = await account(env, s.id, '/calv', { reset: !!b.reset, iat: s.iat });
+    if (!r.ok) return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h } });
+    const { v } = await r.json();
+    return json({ url: `${new URL(req.url).origin}/cal/${await calToken(s.id, v, secret)}.ics` }, 200, h);
+  }
+  if (path === '/cal/fetch') return await calFetch(b.url, h);
   if (path.startsWith('/admin/')) { // tableau de bord : réservé aux adresses de ADMIN_EMAILS
     const { email } = await stats(env, '/whois', { id: s.id });
     if (!isAdmin(env, email)) return json({ error: 'réservé au propriétaire' }, 403, h);
@@ -220,6 +247,41 @@ async function accountRoute(req, env, path, h) {
   const extra = {};
   if (op === '/get' && env.ADMIN_EMAILS && isAdmin(env, (await stats(env, '/whois', { id: s.id })).email)) extra['X-Fokus-Admin'] = '1'; // propriétaire désigné après sa connexion
   return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json', ...h, ...extra } });
+}
+
+/* Flux iCal d'un compte (GET /cal/<lien>.ics) : lecture seule, lien signé et révocable */
+async function calFeed(env, url) {
+  const tok = url.pathname.slice(5).replace(/\.ics$/, '');
+  const c = await readCalToken(tok, (await keys(env, '/auth')).secret);
+  const nf = () => new Response('Lien d’agenda inconnu ou remplacé.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  if (!c) return nf();
+  const r = await account(env, c.id, '/caldata', { v: c.v });
+  if (!r.ok) return nf();
+  return new Response(buildIcs(await r.json()), {
+    headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="fokus.ics"', 'Cache-Control': 'private, max-age=300', 'Access-Control-Allow-Origin': '*' },
+  });
+}
+
+/* Agenda externe (Google, iCloud, Outlook…) lu par le serveur pour l'app (les agendas n'autorisent pas la lecture directe
+   depuis une page web) : https seulement, pas d'adresse locale, 10 s et 4 Mo au plus, contenu iCal vérifié. */
+export function calUrlOk(raw) {
+  let u;
+  try { u = new URL(String(raw || '').trim().replace(/^webcals?:\/\//i, 'https://')); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return null;
+  const host = u.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal') || /^[\d.]+$/.test(host) || host.includes(':') || !host.includes('.')) return null;
+  return u;
+}
+async function calFetch(raw, h) {
+  const u = calUrlOk(raw);
+  if (!u) return json({ error: 'Adresse d’agenda invalide : colle le lien « iCal » / « .ics » (https:// ou webcal://).' }, 400, h);
+  let r;
+  try { r = await fetch(u.toString(), { headers: { 'User-Agent': 'Fokus-Calendar/1.0 (+https://fokus-track.com)', Accept: 'text/calendar, */*' }, redirect: 'follow', signal: AbortSignal.timeout(10000) }); }
+  catch { return json({ error: 'Agenda injoignable pour le moment.' }, 502, h); }
+  if (!r.ok) return json({ error: `L’agenda a refusé l’accès (${r.status}). Vérifie que le lien est bien l’adresse secrète / publique.` }, 502, h);
+  const text = (await r.text()).slice(0, 4_000_000);
+  if (!/BEGIN:VCALENDAR/.test(text.slice(0, 2000))) return json({ error: 'Ce lien ne renvoie pas un agenda iCal (.ics).' }, 422, h);
+  return new Response(text, { headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...h } });
 }
 
 /* Connexion par redirection (app installée sur l'écran d'accueil) : Google envoie le formulaire ici,

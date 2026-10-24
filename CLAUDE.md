@@ -19,6 +19,9 @@ Claude gère 100 % du code, des builds et du déploiement. Chaque push sur `main
   bordures `--color-edge` (`rgba(255,255,255,.09)`) / `edge-hi` ; texte `--color-text` `#f5f6f8` et `--color-text-2` `#a7abb4`
   (= `--color-mut`) ; accents `#93c5fd` / `#86efac` ; or des priorités `--color-gold`. Les anciens jetons (`ink`, `cont`, `card`, `hov`, `mut`)
   pointent sur ces valeurs. **Contraste du texte ≥ 4,5:1 partout** (mesuré : ≥ 6,9:1 au point le plus clair du fond).
+- **Photo nette** (`set.ambSharp`, défaut) : la vraie photo HD derrière l'app, voile uniforme selon l'intensité (Intense = aucun),
+  jamais de dégradé ni de flou ; textes posés sur le fond ombrés (`body.amb-photo`). Photos classées (`sub`, `PHOTO_SUBS` : Rose & doux,
+  Ville, Mer & plages, Nature, Cosy, Rétro & voitures ; 35 nouvelles `q01`…`q35`) ; dégradés « Rose baddie », Pêche, Lilas, Nuit rose.
 - **Ambiance par défaut « Obsidienne »** (`t-obsidienne`, `Ambiance.jsx`) : noir profond aux reflets bleu nuit, émeraude et ambre.
   `migrate()` bascule une seule fois l'ancien défaut `p12` vers Obsidienne (`seen.thm`). Graphite lunaire et Ambre fumé + toutes les
   ambiances photo / dégradé restent au choix (Réglages → Apparence). Pomodoro : fond par défaut Obsidienne aussi.
@@ -119,6 +122,20 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   filtre par catégorie au-dessus de la liste (avec les étiquettes) ; couleur des blocs de la chronologie ; carte « Par catégorie »
   (tâches validées + temps de concentration) sur la Page 2 ; rubrique Réglages → Catégories (créer, renommer, emoji, couleur, supprimer) ;
   badges Polyvalent / Touche-à-tout / Spécialiste.
+- **Mon style** (`Style.jsx`, `set.style`, `applyStyle`) : « À fond » (`fokus`, suivi complet) ou « Tranquille » (`zen`, demandé
+  par les premiers retours : « que les plus chill trouvent leur compte ») : chaque tâche vaut 1, compteur « 3 faites » au lieu du %,
+  palette douce sans rouge (`setPalette` de `colors.js`, suivie par la cinématique), ni points, ni série, ni « reportée N× », ni
+  surcharge, ni tri du matin / bilan / rituel imposés, bouton Valider « 🌿 ». Choisi à l'inscription (`Intro.jsx`), par la carte
+  unique `StyleCard` (comptes existants, `seen.style`) ou Réglages → Mon style.
+- **Météo du jour** (idée originale de Fokus, `METEO`, `S.mood`, `hist.mt`) : ☀️ 100 % · ⛅ 80 % · 🌧️ 60 % · 🌙 40 % — l'objectif du jour
+  (`stats().goal`) s'adapte à l'énergie ; au-delà = bonus ✨ ; la série suit l'objectif ajusté. Question sous la salutation (`Meteo`),
+  carte « Ta météo et toi » sur la Page 2, réglage `set.meteo`.
+- **Agendas** (`Calendars.jsx`, `lib/calendars.js`, serveur `src/ical.js`) : 1) flux iCal signé et révocable du compte
+  (`/cal/link`, `GET /cal/<lien>.ics`) pour Apple / Google / Outlook — tâche validée « ✅ b̶a̶r̶r̶é̶e̶ » (U+0336) déplacée à l'heure
+  de validation (`doneAt`, tâches faites archivées 60 j dans `arch`), fuseau `S.tz`, `set.calAllDay` ; 2) agendas externes
+  (`set.cals`, lien iCal lu par `/cal/fetch`, https seulement, adresses locales refusées) affichés dans la Chronologie (colonne
+  de droite hachurée, tap = « En faire une tâche »), RRULE / EXDATE / RECURRENCE-ID / TZID gérés, cache local `fokus_cal` (15 min).
+  Synchronisation dans l'autre sens impossible pour une web app (Apple n'expose pas son agenda).
 - **Ordre des tâches** : réglage `set.order` « Manuel » (défaut : seul l'ordre choisi compte, partout ; ★ propose « Remonter en tête »)
   ou « Automatique » (`sortTasks` : priorités puis 3 > 2 > 1 pt ; poignée désactivée avec explication).
 - **Score par points** : % du jour = points faits / points totaux des tâches du jour (date ≤ aujourd'hui). Réglage `set.scoreMode` :
@@ -139,6 +156,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   portrait 1290×2796 recadré (`-P`, via `<picture>`), vignette `-mini.jpg` ; même DA (intérieurs mid-century chauds, vert profond,
   noir et blanc, brume, voitures, horloges à palettes). Jamais de captures d'écran floues. Durées en minutes libres (`MinuteField`) + préréglages.
   Le minuteur avance partout dans l'app (`usePomodoro` dans App, temps restant dans l'onglet et le titre).
+  **Verrou de concentration** (`set.lock`, `pomoLocked`, `lib/lock.js`) : pendant une concentration, pause / réinitialisation /
+  phase suivante / fin = appui maintenu 5 s (`HoldButton`) ; espace, mini-fenêtre et onglets bloqués ; sorties de l'app comptées
+  (`pomo.out`) + rappel push « reviens » à 20 s et 3 min (clés `lock`, `lock2`) ; mode Concentration iOS lancé par un raccourci
+  (`set.lockShortcut`, `shortcuts://run-shortcut`) — bloquer les autres apps est réservé aux apps de l'App Store.
+  Chrono **Aesthetic** (façon Flocus : salutation en minuscules, grands chiffres lumineux, phrase douce) ; bouton **Heure** partout.
   v3 : mode **Libre** (Flowtime, `set.pomoMode`, pause = 1/`flowRatio` du temps fait), **aucune punition** (pause, réinitialisation,
   fermeture : le temps fait est toujours crédité), **temps estimé** en minutes (`Estimate.jsx` : puce sablier sur la tâche = estimation seule, jamais le temps déjà fait ;
   un tap ouvre un petit panneau avec heures + minutes **saisies librement** (aucun pas imposé) et préréglages 15 min → 4 h ;
@@ -152,7 +174,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   déplaçable et redimensionnable ; lecture/pause de la fenêtre = pause/reprise du minuteur ; réglage `set.pipMode` (auto / timer / day).
   Les vrais widgets d'écran d'accueil iOS sont réservés aux apps de l'App Store (impossible pour une web app).
 - **Ma journée** (phase 3) : bascule Liste / **Chronologie** (`Timeline.jsx`, 6 h → 24 h, ligne « maintenant », blocs glissables par appui
-  long, redimensionnables, « À caser », chevauchements), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
+  long, redimensionnables, « À caser » (défilement automatique près des bords pendant le glisser ; ou toucher la poignée puis l'heure),
+  chevauchements, événements des agendas reliés), bandeau `DayStrip` « Estimé · Fait » + alerte de surcharge (`set.capacity`,
   `Overload.jsx`), **rituel du soir** `EveningRitual.jsx` (3 écrans ; tri du matin sauté si tout est trié ; `set.evening`, `eveningAt`).
 - **Saisie rapide** v3 : « de demain », « le lundi » et les fractions (1/2, 3/4) ne sont pas des dates ; `~45`, `~1h30`, `~2h` = temps estimé (`~2` sans unité ≤ 9 = heures) ;
   `14h30`, `14:30`, `à 9h` = heure ; un tap sur un mot surligné annule sa détection.
@@ -202,7 +225,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   l'utilisateur (`REQUIRE_LOGIN`, ouverte à tous) dès qu'une méthode est active : `GOOGLE_CLIENT_ID` (bouton officiel Google Identity
   Services : fenêtre dans Safari, redirection dans l'app installée, retour `#fokus-session=…&n=<nonce>` vérifié) et/ou `EMAIL_LOGIN`
   (code à 6 chiffres envoyé par Resend, serveur : secret `RESEND_API_KEY`, `MAIL_FROM`). Toutes deux vides/false = app 100 % sans compte.
-  Un compte = une adresse e-mail (Google et code mènent au même compte). `main.jsx` affiche `Login` tant qu'il n'y a pas de session.
+  Un compte = une adresse e-mail (Google, code et **mot de passe** mènent au même compte). Mot de passe facultatif
+  (Réglages → Compte, `/auth/password/set` ; PBKDF2 100 000 itérations ; 5 essais ratés → 15 min ; « Mot de passe oublié » = code). `main.jsx` affiche `Login` tant qu'il n'y a pas de session.
   Synchronisation : envoi ~2,5 s après chaque `save()` (`onSave`), récupération à l'ouverture / au retour ; `rev` serveur (409 si un autre
   appareil a écrit) ; conflit = la plus récente gagne + toast « Annuler » ; première connexion avec des données des deux côtés → `CloudChoice`.
   `applyRemote()` garde `pushId` et `LOCAL_SET` (push, pushUrl). Déconnexion (connexion obligatoire) : envoi des dernières modifications
@@ -243,8 +267,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - `src/store.js` — état, migration, persistance, changement de jour, séries, jokers, badges, minuteur, actions.
 - `src/components/` — `Header`, `ProgressCard`, `QuickAdd`, `TaskList` (+ panneau d'options), `Upcoming` (À venir), `ValidateButton`,
   `Settings` (réglages complets), `Search`, `MorningTriage`, `WeeklyReview`, `Pomodoro` + `Clocks` + `Concepts`, `StatsPage` + `FocusStats`,
-  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo / âge), `Intro` (bienvenue après l'inscription), `Blocked` (compte bloqué), `Contact` (formulaire), `Account` (compte + choix des données), `Admin` (tableau de bord).
-- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation), `presence` (signal « en ligne »).
+  `Timeline`, `DayStrip`, `Overload`, `EveningRitual`, `Hello`, `Ambiance`, `Estimate` (temps estimé), `Categories`, `Icons`, `Medal`, `Sheet` (modale), `Welcome` (bienvenue + partage), `Login` (écran de connexion), `Profile` (prénom / nom / pseudo / âge), `Intro` (bienvenue après l'inscription), `Blocked` (compte bloqué), `Contact` (formulaire), `Account` (compte + choix des données + mot de passe), `Admin` (tableau de bord), `Style` (mon style + météo du jour), `Calendars` (Réglages → Agendas).
+- `src/lib/` — `colors`, `celebrate`, `dates`, `quickAdd`, `backup`, `notify`, `sound`, `ambient`, `backgrounds`, `push`, `pushSync`, `pip`, `cloud` (compte + synchronisation), `presence` (signal « en ligne »), `lock` (verrou de concentration), `calendars` (agendas externes, lecture iCal).
 - `server/` — Worker Cloudflare `fokus-push` (Durable Objects `User` = une alarme par notification, `Keys` = clés VAPID + secret des
   sessions + compteur de comptes, `Account` = un compte : données découpées en morceaux de 32 000 caractères, `rev` ;
   `Stats` = base SQLite unique : présence en mémoire, `visits(day, vid)`, `days(secs, focus, done, signups)`, `accounts(email, created, seen, via)`,

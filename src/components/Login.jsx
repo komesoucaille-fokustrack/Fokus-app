@@ -2,12 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { GoogleButton } from './Account';
-import { emailLogin, emailStart, emailVerify, googleLogin, useCloud } from '../lib/cloud';
+import { emailLogin, emailStart, emailVerify, googleLogin, passwordLogin, useCloud } from '../lib/cloud';
 import ContactForm from './Contact';
 
 /* =====================================================================
    ÉCRAN DE CONNEXION (connexion obligatoire, REQUIRE_LOGIN) — affiché à la place de l'app tant qu'on n'est pas connecté.
-   « Continuer avec Google » et/ou code à 6 chiffres reçu par e-mail (sans mot de passe). Texte de présentation
+   « Continuer avec Google » et/ou code à 6 chiffres reçu par e-mail ; mot de passe facultatif (créé dans Réglages → Compte). Texte de présentation
    pour les nouveaux venus (et pour Google, qui lit cette page) + liens vers Découvrir / Pomodoro / Confidentialité.
    ===================================================================== */
 /* Les moyens de connexion (Google, code e-mail) : écran de connexion et Réglages → Compte */
@@ -16,6 +16,7 @@ export function LoginMethods() {
   const [step, setStep] = useState('email');
   const [email, setEmail] = useState(() => { try { return localStorage.getItem('fokus_email') || ''; } catch { return ''; } });
   const [code, setCode] = useState('');
+  const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [wait, setWait] = useState(0);
@@ -57,6 +58,13 @@ export function LoginMethods() {
     try { await emailVerify(email.trim(), value); } // connecté : l'app remplace cet écran
     catch (x) { setErr(x.message); setCode(''); codeIn.current?.focus(); setBusy(false); }
   };
+  const pwLogin = async (e) => {
+    e.preventDefault();
+    if (busy || !pw) return;
+    setErr(''); setBusy(true);
+    try { await passwordLogin(email.trim(), pw); try { localStorage.setItem('fokus_email', email.trim()); } catch { /* rien */ } }
+    catch (x) { setErr(x.message); setPw(''); setBusy(false); }
+  };
   const typeCode = (v) => {
     const d = v.replace(/\D/g, '').slice(0, 6);
     setCode(d);
@@ -76,7 +84,23 @@ export function LoginMethods() {
             <input id="login-mail" className="field" type="email" inputMode="email" autoComplete="email" autoCapitalize="off" spellCheck="false"
               placeholder="prenom@exemple.fr" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <button className="b on login-go" disabled={busy || !email.includes('@')}>{busy ? 'Envoi…' : 'Recevoir un code'}</button>
-            <p className="login-note">Pas de mot de passe : on t'envoie un code à 6 chiffres.</p>
+            <p className="login-note">On t'envoie un code à 6 chiffres. <button type="button" className="login-link" onClick={() => { setStep('pw'); setErr(''); }}>J’ai un mot de passe</button></p>
+          </form>
+        )}
+
+        {emailLogin() && step === 'pw' && (
+          <form onSubmit={pwLogin} className="login-form">
+            <label htmlFor="login-mail2">Ton adresse e-mail</label>
+            <input id="login-mail2" className="field" type="email" inputMode="email" autoComplete="username" autoCapitalize="off" spellCheck="false"
+              placeholder="prenom@exemple.fr" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <label htmlFor="login-pw">Mot de passe</label>
+            <input id="login-pw" className="field" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} required />
+            <button className="b on login-go" disabled={busy || !email.includes('@') || !pw}>{busy ? 'Connexion…' : 'Se connecter'}</button>
+            <div className="login-links">
+              <button type="button" className="login-link" onClick={() => { setStep('email'); setErr(''); }}>Recevoir un code à la place</button>
+              <button type="button" className="login-link" onClick={() => { setErr(''); send(); }} disabled={!email.includes('@')}>Mot de passe oublié ?</button>
+            </div>
+            <p className="login-note">Le mot de passe se crée dans Réglages → Compte, après une première connexion par code.</p>
           </form>
         )}
 

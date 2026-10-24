@@ -178,6 +178,25 @@ export const serverUrl = base;
 /* Tableau de bord du propriétaire : 'summary' (en ligne + récap) ou 'accounts' (liste des comptes) */
 export const adminApi = (what) => api('/admin/' + what, { session: m.session });
 
+/* Agenda : lien d'abonnement au flux iCal de Fokus (reset = nouveau lien) ; lecture d'un agenda externe (.ics) via le serveur */
+export const calLink = (reset = false) => api('/cal/link', { session: m.session, reset });
+export async function calFetch(url) {
+  const r = await fetch(base() + '/cal/fetch', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ session: m.session, url }) });
+  if (!r.ok) { let j = {}; try { j = await r.json(); } catch { /* vide */ } throw new Error(j.error || 'Erreur ' + r.status); }
+  return r.text();
+}
+
+/* Mot de passe (facultatif) : connexion e-mail + mot de passe ; défini / changé / retiré dans Réglages → Compte */
+export async function passwordLogin(email, password) {
+  const r = await api('/auth/password/login', { email, password });
+  signedIn(r.session, r.user);
+}
+export async function setPassword(password) {
+  const r = await api('/auth/password/set', { session: m.session, password });
+  m.user = { ...m.user, ...r.user };
+  persist();
+}
+
 /* Connexion par code e-mail : 1) envoi du code 2) vérification → session */
 export const emailStart = (email) => api('/auth/email/start', { email });
 export async function emailVerify(email, code) {

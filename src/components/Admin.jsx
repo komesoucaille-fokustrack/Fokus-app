@@ -139,7 +139,7 @@ export default function AdminDashboard() {
             <li key={a.email}>
               <b>{a.pseudo ? <>{a.pseudo} <span className="adm-name">· {a.first} {a.last}{a.age ? ` · ${a.age} ans` : ''}</span></> : a.email}</b>
               {a.pseudo && <span>{a.email}</span>}
-              <span>Inscrit le {date(a.created)} · vu {ago(a.seen)} · {a.via === 'google' ? 'Google' : 'code e-mail'}</span>
+              <span>Inscrit le {date(a.created)} · vu {ago(a.seen)} · {a.via === 'google' ? 'Google' : a.via === 'password' ? 'mot de passe' : 'code e-mail'}</span>
               {a.blocked && (
                 <span className="adm-blocked">🔒 Bloqué (âge indiqué : {a.age} ans)
                   <button type="button" className="b" onClick={() => unblock(a.email)}>Débloquer</button>

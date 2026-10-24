@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Details, fmtMin } from './TaskList';
 import Sheet from './Sheet';
-import { setOpen, setTaskField, taskDur, toast, toggleSel, todayKey, useStore } from '../store';
+import { addTask, setOpen, setTaskField, taskDur, toast, toggleSel, todayKey, useStore } from '../store';
+import { eventsOn, useCalendars } from '../lib/calendars';
 
 /* =====================================================================
    « MA JOURNÉE » EN CHRONOLOGIE (6 h → 24 h)
@@ -59,6 +60,19 @@ export default function Timeline({ tasks, sel, busy }) {
     return { t, s, e: s + d, d };
   })), [tasks, S]);
   const loose = tasks.filter((t) => !t.time);
+  // événements des agendas reliés (Réglages → Agendas) : en fond, sous les tâches
+  const { cache } = useCalendars();
+  const evs = useMemo(() => eventsOn(todayKey(), S.set.cals || [], cache), [cache, S.set.cals]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dayStart = new Date(todayKey() + 'T00:00').getTime();
+  const evAllDay = evs.filter((e) => e.allDay), evTimed = evs.filter((e) => !e.allDay);
+  const evTap = (e) => {
+    if (armedT) return; // une tâche attend son heure : le tap la place (onGridClick)
+    const s0 = Math.max(0, Math.round((e.start - dayStart) / 6e4)), d = Math.max(5, Math.round((e.end - e.start) / 6e4));
+    toast(`📅 ${e.title}${e.allDay ? '' : ' · ' + toHM(s0) + '–' + toHM(Math.min(1440, s0 + d))} (${e.cal})`, {
+      label: 'En faire une tâche',
+      fn: () => { addTask({ text: e.title, date: todayKey(), time: e.allDay ? null : toHM(Math.min(1435, s0)), est: e.allDay ? 0 : Math.min(1440, d) }); toast('Tâche ajoutée ✓'); },
+    });
+  };
   const overlaps = blocks.filter((b) => b.over).length;
 
   /* ---------- glisser / redimensionner (événements pointer + blocage du défilement pendant le geste) ---------- */
@@ -205,12 +219,26 @@ export default function Timeline({ tasks, sel, busy }) {
         )) : <p className="text-[13px] text-mut">Tout a une heure. 👌</p>}
         {armedT ? <p className="tl-hint">👉 Touche une heure dans la journée pour placer « {armedT.text} ».</p>
           : loose.length > 0 && <p className="tl-tip">Glisse la poignée ⠿ vers une heure, ou touche-la puis touche l’heure voulue.</p>}
+        {evAllDay.length > 0 && (
+          <div className="tl-allday">
+            {evAllDay.map((e) => <button key={e.id} type="button" className="tl-evchip" style={{ '--ec': e.color }} onClick={() => evTap(e)}>📅 {e.title}</button>)}
+          </div>
+        )}
         {overlaps > 0 && <p className="tl-warn">⚠️ {overlaps} tâches se chevauchent</p>}
       </div>
-      <div className={'tl-grid' + (armedT ? ' armed' : '')} ref={grid} style={{ height: (H1 - H0) * 60 * PX }} onClick={onGridClick}>
+      <div className={'tl-grid' + (armedT ? ' armed' : '')} ref={grid} style={{ height: (H1 - H0) * 60 * PX, '--evw': evTimed.length ? '30%' : '0px' }} onClick={onGridClick}>
         {hours.map((h) => (
           <div key={h} className="tl-hour" style={{ top: (h - H0) * 60 * PX }}><span>{String(h % 24).padStart(2, '0')}:00</span></div>
         ))}
+        {evTimed.map((e) => {
+          const s0 = Math.max(H0 * 60, (e.start - dayStart) / 6e4), e0 = Math.min(H1 * 60, (e.end - dayStart) / 6e4);
+          if (e0 <= H0 * 60 || s0 >= H1 * 60) return null;
+          return (
+            <button key={e.id} type="button" className="tl-ev" style={{ top: (s0 - H0 * 60) * PX, height: Math.max(22, (e0 - s0) * PX), '--ec': e.color }} onClick={() => evTap(e)} title={`${e.title} (${e.cal})`}>
+              <span>{e.title}</span><em>{toHM(Math.round(Math.max(0, (e.start - dayStart) / 6e4)))} · {e.cal}</em>
+            </button>
+          );
+        })}
         {showNow && <div className="tl-now" style={{ top: (nowM - H0 * 60) * PX }} aria-label="Maintenant" />}
         {blocks.map((b) => (
           <div
@@ -218,7 +246,7 @@ export default function Timeline({ tasks, sel, busy }) {
             className={'tl-block ' + (sel.has(b.t.id) ? 'sel ' : '') + (b.t.done ? 'done ' : '') + (b.over ? 'over ' : '') + (b.t.prio ? 'prio' : '')}
             style={{
               top: (b.s - H0 * 60) * PX, height: Math.max(26, b.d * PX), '--tc': color(b.t),
-              left: `calc(52px + (100% - 60px) * ${b.col / b.cols})`, width: `calc((100% - 60px) / ${b.cols} - 4px)`,
+              left: `calc(52px + (100% - 60px - var(--evw)) * ${b.col / b.cols})`, width: `calc((100% - 60px - var(--evw)) / ${b.cols} - 4px)`,
             }}
             data-dur={fmtMin(b.d)}
             onPointerDown={(e) => onBlockDown(e, b.t)}
