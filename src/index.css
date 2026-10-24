@@ -885,10 +885,12 @@
 .mine-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 600; color: #fff;
   background: rgba(12,9,7,.72); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); font-variant-numeric: tabular-nums; }
 .mine-coins { font-size: 16px; color: #ffe08a; }
-.mine-wait { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(92%, 440px); display: grid; gap: 6px; justify-items: center; text-align: center;
-  padding: 14px 16px; border-radius: 18px; background: rgba(12,9,7,.84); border: 1px solid rgba(255,220,150,.22); color: #f5efe6; font-size: 13.5px; }
-.mine-wait b { font-size: 15.5px; }
-.mine-wait span { color: #d6cbbd; }
+.mine-wait { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(94%, 560px); display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 16px; border-radius: 18px; background: rgba(12,9,7,.84); border: 1px solid rgba(255,220,150,.22); color: #f5efe6; font-size: 13.5px; }
+.mine-wait-t { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.mine-wait b { font-size: 14.5px; }
+.mine-wait-t > span { color: #d6cbbd; font-size: 12.5px; }
+.mine-wait .b { flex: none; }
 .mine-recenter { position: absolute; right: 12px; bottom: 12px; min-height: 40px; padding: 0 14px; border-radius: 99px; background: #fde68a; color: #1a1205; font-weight: 700; font-size: 13.5px; }
 .mine-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .mine-dirs { display: flex; gap: 6px; }
@@ -933,4 +935,41 @@
 .mine-card-t { flex: 1; display: grid; gap: 2px; font-size: 13.5px; color: var(--color-text-2); }
 .mine-card-t b { color: var(--color-text); font-size: 15.5px; }
 .mine-card-go { font-weight: 700; color: #fde68a; white-space: nowrap; }
+.mine-item .b:disabled, .mine-goal .b:disabled, .mine-price .b:disabled, .mine-stock .b:disabled, .mine-go:disabled { opacity: .38; cursor: default; }
+.mine-hud .mine-sell { pointer-events: auto; cursor: pointer; border-color: rgba(253,230,138,.6); }
+.mine-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.025); border: 1px dashed var(--color-edge); }
+.mine-picks span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: rgba(0,0,0,.25); opacity: .32; filter: grayscale(.8); }
+.mine-picks span.on { opacity: 1; filter: none; background: rgba(253,230,138,.1); box-shadow: inset 0 0 0 1px rgba(253,230,138,.35); }
+.mine-kicker { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #fde68a; }
+.mine-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; scrollbar-width: none; }
+.mine-tabs button { flex: none; min-height: 40px; padding: 0 14px; border-radius: 99px; font-size: 14px; font-weight: 600; color: var(--color-text-2); background: rgba(255,255,255,.04); border: 1px solid var(--color-edge); }
+.mine-tabs button.on { color: #1a1205; background: #fde68a; border-color: #fde68a; }
+.mine-item.can { border-color: rgba(253,230,138,.38); background: rgba(253,230,138,.05); }
+.mine-lv { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.mine-lv i { width: 9px; height: 9px; border-radius: 3px; background: rgba(255,255,255,.12); }
+.mine-lv i.on { background: linear-gradient(180deg, #ffe9a0, #f5c542); box-shadow: 0 0 6px rgba(245,197,66,.45); }
+.mine-stock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; margin-bottom: 10px; border-radius: 16px; background: rgba(245,197,66,.07); border: 1px solid rgba(245,197,66,.3); font-size: 15px; }
+.mine-stock > span { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mine-prices { display: grid; gap: 6px; }
+.mine-price { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid var(--color-edge); }
+.mine-price > i { width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 -2px 4px rgba(0,0,0,.4); }
+.mine-price-n { display: grid; gap: 1px; font-size: 14px; min-width: 0; }
+.mine-price-n em { font-style: normal; font-size: 12px; color: var(--color-mut); }
+.mine-price-v { display: grid; justify-items: end; gap: 1px; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mine-price-v em { font-style: normal; font-size: 12px; color: var(--color-mut); }
+.mine-price-v em.up { color: #86efac; }
+.mine-price-v em.down { color: #fca5a5; }
+.mine-steps { display: grid; gap: 6px; }
+.mine-steps > span { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-radius: 12px; font-size: 14px; color: var(--color-mut); background: rgba(255,255,255,.03); border: 1px solid var(--color-edge); }
+.mine-steps > span.cur { color: var(--color-text); border-color: rgba(253,230,138,.5); background: rgba(253,230,138,.07); }
+.mine-steps > span.ok { color: #86efac; }
+.mine-steps > span.ok::after { content: '✓'; margin-left: auto; font-weight: 800; }
+.mine-missions { display: grid; gap: 6px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--color-edge); }
+.mine-missions-t { font-size: 14.5px; }
+.mine-mission { display: grid; grid-template-columns: 1fr 90px auto; gap: 10px; align-items: center; min-height: 40px; font-size: 13.5px; color: var(--color-text-2); }
+.mine-mission.done { color: var(--color-text); }
+.mine-mission-r { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 60px; opacity: .8; font-variant-numeric: tabular-nums; }
+.mine-bar.sm2 { height: 7px; }
+.mine-mission.done .mine-bar i { background: linear-gradient(90deg, #34d399, #86efac); }
+@media (max-width: 600px) { .mine-wait-t > span { display: none; } .mine-mission { grid-template-columns: 1fr auto; } .mine-mission .mine-bar { grid-column: 1 / -1; grid-row: 2; } .mine-price { grid-template-columns: 28px 1fr auto; } .mine-price .b { grid-column: 2 / -1; justify-self: end; min-height: 36px; } }
 @media (max-width: 600px) { .mine-goalpill { margin-left: 0; } .mine-stage { height: 62vh; } }

@@ -1,4 +1,4 @@
-import { AIR, BASE_DIG, BEDROCK, DIRT, REST, ROCK, TASK_REWARD, UPGRADES, WALK, bagCap, stamina, upCost, world } from './data.js';
+import { AIR, BADGE_FK, WELCOME_FK, BASE_DIG, BEDROCK, DIRT, MISSIONS, REST, ROCK, TASK_REWARD, UPGRADES, WALK, bagCap, priceMul, stamina, upCost, world } from './data.js';
 
 /* =====================================================================
    LA MINE — génération de la mine et simulation (pure : aucun DOM, testable dans Node).
@@ -46,10 +46,22 @@ export const tileInfo = (W, t) => (t >= 3 ? W.ores[t - 3] : W.tiles[t]);
 export function newGame({ gender, name, focus }) {
   return {
     v: 1, w: 1, hero: { gender, name }, x: ENTRY, y: START_Y, dir: 'right', hdir: 'right', down: 0, act: 'dig', prog: 0, walk: 0, route: null,
-    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0 },
+    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0, lamp: 0, seller: 0 },
     dug: [], found: {}, base0: focus, used: 0, tasks0: null, tasksPaid: 0, wall: Date.now(), bonus: 0, built: [], at: Date.now(),
+    stock: {}, st: { dug: 0, sold: 0, focus: 0, tasks: 0, deep: 0 }, missions: [], mi: 0, badgesPaid: [],
   };
 }
+/* Parties créées avant une mise à jour : on complète les champs manquants (rien n'est perdu) */
+export function fixGame(g) {
+  const d = newGame({ gender: 'f', name: '', focus: 0 });
+  for (const k of ['stock', 'st', 'missions', 'mi', 'badgesPaid', 'hdir', 'down']) if (g[k] == null) g[k] = d[k];
+  g.up = { ...d.up, ...g.up };
+  g.st = { ...d.st, ...g.st };
+  return g;
+}
+export const dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+/* prix de vente du jour d'un minerai (la terre et la pierre ne varient pas) */
+export const price = (W, t, day = dayKey()) => { const o = tileInfo(W, t); return t >= 3 ? o.value * priceMul(o.id, day) : o.value; };
 const key = (W, x, y) => y * W.width + x;
 export const dugSet = (g) => new Set(g.dug);
 export const tile = (W, set, x, y) => (x < 0 || x >= W.width || y >= W.depth ? BEDROCK : set.has(key(W, x, y)) ? AIR : tileAt(W, x, y));
@@ -126,11 +138,12 @@ function afterDown(W, g, set) {
   if (tile(W, set, ...target(W, g)) === BEDROCK) turn(W, g, set);
 }
 
-const sellValue = (W, bag) => Object.entries(bag).reduce((s, [t, n]) => s + tileInfo(W, +t).value * n, 0);
 
 /* Avance la simulation de `sec` secondes de concentration. Renvoie les événements (pour l'affichage). */
+export const depthM = (y) => Math.max(0, y - 2) * 2; // profondeur affichée (1 case = 2 m)
 export function step(g, sec, set = dugSet(g)) {
   const W = world(g.w), ev = { dug: 0, coins: 0, ores: {}, sold: 0, rested: 0 };
+  g.st.focus += sec;
   let t = sec, guard = 0;
   while (t > 1e-6 && guard++ < 200000) {
     if (g.act === 'rest') {
@@ -145,8 +158,13 @@ export function step(g, sec, set = dugSet(g)) {
       g.walk -= r; t -= r; g.fat += r;
       if (g.walk > 1e-6) continue;
       if (g.act === 'toBase') {
-        const v = sellValue(W, g.bag);
-        g.coins += v; g.earned += v; ev.coins += v; ev.sold += g.bagN;
+        // arrivée au marché : vente au prix du jour (contrat) ou dépôt au coffre
+        if (g.up.seller) {
+          let v = 0;
+          for (const [t2, n] of Object.entries(g.bag)) v += price(W, +t2) * n;
+          g.coins += v; g.earned += v; g.st.sold += v; ev.coins += v;
+        } else for (const [t2, n] of Object.entries(g.bag)) g.stock[t2] = (g.stock[t2] || 0) + n;
+        ev.sold += g.bagN; ev.home = (ev.home || 0) + 1;
         g.bag = {}; g.bagN = 0; g.act = 'toFace'; g.walk = g.walkTotal;
       } else { g.act = 'dig'; g.route = null; }
       continue;
@@ -170,11 +188,13 @@ export function step(g, sec, set = dugSet(g)) {
     t -= left; g.fat += left; g.prog = 0;
     set.add(key(W, tx, ty)); g.dug.push(key(W, tx, ty));
     const wentDown = ty > g.y;
-    g.x = tx; g.y = ty; ev.dug++;
+    g.x = tx; g.y = ty; ev.dug++; g.st.dug++;
+    g.st.deep = Math.max(g.st.deep, depthM(g.y));
     if (wentDown) afterDown(W, g, set);
     g.found[info.id] = (g.found[info.id] || 0) + 1;
     if (tt >= 3) ev.ores[info.id] = (ev.ores[info.id] || 0) + 1;
-    if (tt < 3 && g.up.auto) { g.coins += info.value; g.earned += info.value; ev.coins += info.value; continue; }
+    if (tt >= 3) (ev.list = ev.list || []).push(info.id);
+    if (tt < 3 && g.up.auto) { g.coins += info.value; g.earned += info.value; g.st.sold += info.value; ev.coins += info.value; continue; }
     g.bag[tt] = (g.bag[tt] || 0) + 1; g.bagN++;
     if (g.bagN >= cap(g)) {
       const pts = routeToEntry(W, set, g.x, g.y);
@@ -188,6 +208,54 @@ export function step(g, sec, set = dugSet(g)) {
 export function recover(g, wallSec) {
   if (g.act === 'rest') { g.rest = Math.max(0, g.rest - wallSec); if (!g.rest) { g.fat = 0; g.act = g.after || 'dig'; g.after = null; } return; }
   g.fat = Math.max(0, g.fat - wallSec * (stam(g) / REST));
+}
+
+/* ---------- marché : vente du coffre au prix du jour ---------- */
+export const stockValue = (g, day) => { const W = world(g.w); return Object.entries(g.stock).reduce((s2, [t2, n]) => s2 + price(W, +t2, day) * n, 0); };
+export function sell(g, t2 = null, day = dayKey()) {
+  const W = world(g.w);
+  let v = 0;
+  for (const [k, n] of Object.entries(g.stock)) {
+    if (t2 != null && +k !== +t2) continue;
+    v += price(W, +k, day) * n; delete g.stock[k];
+  }
+  g.coins += v; g.earned += v; g.st.sold += v;
+  return v;
+}
+
+/* ---------- missions (3 à la fois) ---------- */
+const mval = (g, type) => (type === 'dig' ? g.st.dug : type === 'depth' ? g.st.deep : type === 'focus' ? g.st.focus / 60 : type === 'tasks' ? g.st.tasks : type === 'sold' ? g.st.sold : g.found[type.slice(4)] || 0);
+export function fillMissions(g) {
+  while (g.missions.length < 3) {
+    // ordre mélangé mais le même pour tout le monde ; on évite deux missions du même type en même temps
+    const k = (g.mi * 7 + 3) % MISSIONS.length;
+    g.mi++;
+    const [type, n, reward, text] = MISSIONS[k];
+    if (g.missions.some((m) => m.type === type)) continue;
+    if (type === 'depth' && g.st.deep >= n) continue;
+    g.missions.push({ type, n, reward, text: text.replace('{n}', n.toLocaleString('fr-FR')), start: type === 'depth' ? 0 : mval(g, type) });
+  }
+}
+export const missionProgress = (g, m) => Math.min(1, (mval(g, m.type) - m.start) / m.n);
+export function claim(g, i) {
+  const m = g.missions[i];
+  if (!m || missionProgress(g, m) < 1) return 0;
+  g.missions.splice(i, 1);
+  g.coins += m.reward; g.earned += m.reward;
+  fillMissions(g);
+  return m.reward;
+}
+/* Badges obtenus dans Fokus → Fokoins selon leur palier (les badges déjà gagnés comptent : prime de bienvenue) */
+export function payBadges(g, owned) {
+  let total = 0, n = 0;
+  const first = g.badgesPaid.length === 0;
+  for (const [id, tier] of owned) {
+    if (g.badgesPaid.includes(id)) continue;
+    g.badgesPaid.push(id); total += BADGE_FK[tier] || 0; n++;
+  }
+  if (first) total = Math.min(total, WELCOME_FK); // badges déjà gagnés avant la mine : prime plafonnée (l'équilibre du monde 1 reste intact)
+  g.coins += total; g.earned += total;
+  return { n, total };
 }
 
 /* ---------- boutique ---------- */
@@ -204,7 +272,7 @@ export function payTasks(g, doneTotal) {
   if (g.tasks0 == null) { g.tasks0 = doneTotal; g.tasksPaid = doneTotal; return 0; }
   const n = Math.max(0, doneTotal - g.tasksPaid);
   g.tasksPaid = Math.max(g.tasksPaid, doneTotal);
-  g.coins += n * TASK_REWARD; g.earned += n * TASK_REWARD;
+  g.coins += n * TASK_REWARD; g.earned += n * TASK_REWARD; g.st.tasks += n;
   return n;
 }
 /* Choix du joueur : « tout droit » (à gauche / à droite) ou « descendre » (jusqu'au fond) */

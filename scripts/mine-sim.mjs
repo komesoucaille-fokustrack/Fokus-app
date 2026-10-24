@@ -1,7 +1,7 @@
 /* Équilibrage de la mine : joue des parties avec une stratégie simple (achète l'amélioration la moins chère utile)
    et mesure les heures de concentration nécessaires pour fabriquer l'objectif du monde 1.  node scripts/mine-sim.mjs */
 import { UPGRADES, upCost, world } from '../src/game/data.js';
-import { newGame, step, buy, dugSet, recover, goalCost } from '../src/game/sim.js';
+import { newGame, step, buy, dugSet, recover, goalCost, sell, fillMissions, claim, missionProgress } from '../src/game/sim.js';
 const W = world(1);
 const g = newGame({ gender: 'f', name: 'Maé', focus: 0 });
 const set = dugSet(g);
@@ -10,6 +10,11 @@ const prio = ['auto', 'pick', 'bag', 'pick', 'boots', 'bag', 'stam'];
 while (h < 60) {
   for (let i = 0; i < 2; i++) { step(g, 25 * 60, set); recover(g, 5 * 60); } // pomodoros 25/5
   h += 50 / 60;
+  g.st.tasks += 3; // ~3 tâches validées par heure
+  g.coins += 15;
+  sell(g, null, 'moyenne-' + Math.floor(h)); // vente au cours du jour
+  fillMissions(g);
+  for (let i = g.missions.length - 1; i >= 0; i--) if (missionProgress(g, g.missions[i]) >= 1) claim(g, i);
   // achats : garder de quoi atteindre l'objectif à la fin
   for (let k = 0; k < 6; k++) {
     const opts = UPGRADES.filter((u) => g.up[u.id] < u.max).map((u) => ({ u, c: upCost(u, g.up[u.id]) })).sort((a, b) => a.c - b.c);

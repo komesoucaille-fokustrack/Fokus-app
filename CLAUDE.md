@@ -307,9 +307,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
 - **La mine** (jeu dans le labo, page 5, carte dans l'onglet Pomodoro) : `src/game/` (`data.js` mondes / minerais / améliorations,
   `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
-  `components/Mine.jsx` (intro + histoire, jeu, boutique, collection), partie dans `S.mine` (`setMine`), temps de jeu =
+  `components/Mine.jsx` (intro + histoire, jeu, lieux, collection, missions), partie dans `S.mine` (`setMine`), temps de jeu =
   `focusSecs()` (concentration Pomodoro depuis le début de l'aventure, impossible d'accélérer), monnaie **Fokoin** (Fk) ;
   équilibrage : `node scripts/mine-sim.mjs` (monde 1 ≈ 12 h). Boutons de test « +1 h » réservés au labo.
+  **Histoire** (`STORY`, 7 scènes racontées comme un récit, accords `{féminin|masculin}`) : le personnage n'a **jamais de pioche**
+  pendant le récit (`drawMiner(..., { tool: false })`, sans casque à la maison : `helmet: false`) ; il la trouve dans la mine.
+  **Surface** : Atelier (objectif du monde en 3 étapes : livre → pièces → départ), Boutique (rayons `SHOP_CATS`, niveaux, toutes
+  les pioches), chevalement, Marché (le personnage dépose au **coffre** `g.stock` ; cours du jour ±25 % `priceMul`, même pour tous ;
+  vente à la main ou « Contrat avec le marché » = vente auto) ; on y entre en touchant le bâtiment (`hitBuilding`) ou par les boutons.
+  **Missions** (3 à la fois, `MISSIONS`) ; **badges Fokus → Fokoins** selon le palier (`BADGE_FK` : 40 / 120 / 300 / 800 ;
+  badges déjà obtenus avant la mine : prime plafonnée à `WELCOME_FK` 1 500) ; tâche validée +5 Fk.
 - Idée validée par l'utilisateur → fusion de `labo` dans `main` (le labo suit main : fusionner main dans labo après chaque publication).
 
 ## Workflow

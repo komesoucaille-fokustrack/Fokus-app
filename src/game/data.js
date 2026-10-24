@@ -15,7 +15,7 @@ export const WORLDS = [
   {
     id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', seed: 1013, width: 120, depth: 120,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#2f4558',
-    goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 2500, build: 7500, next: 'La région · Massif central' },
+    goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 3000, build: 9000, next: 'La région · Massif central' },
     tiles: {
       [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#8a5a3b', '#a8714b', '#5e3b24'] },
       [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#7b7f86', '#9aa0a8', '#52565c'] },
@@ -33,13 +33,41 @@ export const WORLDS = [
   },
 ];
 
-/* Améliorations : coût du niveau n = base × mult^n ; effet par niveau (voir sim.js) */
+/* Pioches : une matière par niveau (le fer de la pioche change de couleur sur le personnage) */
+export const PICKS = [
+  ['Pioche en bois', '#b07a48'], ['Pioche en pierre', '#8d939b'], ['Pioche en cuivre', '#d0793c'], ['Pioche en fer', '#cfd6dd'],
+  ['Pioche en acier', '#9fb7cc'], ['Pioche dorée', '#f5c542'], ['Pioche en émeraude', '#34d399'], ['Pioche en rubis', '#f05252'],
+  ['Pioche en saphir', '#4f8ff7'], ['Pioche en améthyste', '#b06df5'], ['Pioche en diamant', '#a5f3fc'], ['Pioche Fokus', '#10b981'], ['Pioche céleste', '#fff3a3'],
+];
+/* Améliorations par rayon de la boutique : coût du niveau n = base × mult^n ; effet par niveau (voir sim.js) */
+export const SHOP_CATS = [['tools', '⛏️ Outils'], ['gear', '🎒 Équipement'], ['body', '💪 Forme'], ['auto', '⚙️ Automatisation']];
 export const UPGRADES = [
-  { id: 'pick', name: 'Pioche', emoji: '⛏️', desc: 'Creuse plus vite', max: 12, base: 60, mult: 2.05, fx: (n) => `× ${(1.3 ** n).toFixed(2)} vitesse` },
-  { id: 'bag', name: 'Sac à dos', emoji: '🎒', desc: 'Plus de place avant de remonter', max: 12, base: 40, mult: 1.9, fx: (n) => `${bagCap(n)} places` },
-  { id: 'boots', name: 'Chaussures', emoji: '🥾', desc: 'Marche plus vite dans les galeries', max: 10, base: 80, mult: 2, fx: (n) => `× ${(1 + 0.25 * n).toFixed(2)} vitesse` },
-  { id: 'stam', name: 'Endurance', emoji: '💪', desc: 'Mine plus longtemps avant de se reposer', max: 4, base: 600, mult: 3, fx: (n) => `${stamina(n) / 60} min de minage pour 10 min de repos` },
-  { id: 'auto', name: 'Tri automatique', emoji: '♻️', desc: 'La terre et la pierre sont vendues sur place (ne prennent plus de place)', max: 1, base: 250, mult: 1, fx: (n) => (n ? 'Activé' : 'Désactivé') },
+  { id: 'pick', cat: 'tools', name: 'Pioche', desc: 'Creuse plus vite', max: 12, base: 60, mult: 2.05, label: (n) => PICKS[n][0], fx: (n) => `× ${(1.3 ** n).toFixed(2)} vitesse` },
+  { id: 'bag', cat: 'gear', name: 'Sac à dos', emoji: '🎒', desc: 'Plus de place avant de remonter', max: 12, base: 40, mult: 1.9, fx: (n) => `${bagCap(n)} places` },
+  { id: 'lamp', cat: 'gear', name: 'Lampe frontale', emoji: '🔦', desc: 'Éclaire plus loin : on voit les minerais autour', max: 6, base: 120, mult: 2.4, fx: (n) => `portée ${(3.4 + n * 0.8).toFixed(1).replace('.', ',')} cases` },
+  { id: 'boots', cat: 'body', name: 'Chaussures', emoji: '🥾', desc: 'Marche plus vite dans les galeries', max: 10, base: 80, mult: 2, fx: (n) => `× ${(1 + 0.25 * n).toFixed(2)} vitesse` },
+  { id: 'stam', cat: 'body', name: 'Endurance', emoji: '💪', desc: 'Mine plus longtemps avant de se reposer', max: 4, base: 600, mult: 3, fx: (n) => `${stamina(n) / 60} min de minage pour 10 min de repos` },
+  { id: 'auto', cat: 'auto', name: 'Tri automatique', emoji: '♻️', desc: 'La terre et la pierre sont vendues sur place (ne prennent plus de place dans le sac)', max: 1, base: 250, mult: 1, fx: (n) => (n ? 'Activé' : 'Désactivé') },
+  { id: 'seller', cat: 'auto', name: 'Contrat avec le marché', emoji: '🤝', desc: 'Les minerais sont vendus dès l’arrivée, au prix du jour (sinon ils vont au coffre)', max: 1, base: 900, mult: 1, fx: (n) => (n ? 'Vente automatique' : 'Tu vends toi-même') },
+];
+/* Prix du marché : chaque minerai varie chaque jour entre −25 % et +25 % (même cours pour tout le monde) */
+export function priceMul(oreId, day) {
+  let h = 2166136261;
+  for (const c of oreId + ':' + day) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return 0.75 + ((h >>> 0) % 1000) / 1999;
+}
+/* Badges de Fokus → Fokoins (plus le palier est dur, plus ça rapporte) */
+export const BADGE_FK = [0, 40, 120, 300, 800];
+export const WELCOME_FK = 1500; // prime de bienvenue maximale pour les badges obtenus avant de commencer la mine
+/* Missions (3 à la fois, renouvelées) : [type, cible, récompense, texte] — {n} = cible */
+export const MISSIONS = [
+  ['dig', 40, 60, 'Creuse {n} blocs'], ['dig', 120, 150, 'Creuse {n} blocs'], ['dig', 300, 320, 'Creuse {n} blocs'],
+  ['ore:cuivre', 6, 80, 'Trouve {n} cuivre'], ['ore:fer', 4, 120, 'Trouve {n} fer'], ['ore:quartz', 3, 160, 'Trouve {n} quartz'],
+  ['ore:argent', 2, 220, 'Trouve {n} argent'], ['ore:or', 1, 300, 'Trouve {n} pépite d’or'],
+  ['depth', 20, 120, 'Descends à {n} m'], ['depth', 50, 260, 'Descends à {n} m'], ['depth', 100, 500, 'Descends à {n} m'],
+  ['focus', 50, 100, 'Concentre-toi {n} min'], ['focus', 120, 220, 'Concentre-toi {n} min'],
+  ['tasks', 3, 90, 'Valide {n} tâches dans Fokus'], ['tasks', 8, 200, 'Valide {n} tâches dans Fokus'],
+  ['sold', 300, 120, 'Vends pour {n} Fk au marché'], ['sold', 1500, 350, 'Vends pour {n} Fk au marché'],
 ];
 export const bagCap = (n) => 12 + 6 * n;
 export const stamina = (n) => [60, 75, 90, 105, 120][n] * 60;

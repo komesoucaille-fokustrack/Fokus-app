@@ -1,13 +1,19 @@
-import { AIR, BEDROCK } from './data.js';
+import { AIR, BEDROCK, PICKS } from './data.js';
 import { ENTRY, START_Y, tile } from './sim.js';
-import { drawBase, drawBeam, drawHeadframe, drawLadder, drawLamp, drawMiner, makeTiles, paintSkyline, skyColors } from './art.js';
+import { drawBeam, drawHeadframe, drawLadder, drawLamp, drawMarket, drawMiner, drawShop, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
 
 /* =====================================================================
    LA MINE — rendu d'une image (caméra qui suit le personnage, ciel + ville en surface, galeries, lumière de la lampe)
    Ne dessine que les tuiles visibles ; textures, ciel et obscurité préparés une fois (canevas hors écran).
    ===================================================================== */
 const SKY_ROWS = 6; // hauteur du ciel au-dessus du sol (en tuiles)
-const BASE_X = 2; // la cabane de la base en surface
+/* bâtiments de la surface (en tuiles) : on les touche pour y entrer */
+export const BUILDINGS = [
+  { id: 'workshop', x0: 0.2, x1: 3.8, h: 3.4 },
+  { id: 'shop', x0: 4.4, x1: 7.6, h: 3.6 },
+  { id: 'market', x0: 13.6, x1: 17.2, h: 3.4 },
+];
+const MARKET_X = 15.4; // le personnage vend devant l'étal
 
 export function createView(canvas, W) {
   const v = { canvas, ctx: canvas.getContext('2d'), W, tiles: null, TS: 44, dpr: 1, w: 0, h: 0, cam: { x: 0, y: 0 }, follow: true, sky: null, skyKey: '', dark: document.createElement('canvas'), parts: [], lastHit: 0 };
@@ -31,7 +37,7 @@ export function heroPose(g, set, W, live) {
   if (g.act === 'rest') return { x: g.x + 0.5, y: g.y + 1, anim: 'sleep', face: g.dir === 'left' ? -1 : 1 };
   if ((g.act === 'toBase' || g.act === 'toFace') && g.route) {
     // chemin : galeries jusqu'au puits, puis la surface jusqu'à la base
-    const pts = g.route.map(([x, y]) => [x + 0.5, y + 1]).concat([[ENTRY + 0.5, 0], [BASE_X + 1.7, 0]]);
+    const pts = g.route.map(([x, y]) => [x + 0.5, y + 1]).concat([[ENTRY + 0.5, 0], [MARKET_X, 0]]);
     const segs = [];
     let tot = 0;
     for (let i = 1; i < pts.length; i++) { const v = pts[i][1] !== pts[i - 1][1] ? 1.66 : 1; const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) * v; segs.push(l); tot += l; }
@@ -54,11 +60,12 @@ export function heroPose(g, set, W, live) {
 }
 
 /* une image */
-export function drawFrame(v, g, set, t, dt, live, vision) {
+export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, built: false }) {
   const { ctx, W, TS, dpr } = v;
   const hero = heroPose(g, set, W, live);
   // caméra : suit le personnage en douceur
-  const tx = hero.x * TS - v.w / 2, ty = hero.y * TS - v.h * 0.55;
+  // près de la surface : on cadre le sol vers le milieu pour voir les bâtiments en entier
+  const tx = hero.x * TS - v.w / 2, ty = hero.y * TS < v.h * 0.4 ? -v.h * 0.45 : hero.y * TS - v.h * 0.55;
   const maxX = W.width * TS - v.w, minY = -SKY_ROWS * TS, maxY = W.depth * TS - v.h;
   if (v.follow) {
     const k = 1 - Math.exp(-dt * 4);
@@ -103,6 +110,22 @@ export function drawFrame(v, g, set, t, dt, live, vision) {
         if (horiz && x % 9 === 4) drawLamp(ctx, sx, sy, TS, t);
       } else {
         ctx.drawImage(T.t[k][var3(x, y)], sx, sy, TS, TS);
+        // profondeur : la roche bleuit doucement en descendant
+        if (y > 12) { ctx.fillStyle = `rgba(40,60,120,${Math.min(0.28, (y - 12) / 300)})`; ctx.fillRect(sx, sy, TS, TS); }
+        // biseau des parois au bord des galeries (relief arrondi)
+        const ab = y > 0 && !solid(x, y - 1), bl = !solid(x, y + 1), lf = !solid(x - 1, y), rt = !solid(x + 1, y);
+        if (ab) { ctx.fillStyle = 'rgba(255,225,190,.22)'; ctx.fillRect(sx, sy, TS, TS * 0.09); }
+        if (bl) { const gb = ctx.createLinearGradient(0, sy + TS * 0.7, 0, sy + TS); gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(1, 'rgba(0,0,0,.5)'); ctx.fillStyle = gb; ctx.fillRect(sx, sy + TS * 0.7, TS, TS * 0.3); }
+        if (lf) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(sx, sy, TS * 0.08, TS); }
+        if (rt) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(sx + TS * 0.92, sy, TS * 0.08, TS); }
+        if (k >= 3) { // éclat qui scintille sur les minerais
+          const ph = (t * 0.7 + x * 0.37 + y * 0.61) % 3;
+          if (ph < 0.5) {
+            const a = Math.sin((ph / 0.5) * Math.PI), gx = sx + TS * (0.25 + ((x * 13 + y * 7) % 5) * 0.12), gy = sy + TS * (0.3 + ((x * 5 + y * 11) % 4) * 0.12), r = TS * 0.16 * a;
+            ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`;
+            ctx.beginPath(); ctx.moveTo(gx, gy - r); ctx.lineTo(gx + r * 0.25, gy - r * 0.25); ctx.lineTo(gx + r, gy); ctx.lineTo(gx + r * 0.25, gy + r * 0.25); ctx.lineTo(gx, gy + r); ctx.lineTo(gx - r * 0.25, gy + r * 0.25); ctx.lineTo(gx - r, gy); ctx.lineTo(gx - r * 0.25, gy - r * 0.25); ctx.closePath(); ctx.fill();
+          }
+        }
         if (y === 0) { // herbe en surface
           ctx.fillStyle = night ? '#2f5a3a' : '#5cae4f'; ctx.fillRect(sx, sy, TS, TS * 0.2);
           ctx.fillStyle = night ? '#3d7049' : '#79c96a';
@@ -124,8 +147,10 @@ export function drawFrame(v, g, set, t, dt, live, vision) {
   }
   // surface : base et chevalement
   if (groundY > -TS) {
-    drawBase(ctx, BASE_X * TS - cx, groundY, TS, night);
+    drawWorkshop(ctx, 0.2 * TS - cx, groundY, TS, night, goal.progress, goal.built);
+    drawShop(ctx, 4.4 * TS - cx, groundY, TS, night);
     drawHeadframe(ctx, (ENTRY + 0.5) * TS - cx, groundY, TS, live && g.act !== 'rest' ? t : 0, night);
+    drawMarket(ctx, 13.6 * TS - cx, groundY, TS, night, t);
   }
   // éclats de roche
   if (live && hero.anim === 'dig') {
@@ -143,7 +168,7 @@ export function drawFrame(v, g, set, t, dt, live, vision) {
   }
   ctx.globalAlpha = 1;
   // personnage
-  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t });
+  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.18, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1] });
 
   // obscurité sous terre, trouée par la lampe frontale et les lanternes
   const D = v.dark, dc = D.getContext('2d'), s = 0.5;
@@ -173,9 +198,30 @@ export function drawFrame(v, g, set, t, dt, live, vision) {
     const warm = ctx.createRadialGradient(lx, ly, 0, lx, ly, TS * 2.6);
     warm.addColorStop(0, 'rgba(255,200,120,.16)'); warm.addColorStop(1, 'rgba(255,200,120,0)');
     ctx.fillStyle = warm; ctx.fillRect(lx - TS * 3, ly - TS * 3, TS * 6, TS * 6);
+    // poussière qui flotte dans le faisceau de la lampe
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.39996, r = TS * (0.6 + ((i * 37) % 10) / 10 * 2.2), dx = Math.cos(a + t * 0.07) * r, dy = Math.sin(a * 1.3 + t * 0.11) * r * 0.7;
+      ctx.fillStyle = `rgba(255,236,200,${0.12 + 0.12 * Math.sin(t + i)})`; ctx.beginPath(); ctx.arc(lx + dx, ly + dy, TS * 0.03, 0, 7); ctx.fill();
+    }
   }
+  // textes flottants (« + Or », « au coffre »…)
+  v.pops = (v.pops || []).filter((p) => (p.life -= dt) > 0);
+  for (const p of v.pops) {
+    const k2 = 1 - p.life / p.max;
+    ctx.globalAlpha = Math.min(1, p.life * 1.5);
+    ctx.font = `800 ${Math.round(TS * 0.36)}px Inter Variable, sans-serif`; ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.text, p.x * TS - cx, p.y * TS - cy - k2 * TS * 1.2);
+    ctx.fillStyle = p.color; ctx.fillText(p.text, p.x * TS - cx, p.y * TS - cy - k2 * TS * 1.2);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'start';
   return hero;
 }
 
 export const SKY = SKY_ROWS;
+export const pop = (v, text, x, y, color = '#ffe08a') => { (v.pops = v.pops || []).push({ text, x, y, color, life: 1.6, max: 1.6 }); };
+/* bâtiment touché (coordonnées écran → monde) */
+export function hitBuilding(v, sx, sy) {
+  const wx = (sx + v.cam.x) / v.TS, wy = (sy + v.cam.y) / v.TS;
+  return BUILDINGS.find((b) => wx >= b.x0 && wx <= b.x1 && wy <= 0.2 && wy >= -b.h)?.id || null;
+}
 export { START_Y };

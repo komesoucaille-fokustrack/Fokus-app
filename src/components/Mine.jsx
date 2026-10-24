@@ -1,82 +1,121 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Sheet from './Sheet';
-import { focusSecs, getState, setMine, setPage, toast, useStore } from '../store';
-import { COIN, UPGRADES, upCost, world } from '../game/data.js';
-import { buy, cap, dugSet, goalCost, newGame, payTasks, recover, setDir, step, stam, tileInfo } from '../game/sim.js';
-import { createView, drawFrame } from '../game/render.js';
-import { COIN_SVG, drawMiner, paintSkyline, drawHeadframe } from '../game/art.js';
+import { BADGES, focusSecs, getState, setMine, setPage, toast, useStore } from '../store';
+import { BADGE_FK, COIN, PICKS, SHOP_CATS, TASK_REWARD, UPGRADES, upCost, world } from '../game/data.js';
+import {
+  buy, cap, claim, dayKey, depthM, dugSet, fillMissions, fixGame, goalCost, missionProgress, newGame, payBadges, payTasks, price,
+  recover, sell, setDir, stam, step, stockValue,
+} from '../game/sim.js';
+import { createView, drawFrame, hitBuilding, pop } from '../game/render.js';
+import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, paintSkyline } from '../game/art.js';
 import { LABO } from '../env';
 
 /* =====================================================================
    LA MINE — jeu à côté de Fokus (labo) : pendant chaque session de concentration Pomodoro, ton mineur / ta mineuse
    creuse tout seul. Aucun moyen d'accélérer ni d'augmenter sa chance : seul le temps de concentration compte.
+   En surface : l'Atelier (objectif : fabriquer le véhicule), la Boutique (améliorations) et le Marché (coffre + cours du jour).
+   Fokoins aussi gagnés avec les tâches validées, les badges de Fokus (selon leur palier) et les missions.
    ===================================================================== */
 const fmt = (n) => (n < 10 && n % 1 ? n.toFixed(1).replace('.', ',') : Math.floor(n).toLocaleString('fr-FR'));
 const Coin = ({ size = 20 }) => <span className="fk-coin" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: COIN_SVG(size) }} />;
 export const Fk = ({ n, size }) => <span className="fk"><Coin size={size} />{fmt(n)}</span>;
+const gem = (o) => ({ background: `radial-gradient(circle at 35% 30%, ${o.colors[1]}, ${o.colors[0]} 55%, ${o.colors[2]})` });
 
-/* ---------- histoire d'introduction ---------- */
+/* ---------- l'histoire : chapitre 1 (texte au masculin / féminin : {féminin|masculin}) ---------- */
 const STORY = [
-  ['night', 'Depuis toute petite, {name} lève les yeux vers le ciel. Les étoiles, l’immensité… tout ce qui est mystérieux l’attire.'],
-  ['mine', 'Dans sa ville, une vieille mine l’a toujours intriguée. Il y a deux semaines, {elle} a enfin osé y descendre.'],
-  ['pick', 'Tout au fond, dans le noir, {elle} a trouvé… une pioche. Comme si elle l’attendait.'],
-  ['study', 'Depuis, entre deux cours à la fac, {name} est passionné·e par les minerais rares. Son rêve : les découvrir tous… et partir un jour dans l’espace.'],
-  ['go', 'À chaque minute où tu te concentres, {name} creuse. Ensemble, parcourez les mines du monde… jusqu’aux étoiles. 🚀'],
+  ['night', 'Il y a des enfants qui comptent les moutons pour s’endormir. {name}, {elle|lui}, comptait les étoiles. Chaque nuit, le front collé à la fenêtre, {elle|il} se demandait ce qui se cachait là-haut… et tout au fond de la Terre.'],
+  ['town', 'Au bout de sa rue se dresse le vieux chevalement de la mine, fermée depuis cinquante ans. « Il n’y a plus rien là-dessous », disent les grands. {name} n’y a jamais cru.'],
+  ['descent', 'Il y a deux semaines, un soir d’orage, la grille était entrouverte. Une lampe frontale, une grande inspiration… et {name} est {descendue|descendu} pour la première fois dans le noir.'],
+  ['pick', 'Tout au fond de la dernière galerie, quelque chose brillait. Une pioche ancienne, plantée dans la roche, comme si elle {l’|l’}attendait depuis toujours. Sur le manche, trois lettres gravées : F · K · S.'],
+  ['study', 'Depuis, sa vie a changé. Le jour, les cours à la fac. Le soir, les livres de géologie. {name} a un rêve fou : trouver les pierres les plus rares du monde… et partir un jour dans l’espace.'],
+  ['go', 'Mais un rêve pareil ne se réalise pas seul. Chaque minute où tu te concentres, {name} creuse. Ton travail devient sa force.'],
+  ['final', 'L’aventure commence ici, dans la mine de ta ville. Premier objectif : réunir assez de Fokoins pour fabriquer un vélo… et partir explorer la région. 🚲'],
 ];
+const said = (s, g, name) => s.replace(/\{name\}/g, name).replace(/\{([^|}]*)\|([^}]*)\}/g, (_, f, m) => (g === 'f' ? f : m));
+
 function StoryArt({ scene, gender }) {
   const ref = useRef(null);
   useEffect(() => {
     const c = ref.current, r = c.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
     c.width = r.width * d; c.height = r.height * d;
     const ctx = c.getContext('2d'); ctx.scale(d, d);
-    let raf, t0 = performance.now();
-    const W = r.width, H = r.height, S = Math.min(W, H) / 4;
+    let raf;
+    const t0 = performance.now(), W = r.width, H = r.height, S = Math.min(W, H) / 4;
+    const hero = (x, y, s, o) => drawMiner(ctx, x, y, s, { gender, face: 1, tool: false, ...o });
+    const cave = (cx, cy, lit) => {
+      ctx.fillStyle = '#0d0805'; ctx.fillRect(0, 0, W, H);
+      const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, W * lit);
+      g.addColorStop(0, '#7a5638'); g.addColorStop(0.55, '#3a2617'); g.addColorStop(1, '#0d0805');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.ellipse((i * 97) % W, (i * 53) % H, 18 + (i % 4) * 6, 10, i, 0, 7); ctx.fill(); }
+    };
     const draw = (now) => {
       const t = (now - t0) / 1000;
       ctx.clearRect(0, 0, W, H);
-      if (scene === 'night' || scene === 'go') {
-        paintSkyline(ctx, W, H, 23, scene === 'go' ? 3 : 7);
-        if (scene === 'go') { // fusée qui file
-          const p = (t * 0.25) % 1, x = W * (0.15 + p * 0.8), y = H * (0.75 - p * 0.65);
-          ctx.save(); ctx.translate(x, y); ctx.rotate(-0.7);
-          ctx.fillStyle = '#f2f4f7'; ctx.beginPath(); ctx.ellipse(0, 0, S * 0.18, S * 0.42, 0, 0, 7); ctx.fill();
-          ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.moveTo(-S * 0.18, S * 0.2); ctx.lineTo(-S * 0.3, S * 0.45); ctx.lineTo(0, S * 0.35); ctx.lineTo(S * 0.3, S * 0.45); ctx.lineTo(S * 0.18, S * 0.2); ctx.fill();
-          ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.arc(0, -S * 0.1, S * 0.08, 0, 7); ctx.fill();
-          ctx.fillStyle = 'rgba(255,190,80,.9)'; ctx.beginPath(); ctx.ellipse(0, S * 0.55 + Math.sin(t * 30) * 2, S * 0.08, S * 0.18, 0, 0, 7); ctx.fill();
-          ctx.restore();
-        }
-        drawMiner(ctx, W * 0.3, H * 0.92, S * 1.3, { gender, face: 1, anim: 'idle', t });
-      } else if (scene === 'mine') {
-        paintSkyline(ctx, W, H, 18, 4);
+      if (scene === 'night') {
+        paintSkyline(ctx, W, H, 23, 7);
+        // étoile filante
+        const p = (t * 0.35) % 1;
+        if (p < 0.35) { ctx.strokeStyle = `rgba(255,255,255,${1 - p / 0.35})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(W * (0.2 + p), H * (0.1 + p * 0.3)); ctx.lineTo(W * (0.14 + p), H * (0.06 + p * 0.3)); ctx.stroke(); }
+        hero(W * 0.24, H * 0.95, S * 1.25, { anim: 'idle', t, helmet: false });
+      } else if (scene === 'town') {
+        paintSkyline(ctx, W, H, 19, 4);
         ctx.fillStyle = '#4a3324'; ctx.fillRect(0, H * 0.86, W, H * 0.14);
-        drawHeadframe(ctx, W * 0.62, H * 0.86, S * 0.75, t, false);
-        drawMiner(ctx, W * 0.28 + (t * 14 % (W * 0.2)), H * 0.92, S * 1.1, { gender, face: 1, anim: 'walk', t });
-      } else {
-        // fond de mine éclairé à la lampe
-        const g = ctx.createRadialGradient(W * 0.45, H * 0.55, 10, W * 0.45, H * 0.55, W * 0.7);
-        g.addColorStop(0, '#6b4a32'); g.addColorStop(1, '#120b07');
+        ctx.fillStyle = '#5cae4f'; ctx.fillRect(0, H * 0.86, W, H * 0.03);
+        drawHeadframe(ctx, W * 0.66, H * 0.86, S * 0.55, t * 0.3, false);
+        hero(W * 0.16 + ((t * 18) % (W * 0.3)), H * 0.93, S * 1.1, { anim: 'walk', t, helmet: false });
+      } else if (scene === 'descent') {
+        cave(W * 0.45, H * 0.45, 0.55);
+        ctx.strokeStyle = '#a97443'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(W * 0.38, 0); ctx.lineTo(W * 0.38, H); ctx.moveTo(W * 0.52, 0); ctx.lineTo(W * 0.52, H);
+        for (let y = 10; y < H; y += 26) { ctx.moveTo(W * 0.38, y); ctx.lineTo(W * 0.52, y); }
+        ctx.stroke();
+        hero(W * 0.45, H * 0.55 + Math.sin(t * 2) * 6, S * 1.15, { anim: 'climb', t });
+        // pluie dehors, en haut
+        ctx.strokeStyle = 'rgba(160,190,255,.35)'; ctx.lineWidth = 1;
+        for (let i = 0; i < 20; i++) { const x = (i * 53 + t * 140) % W, y = ((i * 29 + t * 300) % (H * 0.25)); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + 9); ctx.stroke(); }
+      } else if (scene === 'pick') {
+        cave(W * 0.62, H * 0.7, 0.6);
+        const glow = 0.45 + Math.sin(t * 2.5) * 0.25;
+        const gg = ctx.createRadialGradient(W * 0.7, H * 0.72, 2, W * 0.7, H * 0.72, S * 1.4);
+        gg.addColorStop(0, `rgba(255,230,140,${glow})`); gg.addColorStop(1, 'rgba(255,230,140,0)');
+        ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#4a3322'; ctx.strokeStyle = '#1a1008'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(W * 0.7 - S * 0.75, H); ctx.quadraticCurveTo(W * 0.66, H * 0.8, W * 0.7, H * 0.8); ctx.quadraticCurveTo(W * 0.75, H * 0.8, W * 0.7 + S * 0.8, H); ctx.fill(); ctx.stroke();
+        ctx.save(); ctx.translate(W * 0.7, H * 0.74); ctx.rotate(-1.1); drawPickIconAt(ctx, 0, 0, S * 1.1, '#cfd6dd'); ctx.restore();
+        for (let i = 0; i < 5; i++) { const a = t * 1.5 + i * 1.3, rr = S * (0.6 + (i % 3) * 0.2); ctx.fillStyle = `rgba(255,240,180,${0.4 + 0.4 * Math.sin(a * 2)})`; ctx.beginPath(); ctx.arc(W * 0.7 + Math.cos(a) * rr, H * 0.7 + Math.sin(a) * rr * 0.6, 2, 0, 7); ctx.fill(); }
+        hero(W * 0.3, H * 0.94, S * 1.2, { anim: 'idle', t, reach: true });
+      } else if (scene === 'study') {
+        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2b2340'); g.addColorStop(1, '#16121f');
         ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        if (scene === 'pick') {
-          const glow = 0.5 + Math.sin(t * 2.5) * 0.25;
-          const gg = ctx.createRadialGradient(W * 0.68, H * 0.78, 2, W * 0.68, H * 0.78, S * 1.2);
-          gg.addColorStop(0, `rgba(255,230,140,${glow})`); gg.addColorStop(1, 'rgba(255,230,140,0)');
-          ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
-          ctx.save(); ctx.translate(W * 0.68, H * 0.8); ctx.rotate(-0.4);
-          ctx.fillStyle = '#9b6a3e'; ctx.fillRect(-S * 0.6, -S * 0.05, S * 1.1, S * 0.1);
-          ctx.fillStyle = '#c9d2dc'; ctx.beginPath(); ctx.moveTo(S * 0.5, -S * 0.35); ctx.quadraticCurveTo(S * 0.75, 0, S * 0.5, S * 0.35); ctx.lineTo(S * 0.42, 0); ctx.fill();
+        // fenêtre étoilée, bureau, lampe, livres, cailloux
+        ctx.fillStyle = '#0b1530'; ctx.fillRect(W * 0.62, H * 0.12, W * 0.28, H * 0.36); ctx.strokeStyle = '#6b5a8a'; ctx.lineWidth = 4; ctx.strokeRect(W * 0.62, H * 0.12, W * 0.28, H * 0.36);
+        ctx.fillStyle = '#fff'; for (let i = 0; i < 12; i++) ctx.fillRect(W * 0.63 + ((i * 37) % (W * 0.26)), H * 0.14 + ((i * 23) % (H * 0.3)), 1.6, 1.6);
+        ctx.fillStyle = '#7a4f30'; ctx.fillRect(W * 0.48, H * 0.66, W * 0.5, H * 0.06);
+        const lg = ctx.createRadialGradient(W * 0.86, H * 0.6, 2, W * 0.86, H * 0.6, W * 0.3); lg.addColorStop(0, 'rgba(255,214,120,.45)'); lg.addColorStop(1, 'rgba(255,214,120,0)');
+        ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+        ['#e5484d', '#4f8ff7', '#f5c542'].forEach((c2, i) => { ctx.fillStyle = c2; ctx.fillRect(W * (0.52 + i * 0.045), H * 0.5, W * 0.04, H * 0.16); });
+        ['#b06df5', '#5ec4d6', '#f5c542'].forEach((c2, i) => { ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(W * (0.72 + i * 0.05), H * 0.64, 6, 0, 7); ctx.fill(); });
+        hero(W * 0.28, H * 0.95, S * 1.25, { anim: 'idle', t, helmet: false });
+      } else if (scene === 'go' || scene === 'final') {
+        paintSkyline(ctx, W, H, scene === 'go' ? 23 : 10, scene === 'go' ? 3 : 9);
+        if (scene === 'go') {
+          const p = (t * 0.22) % 1, x = W * (0.45 + p * 0.5), y = H * (0.85 - p * 0.75);
+          ctx.save(); ctx.translate(x, y); ctx.rotate(0.75);
+          ctx.fillStyle = 'rgba(255,190,80,.9)'; ctx.beginPath(); ctx.ellipse(0, S * 0.55 + Math.sin(t * 30) * 2, S * 0.09, S * 0.22, 0, 0, 7); ctx.fill();
+          ctx.fillStyle = '#f2f4f7'; ctx.strokeStyle = '#1a1008'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, S * 0.18, S * 0.45, 0, 0, 7); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#e5484d'; ctx.beginPath(); ctx.moveTo(-S * 0.18, S * 0.18); ctx.lineTo(-S * 0.32, S * 0.45); ctx.lineTo(0, S * 0.36); ctx.lineTo(S * 0.32, S * 0.45); ctx.lineTo(S * 0.18, S * 0.18); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.arc(0, -S * 0.1, S * 0.08, 0, 7); ctx.fill(); ctx.stroke();
           ctx.restore();
-          drawMiner(ctx, W * 0.32, H * 0.92, S * 1.2, { gender, face: 1, anim: 'idle', t });
+          hero(W * 0.22, H * 0.95, S * 1.25, { anim: 'idle', t, wave: true });
         } else {
-          drawMiner(ctx, W * 0.4, H * 0.92, S * 1.3, { gender, face: 1, anim: 'dig', dig: 'side', t });
-          // cristaux qui brillent
-          for (let i = 0; i < 4; i++) {
-            const x = W * (0.72 + (i % 2) * 0.12), y = H * (0.3 + i * 0.15), a = 0.5 + Math.sin(t * 3 + i) * 0.3;
-            ctx.fillStyle = ['#9b5de5', '#5ec4d6', '#f2c230', '#e74c3c'][i]; ctx.globalAlpha = a + 0.3;
-            ctx.beginPath(); ctx.moveTo(x, y - S * 0.25); ctx.lineTo(x + S * 0.12, y); ctx.lineTo(x, y + S * 0.12); ctx.lineTo(x - S * 0.12, y); ctx.fill();
-            ctx.globalAlpha = 1;
-          }
+          ctx.fillStyle = '#4a3324'; ctx.fillRect(0, H * 0.86, W, H * 0.14); ctx.fillStyle = '#5cae4f'; ctx.fillRect(0, H * 0.86, W, H * 0.03);
+          drawHeadframe(ctx, W * 0.72, H * 0.86, S * 0.55, t * 0.5, false);
+          hero(W * 0.3, H * 0.93, S * 1.25, { anim: 'idle', t, wave: true });
         }
+      } else { // aperçu du choix du personnage
+        cave(W * 0.5, H * 0.55, 0.7);
+        hero(W * 0.5, H * 0.92, S * 1.5, { anim: 'idle', t, wave: (t % 4) < 1.6 });
       }
       raf = requestAnimationFrame(draw);
     };
@@ -87,22 +126,22 @@ function StoryArt({ scene, gender }) {
 }
 
 function Intro({ onStart }) {
-  const [step2, setStep2] = useState(0);
+  const [i, setI] = useState(0);
   const [gender, setGender] = useState('f');
   const [name, setName] = useState('Maé');
   const box = useRef(null);
-  useLayoutEffect(() => { if (box.current) gsap.from(box.current, { opacity: 0, y: 12, duration: 0.5, ease: 'expo.out', clearProps: 'all' }); }, [step2]);
-  const elle = gender === 'f' ? 'elle' : 'il';
-  const txt = (s) => s.replace(/\{name\}/g, name || (gender === 'f' ? 'Maé' : 'Noé')).replace(/\{elle\}/g, elle).replace('passionné·e', gender === 'f' ? 'passionnée' : 'passionné');
-  if (step2 === 0) {
+  useLayoutEffect(() => { if (box.current) gsap.from(box.current, { opacity: 0, y: 12, duration: 0.55, ease: 'expo.out', clearProps: 'all' }); }, [i]);
+  const nm = name.trim() || (gender === 'f' ? 'Maé' : 'Noé');
+  if (i === 0) {
     return (
       <div className="mine-intro" ref={box}>
+        <span className="mine-kicker">Nouvelle aventure</span>
         <h2>⛏️ La mine</h2>
-        <p>Choisis ton héros ou ton héroïne. Pendant chacune de tes sessions de concentration, il ou elle creusera pour toi.</p>
+        <p>Choisis qui va vivre cette aventure. Pendant chacune de tes sessions de concentration, {gender === 'f' ? 'elle' : 'il'} creusera pour toi.</p>
         <div className="mine-pick">
           {[['f', 'Mineuse', 'Maé'], ['m', 'Mineur', 'Noé']].map(([g, l, n]) => (
             <button key={g} type="button" className={'mine-hero ' + (gender === g ? 'on' : '')} onClick={() => { setGender(g); if (['Maé', 'Noé', ''].includes(name)) setName(n); }}>
-              <StoryArt scene="dig" gender={g} />
+              <StoryArt scene="pickhero" gender={g} />
               <b>{l}</b>
             </button>
           ))}
@@ -110,82 +149,145 @@ function Intro({ onStart }) {
         <label className="mine-name">Son prénom
           <input className="field" value={name} onChange={(e) => setName(e.target.value.slice(0, 16))} maxLength={16} />
         </label>
-        <button type="button" className="b on mine-go" onClick={() => setStep2(1)} disabled={!name.trim()}>Découvrir son histoire</button>
+        <button type="button" className="b on mine-go" onClick={() => setI(1)} disabled={!name.trim()}>Découvrir son histoire</button>
       </div>
     );
   }
-  const [scene, text] = STORY[step2 - 1];
-  const last = step2 === STORY.length;
+  const [scene, text] = STORY[i - 1], last = i === STORY.length;
   return (
-    <div className="mine-intro" ref={box} key={step2}>
+    <div className="mine-intro" ref={box} key={i}>
+      <span className="mine-kicker">Chapitre 1 · La mine de la ville</span>
       <StoryArt scene={scene} gender={gender} />
-      <p className="mine-story">{txt(text)}</p>
-      <div className="mine-dots">{STORY.map((_, i) => <i key={i} className={i < step2 ? 'on' : ''} />)}</div>
+      <p className="mine-story">{said(text, gender, nm)}</p>
+      <div className="mine-dots">{STORY.map((_, k) => <i key={k} className={k < i ? 'on' : ''} />)}</div>
       <div className="flex gap-2">
-        <button type="button" className="b" onClick={() => setStep2(step2 - 1)}>Retour</button>
-        <button type="button" className="b on mine-go flex-1" onClick={() => (last ? onStart(gender, name.trim()) : setStep2(step2 + 1))}>{last ? 'Commencer l’aventure ⛏️' : 'Suivant'}</button>
+        <button type="button" className="b" onClick={() => setI(i - 1)}>Retour</button>
+        <button type="button" className="b on mine-go flex-1" onClick={() => (last ? onStart(gender, nm) : setI(i + 1))}>{last ? 'Prendre la pioche ⛏️' : 'Suivant'}</button>
       </div>
     </div>
   );
 }
 
-/* ---------- boutique, collection, objectif ---------- */
+/* ---------- lieux de la surface ---------- */
+function PickIcon({ tier, size = 40 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current, d = Math.min(2, devicePixelRatio || 1);
+    c.width = c.height = size * d;
+    const ctx = c.getContext('2d'); ctx.scale(d, d);
+    ctx.translate(size / 2, size / 2); ctx.rotate(-0.75);
+    drawPickIconAt(ctx, 0, 0, size * 0.9, (PICKS[tier] || PICKS[0])[1]);
+  }, [tier, size]);
+  return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden="true" />;
+}
+
 function Shop({ g, onBuy, onClose }) {
-  const W = world(g.w);
+  const [cat, setCat] = useState('tools');
   return (
-    <Sheet title="Boutique" sub="Améliore ton équipement avec tes Fokoins." onClose={onClose} wide>
-      <div className="mine-bal">Tu as <Fk n={g.coins} /></div>
+    <Sheet title="🛠️ Boutique d’équipement" sub="« Un bon outil, c’est la moitié du travail. » — le vieux Marcel, vendeur depuis 1972" onClose={onClose} wide>
+      <div className="mine-bal">Ta bourse : <Fk n={g.coins} size={22} /></div>
+      <div className="mine-tabs" role="tablist">
+        {SHOP_CATS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={cat === k} className={cat === k ? 'on' : ''} onClick={() => setCat(k)}>{l}</button>)}
+      </div>
       <div className="mine-shop">
-        {UPGRADES.map((u) => {
-          const n = g.up[u.id], maxed = n >= u.max, c = maxed ? 0 : upCost(u, n);
+        {UPGRADES.filter((u) => u.cat === cat).map((u) => {
+          const n = g.up[u.id] || 0, maxed = n >= u.max, c = maxed ? 0 : upCost(u, n), can = !maxed && g.coins >= c;
           return (
-            <div key={u.id} className="mine-item">
-              <span className="mine-item-e" aria-hidden="true">{u.emoji}</span>
-              <span className="mine-item-t"><b>{u.name} <em>niv. {n}{u.max > 1 ? ` / ${u.max}` : ''}</em></b><span>{u.desc}</span>
-                <span className="mine-fx">{u.fx(n)}{!maxed && ` → ${u.fx(n + 1)}`}</span></span>
-              <button type="button" className="b on" disabled={maxed || g.coins < c} onClick={() => onBuy(u.id)}>{maxed ? 'Max' : <Fk n={c} size={16} />}</button>
+            <div key={u.id} className={'mine-item ' + (can ? 'can' : '')}>
+              <span className="mine-item-e" aria-hidden="true">{u.id === 'pick' ? <PickIcon tier={maxed ? n : n + 1} /> : u.emoji}</span>
+              <span className="mine-item-t">
+                <b>{u.label ? (maxed ? u.label(n) : `Passer à la ${u.label(n + 1).toLowerCase()}`) : u.name} <em>{u.max > 1 ? `niv. ${n} / ${u.max}` : n ? 'acquis' : ''}</em></b>
+                <span>{u.desc}</span>
+                <span className="mine-fx">{u.fx(n)}{!maxed && ` → ${u.fx(n + 1)}`}</span>
+                {u.max > 1 && <span className="mine-lv">{[...Array(u.max)].map((_, k) => <i key={k} className={k < n ? 'on' : ''} />)}</span>}
+              </span>
+              <button type="button" className="b on" disabled={!can} onClick={() => onBuy(u.id)}>{maxed ? 'Max' : <Fk n={c} size={16} />}</button>
             </div>
           );
         })}
       </div>
-      <Goal g={g} W={W} onBuy={onBuy} />
+      {cat === 'tools' && (
+        <div className="mine-picks" aria-label="Toutes les pioches">
+          {PICKS.map(([nm], k) => <span key={nm} className={k <= g.up.pick ? 'on' : ''} title={nm}><PickIcon tier={k} size={30} /></span>)}
+        </div>
+      )}
     </Sheet>
   );
 }
-function Goal({ g, W, onBuy }) {
-  const G = W.goal, hasBook = g.built.includes(G.id + '-book'), built = g.built.includes(G.id);
-  const need = hasBook ? G.build : G.book;
+
+function Market({ g, onSell, onClose }) {
+  const W = world(g.w), day = dayKey(), yday = dayKey(Date.now() - 864e5);
+  const types = [1, 2, ...W.ores.map((_, k) => 3 + k)];
+  const known = types.filter((t) => (g.found[(t >= 3 ? W.ores[t - 3] : W.tiles[t]).id] || 0) > 0);
+  const total = stockValue(g, day);
   return (
-    <div className="mine-goal">
-      <b>🎯 Objectif : fabriquer {G.name} {G.emoji}</b>
-      <p>{built ? `Bravo ! ${G.emoji} fabriqué. Prochaine étape : ${G.next} (bientôt).` : hasBook
-        ? `Tu as le livre de fabrication. Il reste à acheter les pièces et à le construire.`
-        : `D’abord, acheter le livre de fabrication sur internet. Ensuite, les pièces.`}</p>
-      {!built && (
-        <>
-          <div className="mine-bar"><i style={{ width: Math.min(100, (g.coins / need) * 100) + '%' }} /></div>
-          <button type="button" className="b on" disabled={g.coins < need} onClick={() => onBuy(hasBook ? 'goal' : 'book')}>
-            {hasBook ? `Construire ${G.name}` : 'Acheter le livre de fabrication'} · <Fk n={need} size={16} />
-          </button>
-        </>
-      )}
-    </div>
+    <Sheet title="🏪 Marché aux minerais" sub={`Cours du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · les prix changent chaque jour`} onClose={onClose} wide>
+      <div className="mine-stock">
+        <span>📦 Ton coffre vaut <Fk n={total} size={20} /> aujourd’hui</span>
+        <button type="button" className="b on" disabled={!total} onClick={() => onSell(null)}>Tout vendre</button>
+      </div>
+      {g.up.seller ? <p className="si-d">🤝 Contrat actif : tes minerais sont vendus automatiquement en arrivant, au cours du jour.</p> : null}
+      <div className="mine-prices">
+        {known.length === 0 && <p className="si-d">Aucun minerai trouvé pour l’instant. Lance une concentration !</p>}
+        {known.map((t) => {
+          const o = t >= 3 ? W.ores[t - 3] : W.tiles[t], p = price(W, t, day), py = price(W, t, yday), q = g.stock[t] || 0;
+          const pct = Math.round((p / o.value - 1) * 100);
+          return (
+            <div key={t} className="mine-price">
+              <i style={gem(o)} />
+              <span className="mine-price-n"><b>{o.name}</b><em>{q ? `× ${q.toLocaleString('fr-FR')} au coffre` : 'rien au coffre'}</em></span>
+              <span className="mine-price-v"><Fk n={p} size={14} />{t >= 3 && <em className={pct > 0 ? 'up' : pct < 0 ? 'down' : ''} title={`Hier : ${fmt(py)} Fk`}>{pct > 0 ? '+' : ''}{pct} %</em>}</span>
+              <button type="button" className="b" disabled={!q} onClick={() => onSell(t)}>Vendre</button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="si-d mt-3">💡 Les cours varient chaque jour de −25 % à +25 % autour du prix normal (le pourcentage affiché). Garde tes pierres précieuses au coffre et vends-les un jour où leur prix monte !</p>
+    </Sheet>
   );
 }
-function Collection({ g, onClose }) {
-  const W = world(g.w);
-  const all = [W.tiles[1], W.tiles[2], ...W.ores];
+
+function Workshop({ g, onBuy, onClose }) {
+  const W = world(g.w), G = W.goal, hasBook = g.built.includes(G.id + '-book'), built = g.built.includes(G.id);
+  const need = hasBook ? G.build : G.book;
   return (
-    <Sheet title="Collection et marché" sub={`${W.name} · prix de vente à la base`} onClose={onClose} wide>
+    <Sheet title="🔧 Atelier" sub={`Objectif du monde : fabriquer ${G.name} ${G.emoji} pour partir vers « ${G.next} »`} onClose={onClose} wide>
+      <div className="mine-goal">
+        <div className="mine-steps">
+          <span className={hasBook ? 'ok' : 'cur'}>1 · 📖 Livre de fabrication <Fk n={G.book} size={14} /></span>
+          <span className={built ? 'ok' : hasBook ? 'cur' : ''}>2 · 🔩 Pièces et montage <Fk n={G.build} size={14} /></span>
+          <span className={built ? 'ok cur' : ''}>3 · {G.emoji} Départ</span>
+        </div>
+        <p>{built ? `Bravo ! ${G.name[0].toUpperCase() + G.name.slice(1)} est prêt. Le monde 2 arrive très bientôt dans le labo.`
+          : hasBook ? 'Le livre est sur l’établi. Il reste à acheter les pièces et à tout monter.'
+            : 'D’abord, commander le livre de fabrication sur internet : il explique tout, pièce par pièce.'}</p>
+        {!built && (
+          <>
+            <div className="mine-bar"><i style={{ width: Math.min(100, (g.coins / need) * 100) + '%' }} /></div>
+            <button type="button" className="b on" disabled={g.coins < need} onClick={() => onBuy(hasBook ? 'goal' : 'book')}>
+              {hasBook ? `Construire ${G.name}` : 'Commander le livre'} · <Fk n={need} size={16} />
+            </button>
+          </>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+function Collection({ g, onClose }) {
+  const W = world(g.w), all = [W.tiles[1], W.tiles[2], ...W.ores];
+  const got = all.filter((o) => g.found[o.id]).length;
+  return (
+    <Sheet title="💎 Collection" sub={`${W.name} · ${got} / ${all.length} trouvés`} onClose={onClose} wide>
       <div className="mine-col">
         {all.map((o) => {
-          const n = g.found[o.id] || 0, known = n > 0;
+          const n = g.found[o.id] || 0;
           return (
-            <div key={o.id} className={'mine-ore ' + (known ? '' : 'unk')}>
-              <i style={{ background: `radial-gradient(circle at 35% 30%, ${o.colors[1]}, ${o.colors[0]} 55%, ${o.colors[2]})` }} />
-              <b>{known ? o.name : '???'}</b>
+            <div key={o.id} className={'mine-ore ' + (n ? '' : 'unk')}>
+              <i style={gem(o)} />
+              <b>{n ? o.name : '???'}</b>
               <span className="tabular-nums"><Fk n={o.value} size={14} /></span>
-              <em className="tabular-nums">{known ? `× ${n.toLocaleString('fr-FR')}` : 'pas encore trouvé'}</em>
+              <em className="tabular-nums">{n ? `× ${n.toLocaleString('fr-FR')}` : 'pas encore trouvé'}</em>
             </div>
           );
         })}
@@ -195,17 +297,36 @@ function Collection({ g, onClose }) {
   );
 }
 
+function Missions({ g, onClaim }) {
+  return (
+    <div className="mine-missions">
+      <b className="mine-missions-t">📜 Missions</b>
+      {g.missions.map((m, i) => {
+        const p = missionProgress(g, m), done = p >= 1;
+        return (
+          <div key={m.text + i} className={'mine-mission ' + (done ? 'done' : '')}>
+            <span className="mine-mission-t">{m.text}</span>
+            <span className="mine-bar sm2"><i style={{ width: p * 100 + '%' }} /></span>
+            {done ? <button type="button" className="b on" onClick={() => onClaim(i)}>Récupérer <Fk n={m.reward} size={14} /></button> : <span className="mine-mission-r"><Fk n={m.reward} size={14} /></span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ---------- le jeu ---------- */
-const STATUS = { dig: '⛏️ creuse', toBase: '🎒 remonte vendre', toFace: '🚶 redescend', rest: '💤 se repose', done: '🏁 a tout creusé' };
+const STATUS = { dig: '⛏️ creuse', toBase: '🎒 remonte au marché', toFace: '🚶 redescend', rest: '💤 se repose', done: '🏁 a tout creusé' };
+const tierOf = Object.fromEntries(BADGES.map((b) => [b.id, b.tier]));
 function Game({ initial }) {
   const canvas = useRef(null), view = useRef(null), gr = useRef(null);
   const [, force] = useState(0);
   const [sheet, setSheet] = useState(null);
-  if (!gr.current) gr.current = { g: initial, set: dugSet(initial) };
+  if (!gr.current) { const g0 = fixGame(structuredClone(initial)); fillMissions(g0); gr.current = { g: g0, set: dugSet(g0) }; }
   const { g } = gr.current, W = world(g.w);
   const live = useRef(false);
 
-  // rattrapage : temps de concentration écoulé depuis la dernière visite (+ repos hors sessions)
+  // rattrapage : temps de concentration écoulé depuis la dernière visite (+ repos hors sessions), tâches, badges
   const advance = (report) => {
     const S = getState(), G = gr.current.g, now = Date.now();
     const budget = focusSecs(S) + G.bonus - G.base0 - G.used;
@@ -216,12 +337,18 @@ function Game({ initial }) {
       recover(G, Math.max(0, wall - budget));
       const ev = step(G, budget, gr.current.set);
       G.used += budget;
-      if (report && (ev.dug || ev.coins)) toast(`⛏️ Pendant ta concentration : ${ev.dug} blocs creusés · +${fmt(ev.coins)} ${COIN}`, null, 5000);
-      Object.keys(G.found).forEach((k) => { if (!before[k]) { const o = W.ores.find((x) => x.id === k); if (o) toast(`✨ Nouveau minerai : ${o.name} (${fmt(o.value)} ${COIN})`, null, 4500); } });
+      if (report && ev.dug) toast(`⛏️ Pendant ta concentration : ${ev.dug} blocs creusés${ev.sold ? ` · ${ev.sold} minerais rapportés` : ''}`, null, 5000);
+      if (!report && view.current) {
+        (ev.list || []).forEach((id) => { const o = W.ores.find((x) => x.id === id); pop(view.current, `+1 ${o.name}`, G.x + 0.5, G.y + 0.2, o.colors[1]); });
+        if (ev.home) pop(view.current, G.up.seller ? `+${fmt(ev.coins)} Fk` : '📦 au coffre', 15.4, -2.2, '#ffe08a');
+      }
+      Object.keys(G.found).forEach((k) => { if (!before[k]) { const o = W.ores.find((x) => x.id === k); if (o) toast(`✨ Nouveau minerai découvert : ${o.name} (${fmt(o.value)} ${COIN})`, null, 4500); } });
     } else recover(G, wall);
     const paid = payTasks(G, S.doneTotal);
-    if (paid) toast(`✅ ${paid} tâche${paid > 1 ? 's' : ''} validée${paid > 1 ? 's' : ''} : +${paid * 5} ${COIN}`, null, 4000);
-    live.current = budget > 0.05 || (S.pomo && S.pomo.phase === 'work' && S.pomo.paused == null);
+    if (paid) toast(`✅ ${paid} tâche${paid > 1 ? 's' : ''} validée${paid > 1 ? 's' : ''} : +${paid * TASK_REWARD} ${COIN}`, null, 4000);
+    const b = payBadges(G, Object.keys(S.badges || {}).filter((id) => tierOf[id]).map((id) => [id, tierOf[id]]));
+    if (b.n) toast(G.badgesPaid.length === b.n && b.n > 2 ? `🏅 Prime de bienvenue : tes ${b.n} badges Fokus rapportent +${fmt(b.total)} ${COIN} !` : `🏅 ${b.n > 1 ? `${b.n} badges` : 'Nouveau badge'} : +${fmt(b.total)} ${COIN}`, null, 5500);
+    live.current = S.pomo && S.pomo.phase === 'work' && S.pomo.paused == null;
   };
   const save = () => setMine({ ...gr.current.g, dug: gr.current.g.dug.slice() });
 
@@ -229,11 +356,14 @@ function Game({ initial }) {
     advance(true);
     save();
     const v = view.current = createView(canvas.current, W);
-    let raf, t0 = performance.now(), last = t0, saved = Date.now();
+    let raf, last = performance.now(), saved = Date.now();
+    const t0 = last;
     const loop = (now) => {
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       advance(false);
-      drawFrame(v, gr.current.g, gr.current.set, (now - t0) / 1000, dt, live.current, 0);
+      const G = gr.current.g, Wd = world(G.w), goal = Wd.goal;
+      const need = G.built.includes(goal.id + '-book') ? goal.build : goal.book;
+      drawFrame(v, G, gr.current.set, (now - t0) / 1000, dt, live.current, (G.up.lamp || 0) * 0.8, { progress: Math.min(1, G.coins / need), built: G.built.includes(goal.id) });
       if (Date.now() - saved > 4000) { saved = Date.now(); save(); force((x) => x + 1); }
       raf = requestAnimationFrame(loop);
     };
@@ -242,47 +372,53 @@ function Game({ initial }) {
     addEventListener('resize', onR);
     const vis = () => { if (document.hidden) save(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); document.removeEventListener('visibilitychange', vis); save(); };
+    const key = (e) => { if (e.key === 'Escape') setSheet(null); };
+    addEventListener('keydown', key);
+    return () => { cancelAnimationFrame(raf); removeEventListener('resize', onR); document.removeEventListener('visibilitychange', vis); removeEventListener('keydown', key); save(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { // Échap ferme la boutique / la collection
-    const k = (e) => { if (e.key === 'Escape') setSheet(null); };
-    addEventListener('keydown', k);
-    return () => removeEventListener('keydown', k);
-  }, []);
-  // glisser pour regarder autour (la caméra se recentre avec le bouton)
+  // glisser pour regarder autour ; toucher un bâtiment pour y entrer
   const drag = useRef(null);
-  const down = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx: view.current.cam.x, cy: view.current.cam.y }; };
+  const down = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx: view.current.cam.x, cy: view.current.cam.y, moved: false }; };
   const move = (e) => {
     const d = drag.current; if (!d) return;
-    if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6) { view.current.follow = false; force((x) => x + 1); }
-    view.current.cam.x = d.cx - (e.clientX - d.x); view.current.cam.y = d.cy - (e.clientY - d.y);
+    if (!d.moved && Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 8) { d.moved = true; view.current.follow = false; force((x) => x + 1); }
+    if (d.moved) { view.current.cam.x = d.cx - (e.clientX - d.x); view.current.cam.y = d.cy - (e.clientY - d.y); }
   };
-  const up = () => { drag.current = null; };
+  const up = (e) => {
+    const d = drag.current; drag.current = null;
+    if (!d || d.moved || e.type !== 'pointerup') return;
+    const r = canvas.current.getBoundingClientRect(), b = hitBuilding(view.current, e.clientX - r.left, e.clientY - r.top);
+    if (b) setSheet(b);
+  };
 
   const act = (fn) => { fn(gr.current.g); save(); force((x) => x + 1); };
   const onBuy = (id) => act((G) => {
-    const Wd = world(G.w), goal = Wd.goal;
-    if (id === 'book') { if (G.coins >= goal.book) { G.coins -= goal.book; G.built.push(goal.id + '-book'); toast('📖 Livre de fabrication acheté !'); } return; }
-    if (id === 'goal') { if (G.coins >= goal.build) { G.coins -= goal.build; G.built.push(goal.id); toast(`🎉 ${goal.emoji} Fabriqué ! Le voyage continue bientôt…`, null, 6000); } return; }
-    if (buy(G, id)) toast('Amélioration achetée ✓');
+    const goal = world(G.w).goal;
+    if (id === 'book') { if (G.coins >= goal.book) { G.coins -= goal.book; G.built.push(goal.id + '-book'); toast('📖 Livre de fabrication commandé !'); } return; }
+    if (id === 'goal') { if (G.coins >= goal.build) { G.coins -= goal.build; G.built.push(goal.id); toast(`🎉 ${goal.emoji} ${goal.name[0].toUpperCase() + goal.name.slice(1)} est prêt ! Le voyage continue bientôt…`, null, 6000); } return; }
+    if (buy(G, id)) toast(id === 'pick' ? `⛏️ ${PICKS[G.up.pick][0]} !` : 'Amélioration achetée ✓');
   });
-  const pomo = getState().pomo, working = pomo && pomo.phase === 'work' && pomo.paused == null;
-  const depth = Math.max(0, g.y - 2) * 2;
+  const onSell = (t) => act((G) => { const v = sell(G, t); if (v) toast(`💰 Vendu : +${fmt(v)} ${COIN}`); });
+  const onClaim = (i) => act((G) => { const v = claim(G, i); if (v) toast(`📜 Mission accomplie : +${fmt(v)} ${COIN}`); });
+  const working = live.current;
+  const stockN = Object.values(g.stock).reduce((a, b) => a + b, 0);
+  const goal = W.goal, need = goal.book + goal.build, spent = (g.built.includes(goal.id + '-book') ? goal.book : 0) + (g.built.includes(goal.id) ? goal.build : 0);
   return (
     <div className="mine">
       <div className="mine-stage">
-        <canvas ref={canvas} className="mine-canvas" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={up} />
+        <canvas ref={canvas} className="mine-canvas" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={() => { drag.current = null; }} />
         <div className="mine-hud">
           <span className="mine-pill mine-coins"><Fk n={g.coins} size={22} /></span>
           <span className="mine-pill">🎒 {g.bagN}/{cap(g)}</span>
-          <span className="mine-pill">⬇ {depth} m</span>
-          <span className="mine-pill">{g.hero.name} {working ? STATUS[g.act] || '' : g.act === 'rest' ? '💤 se repose' : '⏸ attend ta concentration'}</span>
+          {stockN > 0 && !g.up.seller ? <button type="button" className="mine-pill mine-sell" onClick={() => setSheet('market')}>📦 {stockN} au coffre · vendre</button> : <span className="mine-pill">📦 {stockN}</span>}
+          <span className="mine-pill">⬇ {depthM(g.y)} m</span>
+          <span className="mine-pill">{g.hero.name} {working ? STATUS[g.act] || '' : g.act === 'rest' ? '💤 se repose' : '⏳ attend ta concentration'}</span>
         </div>
         {!working && (
           <div className="mine-wait">
-            <b>{g.hero.name} attend ta prochaine session ⏱️</b>
-            <span>Lance une concentration dans l’onglet Pomodoro : {g.hero.gender === 'f' ? 'elle' : 'il'} creuse pendant que tu travailles.</span>
+            <span className="mine-wait-t"><b>{g.hero.name} attend ta prochaine session ⏱️</b>
+              <span>{g.hero.gender === 'f' ? 'Elle' : 'Il'} creuse pendant que tu travailles. Touche un bâtiment pour y entrer.</span></span>
             <button type="button" className="b on" onClick={() => setPage(4)}>Aller au Pomodoro</button>
           </div>
         )}
@@ -294,11 +430,15 @@ function Game({ initial }) {
             <button key={d} type="button" className={'seg ' + (g.dir === d ? 'on' : '')} onClick={() => act((G) => setDir(G, d))}>{l}</button>
           ))}
         </div>
-        <button type="button" className="b on" onClick={() => setSheet('shop')}>🛒 Boutique</button>
-        <button type="button" className="b" onClick={() => setSheet('col')}>💎 Collection</button>
-        <span className="mine-goalpill">{W.goal.emoji} <span className="mine-bar sm"><i style={{ width: Math.min(100, (g.coins / goalCost(W)) * 100) + '%' }} /></span></span>
+        <button type="button" className="b on" onClick={() => setSheet('market')}>🏪 Marché</button>
+        <button type="button" className="b" onClick={() => setSheet('shop')}>🛠️ Boutique</button>
+        <button type="button" className="b" onClick={() => setSheet('workshop')}>🔧 Atelier</button>
+        <button type="button" className="b" onClick={() => setSheet('col')}>💎</button>
+        <span className="mine-goalpill" title="Objectif du monde">{goal.emoji} <span className="mine-bar sm"><i style={{ width: Math.min(100, ((spent + g.coins) / need) * 100) + '%' }} /></span></span>
       </div>
-      <p className="mine-note">Fatigue : {Math.round((g.fat / stam(g)) * 100)} % · 10 min de repos toutes les {stam(g) / 60} min de minage · {fmt(g.earned)} {COIN} gagnés depuis le début · chaque tâche validée rapporte 5 {COIN}.</p>
+      <Missions g={g} onClaim={onClaim} />
+      <p className="mine-note">Fatigue : {Math.round((g.fat / stam(g)) * 100)} % · 10 min de repos toutes les {stam(g) / 60} min de minage · {fmt(g.earned)} {COIN} gagnés depuis le début.
+        Bonus : chaque tâche validée +{TASK_REWARD} {COIN}, chaque badge Fokus +{BADGE_FK[1]} à +{BADGE_FK[4]} {COIN} selon sa difficulté.</p>
       {LABO && (
         <div className="mine-test">
           🧪 Test (labo) : <button type="button" className="b" onClick={() => act((G) => { G.bonus += 3600; })}>+1 h de concentration</button>
@@ -307,6 +447,8 @@ function Game({ initial }) {
         </div>
       )}
       {sheet === 'shop' && <Shop g={g} onBuy={onBuy} onClose={() => setSheet(null)} />}
+      {sheet === 'market' && <Market g={g} onSell={onSell} onClose={() => setSheet(null)} />}
+      {sheet === 'workshop' && <Workshop g={g} onBuy={onBuy} onClose={() => setSheet(null)} />}
       {sheet === 'col' && <Collection g={g} onClose={() => setSheet(null)} />}
     </div>
   );
@@ -315,7 +457,7 @@ function Game({ initial }) {
 export default function Mine() {
   const { S } = useStore();
   if (!S.mine) {
-    return <Intro onStart={(gender, name) => { setMine(newGame({ gender, name, focus: focusSecs(getState()) })); toast(`⛏️ ${name} entre dans la mine. Lance une concentration pour l’aider !`, null, 5000); }} />;
+    return <Intro onStart={(gender, name) => { setMine(newGame({ gender, name, focus: focusSecs(getState()) })); toast(`⛏️ ${name} prend la pioche. Lance une concentration pour l’aider !`, null, 5000); }} />;
   }
   return <Game initial={S.mine} />;
 }

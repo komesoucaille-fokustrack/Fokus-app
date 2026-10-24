@@ -176,6 +176,12 @@ export function drawMiner(ctx, x, y, s, o) {
   const swing = anim === 'dig' ? (ph < 0.7 ? -1.25 * (ph / 0.7) : -1.25 + 2.1 * ((ph - 0.7) / 0.3)) : 0;
   const lean = anim === 'dig' ? swing * 1.5 : 0;
 
+  // mains flottantes (gants)
+  const hand = (x0, y0) => {
+    const gg = ctx.createRadialGradient(x0 - 1, y0 - 1.5, 0.5, x0, y0, 5);
+    gg.addColorStop(0, '#fffaf0'); gg.addColorStop(1, '#d8cbb4');
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(x0, y0, 4.4, 4, 0, 0, 7); ctx.fill(); ctx.stroke();
+  };
   // ombre
   ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, -1, 13, 3.2, 0, 0, 7); ctx.fill();
   // pieds (bottes)
@@ -226,6 +232,7 @@ export function drawMiner(ctx, x, y, s, o) {
     const look = anim === 'dig' && o.dig === 'down' ? 1.6 : 0;
     for (const ex of [4.6, 9.6]) {
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(hx + ex, hy, 2.6, blink ? 0.4 : 3.6, 0, 0, 7); ctx.fill(); ctx.lineWidth = 1; ctx.stroke();
+      if (!blink && o.gender === 'f') { ctx.beginPath(); ctx.moveTo(hx + ex + 1.5, hy - 3.2); ctx.lineTo(hx + ex + 3.4, hy - 4.6); ctx.moveTo(hx + ex + 2.4, hy - 2.4); ctx.lineTo(hx + ex + 4.2, hy - 3.2); ctx.stroke(); }
       if (!blink) {
         ctx.fillStyle = '#1b1b24'; ctx.beginPath(); ctx.ellipse(hx + ex + 0.9, hy + 0.6 + look, 1.4, 1.9, 0, 0, 7); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(hx + ex + 1.4, hy - 0.4 + look, 0.6, 0, 7); ctx.fill();
@@ -241,6 +248,12 @@ export function drawMiner(ctx, x, y, s, o) {
   ctx.fillStyle = P.hair;
   ctx.beginPath(); ctx.moveTo(hx - 11, hy - 3); ctx.quadraticCurveTo(hx - 4, hy - 1, hx + 2, hy - 5); ctx.quadraticCurveTo(hx + 7, hy - 2, hx + 12, hy - 5);
   ctx.lineTo(hx + 12, hy - 8); ctx.lineTo(hx - 11, hy - 8); ctx.closePath(); ctx.fill();
+  if (o.helmet === false) { // sans casque (à la maison, dans l'histoire) : chevelure
+    ctx.fillStyle = P.hair;
+    ctx.beginPath(); ctx.moveTo(hx - 12.5, hy - 1); ctx.quadraticCurveTo(hx - 14, hy - 17, hx + 1, hy - 15.5); ctx.quadraticCurveTo(hx + 14, hy - 15, hx + 12.5, hy - 4);
+    ctx.quadraticCurveTo(hx + 7, hy - 3, hx + 3, hy - 6); ctx.quadraticCurveTo(hx - 3, hy - 2, hx - 12.5, hy - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(hx - 4, hy - 11, 4, 1.8, -0.3, 0, 7); ctx.fill();
+  } else {
   // casque jaune + lampe frontale
   const hg = ctx.createLinearGradient(0, hy - 20, 0, hy - 4);
   hg.addColorStop(0, '#ffe066'); hg.addColorStop(1, '#e0a800');
@@ -250,15 +263,16 @@ export function drawMiner(ctx, x, y, s, o) {
   ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(hx - 5, hy - 16, 4, 2.2, -0.4, 0, 7); ctx.fill();
   ctx.fillStyle = '#d9d9d9'; ctx.beginPath(); ctx.ellipse(hx + 12, hy - 12, 3.4, 3.6, 0, 0, 7); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.ellipse(hx + 13, hy - 12, 2, 2.3, 0, 0, 7); ctx.fill();
+  }
   ctx.restore();
 
   // mains flottantes (gants) + pioche
-  const hand = (x0, y0) => {
-    const gg = ctx.createRadialGradient(x0 - 1, y0 - 1.5, 0.5, x0, y0, 5);
-    gg.addColorStop(0, '#fffaf0'); gg.addColorStop(1, '#d8cbb4');
-    ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(x0, y0, 4.4, 4, 0, 0, 7); ctx.fill(); ctx.stroke();
-  };
-  if (anim === 'dig' || anim === 'idle' || anim === 'walk' || anim === 'climb') {
+  if (o.tool === false) { // sans pioche (histoire) : les mains suivent le corps
+    const sw = anim === 'walk' ? Math.sin(walk) * 3 : breathe * 0.4;
+    if (o.wave) { const wv = Math.sin(t * 6) * 3; hand(-11, -20 + bob + sw); hand(13 + wv * 0.3, -44 + wv); }
+    else if (o.reach) { hand(-10, -17 + bob); hand(17, -22 + bob + Math.sin(t * 2) * 1.2); }
+    else { hand(-11, -15 + bob + sw); hand(12, -15 + bob - sw); }
+  } else if (anim === 'dig' || anim === 'idle' || anim === 'walk' || anim === 'climb') {
     // pioche tenue à deux mains, pivot à l'épaule
     const piv = o.dig === 'down' && anim === 'dig' ? [6, -24] : [8, -22];
     const base = anim === 'dig' ? (o.dig === 'down' ? 0.5 : 0) : anim === 'walk' ? -0.9 + Math.sin(walk) * 0.08 : -0.7 + breathe * 0.02;
@@ -269,7 +283,8 @@ export function drawMiner(ctx, x, y, s, o) {
     ctx.fillStyle = '#9b6a3e'; ctx.beginPath(); ctx.roundRect(0, -1.6, L, 3.2, 1.6); ctx.fill(); ctx.stroke();
     // fer de la pioche
     ctx.save(); ctx.translate(L, 0);
-    const ig = ctx.createLinearGradient(0, -12, 0, 12); ig.addColorStop(0, '#e9eef3'); ig.addColorStop(0.5, '#9aa4ae'); ig.addColorStop(1, '#5e666f');
+    const pc = o.pickColor || '#9aa4ae';
+    const ig = ctx.createLinearGradient(0, -12, 0, 12); ig.addColorStop(0, shade(pc, 0.55)); ig.addColorStop(0.5, pc); ig.addColorStop(1, shade(pc, -0.45));
     ctx.fillStyle = ig;
     ctx.beginPath(); ctx.moveTo(-1, -2.5); ctx.quadraticCurveTo(2, -10, -4, -14); ctx.quadraticCurveTo(6, -9, 4, -2.5);
     ctx.lineTo(4, 2.5); ctx.quadraticCurveTo(6, 9, -4, 14); ctx.quadraticCurveTo(2, 10, -1, 2.5); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -400,3 +415,100 @@ export function drawBase(ctx, x, groundY, S, night) {
 
 /* pièce Fokoin (anneau du logo Fokus frappé sur une pièce d'or) — SVG pour l'interface */
 export const COIN_SVG = (size = 22) => `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true"><defs><radialGradient id="fkg" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5c542"/><stop offset="1" stop-color="#b8860b"/></radialGradient><linearGradient id="fkr" x1="0" x2="1"><stop offset="0" stop-color="#059669"/><stop offset=".5" stop-color="#10b981"/><stop offset="1" stop-color="#86efac"/></linearGradient></defs><circle cx="16" cy="16" r="15" fill="url(#fkg)" stroke="#8a6508" stroke-width="1.4"/><circle cx="16" cy="16" r="11.5" fill="none" stroke="#c99a1c" stroke-width="1"/><circle cx="16" cy="16" r="6.6" fill="none" stroke="url(#fkr)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="33 9" transform="rotate(-90 16 16)"/></svg>`;
+
+/* ---------- bâtiments de la surface (on les touche pour y entrer) ---------- */
+function plank(ctx, x, y, w, h, c1, c2) {
+  const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, c1); g.addColorStop(1, c2);
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+}
+function sign(ctx, cx, y, S, text, bg = '#f5e6c8', fg = '#4a2c14') {
+  ctx.font = `800 ${Math.round(S * 0.3)}px Inter Variable, sans-serif`;
+  const w = ctx.measureText(text).width + S * 0.5;
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(cx - w / 2, y, w, S * 0.48, S * 0.12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, cx, y + S * 0.25);
+}
+/* Marché : étal à auvent rayé, caisses de minerais, tableau des cours */
+export function drawMarket(ctx, x, groundY, S, night, t) {
+  const w = S * 3.6, h = S * 1.9;
+  ctx.save(); ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE; ctx.lineJoin = 'round';
+  plank(ctx, x, groundY - h, w, h, night ? '#6b4a33' : '#c58a52', night ? '#4a3020' : '#94592f');
+  ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x + (w * i) / 6, groundY - h); ctx.lineTo(x + (w * i) / 6, groundY); ctx.stroke(); }
+  ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE;
+  // comptoir
+  plank(ctx, x - S * 0.15, groundY - S * 0.95, w + S * 0.3, S * 0.25, '#e0a96d', '#a8703c');
+  // auvent rayé qui ondule à peine
+  const n = 7, aw = (w + S * 0.6) / n, ay = groundY - h - S * 0.15;
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = i % 2 ? '#fff4e2' : night ? '#8a2f3a' : '#e5484d';
+    ctx.beginPath(); ctx.moveTo(x - S * 0.3 + i * aw, ay); ctx.lineTo(x - S * 0.3 + (i + 1) * aw, ay);
+    ctx.lineTo(x - S * 0.3 + (i + 1) * aw, ay + S * 0.5); ctx.quadraticCurveTo(x - S * 0.3 + (i + 0.5) * aw, ay + S * 0.72 + Math.sin(t * 1.5 + i) * 1.2, x - S * 0.3 + i * aw, ay + S * 0.5);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // caisses de minerais sur le comptoir
+  const gems = ['#2a2a2e', '#d0793c', '#cfd6dd', '#f5c542', '#b06df5'];
+  for (let i = 0; i < 4; i++) {
+    const bx = x + S * 0.25 + i * S * 0.82, by = groundY - S * 1.35;
+    plank(ctx, bx, by, S * 0.62, S * 0.42, '#b98049', '#80502a');
+    for (let k = 0; k < 3; k++) { ctx.fillStyle = gems[(i + k) % gems.length]; ctx.beginPath(); ctx.arc(bx + S * (0.15 + k * 0.16), by - S * 0.02, S * 0.1, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+  // tableau des cours
+  ctx.fillStyle = '#1f2a24'; ctx.fillRect(x + w - S * 0.95, groundY - S * 0.82, S * 0.8, S * 0.6); ctx.strokeRect(x + w - S * 0.95, groundY - S * 0.82, S * 0.8, S * 0.6);
+  ctx.strokeStyle = '#86efac'; ctx.lineWidth = Math.max(1, S / 28); ctx.beginPath();
+  for (let i = 0; i < 5; i++) ctx.lineTo(x + w - S * 0.88 + i * S * 0.16, groundY - S * 0.35 - Math.sin(i * 1.7 + 1) * S * 0.13);
+  ctx.stroke(); ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE;
+  sign(ctx, x + w / 2, ay - S * 0.62, S, 'MARCHÉ');
+  ctx.restore();
+}
+/* Boutique d'équipement : façade vitrée, enseigne pioche, lampe allumée la nuit */
+export function drawShop(ctx, x, groundY, S, night) {
+  const w = S * 3.2, h = S * 2.4;
+  ctx.save(); ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE; ctx.lineJoin = 'round';
+  plank(ctx, x, groundY - h, w, h, night ? '#33415c' : '#5b7fa8', night ? '#222c40' : '#3e5d80');
+  // toit plat + corniche
+  plank(ctx, x - S * 0.2, groundY - h - S * 0.3, w + S * 0.4, S * 0.32, '#2b3445', '#1a2030');
+  // vitrine
+  ctx.fillStyle = night ? '#ffd879' : '#cfe8f7'; ctx.fillRect(x + S * 0.3, groundY - S * 1.55, S * 1.5, S * 1.0); ctx.strokeRect(x + S * 0.3, groundY - S * 1.55, S * 1.5, S * 1.0);
+  ctx.save(); ctx.translate(x + S * 1.05, groundY - S * 1.05); ctx.rotate(-0.6); drawPickIconAt(ctx, 0, 0, S * 0.75, '#cfd6dd'); ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, S / 25);
+  ctx.beginPath(); ctx.moveTo(x + S * 0.45, groundY - S * 1.4); ctx.lineTo(x + S * 0.75, groundY - S * 1.15); ctx.stroke();
+  ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE;
+  // porte
+  ctx.fillStyle = '#2a1c10'; ctx.fillRect(x + w - S * 1.15, groundY - S * 1.5, S * 0.8, S * 1.5); ctx.strokeRect(x + w - S * 1.15, groundY - S * 1.5, S * 0.8, S * 1.5);
+  ctx.fillStyle = '#f5c542'; ctx.beginPath(); ctx.arc(x + w - S * 0.48, groundY - S * 0.75, S * 0.06, 0, 7); ctx.fill();
+  sign(ctx, x + w / 2, groundY - h - S * 0.95, S, 'BOUTIQUE', '#ffe9a8', '#3a2a08');
+  ctx.restore();
+}
+/* Atelier : garage où se construit le véhicule de l'objectif (le vélo apparaît pièce par pièce) */
+export function drawWorkshop(ctx, x, groundY, S, night, progress, built) {
+  const w = S * 3.6, h = S * 2.1;
+  ctx.save(); ctx.lineWidth = Math.max(1.5, S / 20); ctx.strokeStyle = LINE; ctx.lineJoin = 'round';
+  plank(ctx, x, groundY - h, w, h, night ? '#5a5a5a' : '#a3a3a3', night ? '#3a3a3a' : '#737373');
+  ctx.fillStyle = night ? '#3a2f2a' : '#6b4a35';
+  ctx.beginPath(); ctx.moveTo(x - S * 0.25, groundY - h); ctx.lineTo(x + w / 2, groundY - h - S * 0.8); ctx.lineTo(x + w + S * 0.25, groundY - h); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // grande porte ouverte
+  ctx.fillStyle = night ? '#1a1410' : '#2e231b'; ctx.fillRect(x + S * 0.35, groundY - S * 1.55, w - S * 0.7, S * 1.55); ctx.strokeRect(x + S * 0.35, groundY - S * 1.55, w - S * 0.7, S * 1.55);
+  // le vélo (contours qui se remplissent avec la progression vers l'objectif)
+  const cx = x + w / 2, cy = groundY - S * 0.45, r = S * 0.38;
+  ctx.globalAlpha = built ? 1 : 0.35 + 0.65 * progress;
+  ctx.strokeStyle = built ? '#86efac' : '#e5e7eb'; ctx.lineWidth = Math.max(1.5, S / 16);
+  ctx.beginPath(); ctx.arc(cx - S * 0.55, cy, r, 0, 7); ctx.arc(cx + S * 0.55, cy, r, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - S * 0.55, cy); ctx.lineTo(cx - S * 0.1, cy - S * 0.45); ctx.lineTo(cx + S * 0.35, cy - S * 0.45); ctx.lineTo(cx + S * 0.55, cy);
+  ctx.moveTo(cx - S * 0.1, cy - S * 0.45); ctx.lineTo(cx + S * 0.05, cy); ctx.lineTo(cx + S * 0.35, cy - S * 0.45);
+  ctx.moveTo(cx + S * 0.35, cy - S * 0.45); ctx.lineTo(cx + S * 0.45, cy - S * 0.7); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = LINE; ctx.lineWidth = Math.max(1.5, S / 20);
+  sign(ctx, x + w / 2, groundY - h - S * 1.45, S, 'ATELIER', '#e5e7eb', '#1f2937');
+  ctx.restore();
+}
+/* icône de pioche (boutique, vitrine) */
+export function drawPickIconAt(ctx, x, y, size, color) {
+  ctx.save(); ctx.translate(x, y); ctx.lineJoin = 'round'; ctx.strokeStyle = LINE; ctx.lineWidth = Math.max(1.2, size / 18);
+  ctx.fillStyle = '#9b6a3e'; ctx.beginPath(); ctx.roundRect(-size * 0.45, -size * 0.06, size * 0.9, size * 0.12, size * 0.06); ctx.fill(); ctx.stroke();
+  const ig = ctx.createLinearGradient(0, -size * 0.45, 0, size * 0.45);
+  ig.addColorStop(0, shade(color, 0.55)); ig.addColorStop(0.5, color); ig.addColorStop(1, shade(color, -0.45));
+  ctx.fillStyle = ig;
+  ctx.beginPath(); ctx.moveTo(size * 0.3, -size * 0.08); ctx.quadraticCurveTo(size * 0.42, -size * 0.32, size * 0.18, -size * 0.48); ctx.quadraticCurveTo(size * 0.55, -size * 0.3, size * 0.48, -size * 0.08);
+  ctx.lineTo(size * 0.48, size * 0.08); ctx.quadraticCurveTo(size * 0.55, size * 0.3, size * 0.18, size * 0.48); ctx.quadraticCurveTo(size * 0.42, size * 0.32, size * 0.3, size * 0.08); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(size * 0.36, -size * 0.22, size * 0.04, size * 0.1, -0.4, 0, 7); ctx.fill();
+  ctx.restore();
+}
