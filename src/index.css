@@ -862,3 +862,11 @@
 .tl-ev em { font-style: normal; font-size: 11px; color: rgba(255, 255, 255, 0.55); font-variant-numeric: tabular-nums; }
 .tl-allday { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
 .tl-evchip { --ec: #93c5fd; min-height: 32px; padding: 4px 10px; border-radius: 99px; font-size: 12.5px; border: 1px dashed color-mix(in srgb, var(--ec) 60%, transparent); background: color-mix(in srgb, var(--ec) 12%, transparent); }
+
+/* Écran d'arrivée : onglets Se connecter / Créer un compte */
+.login-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 0 0 18px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid var(--color-edge); }
+.login-tabs button { min-height: 44px; border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--color-mut); transition: background .25s, color .25s; }
+.login-tabs button.on { background: #f5f6f8; color: #0b0c10; }
+.pw-wrap { position: relative; display: block; }
+.pw-wrap .field { width: 100%; padding-right: 52px; }
+.pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; font-size: 18px; }

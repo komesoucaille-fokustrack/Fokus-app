@@ -129,8 +129,8 @@ export function resolveChoice(which) {
 }
 
 /* ---------- connexion / déconnexion ---------- */
-function signedIn(session, user) {
-  m = { session, user, rev: null, dirty: false, at: 0, syncedAt: 0 };
+function signedIn(session, user, extra = {}) {
+  m = { session, user, rev: null, dirty: false, at: 0, syncedAt: 0, ...extra };
   persist();
   toast(`Connecté${user?.name ? ' : ' + user.name : ''}. Ta progression est sauvegardée.`);
   pull();
@@ -195,6 +195,21 @@ export async function setPassword(password) {
   const r = await api('/auth/password/set', { session: m.session, password });
   m.user = { ...m.user, ...r.user };
   persist();
+}
+
+/* Inscription en une fois (onglet « Créer un compte ») : code reçu (adresse vérifiée) → profil + mot de passe → session.
+   Le profil n'est enregistré que pour un compte neuf : si l'adresse avait déjà un compte, on s'y connecte simplement. */
+export async function signupVerify(email, code, profile, password) {
+  const r = await api('/auth/email/verify', { email, code });
+  let user = r.user || {};
+  const fresh = !user.pseudo;
+  let warn = '';
+  try {
+    if (fresh) user = { ...user, ...(await api('/profile/set', { session: r.session, ...profile })).user };
+    if (password && (fresh || !user.hasPw)) user = { ...user, ...(await api('/auth/password/set', { session: r.session, password })).user };
+  } catch (e) { warn = e.message; } // connecté quand même : le profil sera redemandé, le mot de passe se crée dans Réglages
+  signedIn(r.session, user, fresh && user.pseudo ? { intro: true } : {}); // compte neuf : écran de bienvenue (Intro)
+  return { fresh, warn };
 }
 
 /* Connexion par code e-mail : 1) envoi du code 2) vérification → session */

@@ -225,6 +225,10 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   l'utilisateur (`REQUIRE_LOGIN`, ouverte à tous) dès qu'une méthode est active : `GOOGLE_CLIENT_ID` (bouton officiel Google Identity
   Services : fenêtre dans Safari, redirection dans l'app installée, retour `#fokus-session=…&n=<nonce>` vérifié) et/ou `EMAIL_LOGIN`
   (code à 6 chiffres envoyé par Resend, serveur : secret `RESEND_API_KEY`, `MAIL_FROM`). Toutes deux vides/false = app 100 % sans compte.
+  **Écran d'arrivée en deux onglets** (`Login.jsx`) : « Se connecter » (e-mail + mot de passe, ou code) et « Créer un compte »
+  (prénom, nom, pseudo, âge, e-mail, mot de passe, case de certification → code de vérification de l'adresse → `signupVerify` :
+  profil + mot de passe enregistrés d'un coup, puis `Intro`) ; onglet par défaut = « Créer un compte » sauf si une adresse a déjà
+  servi sur l'appareil ; champs `autocomplete` (username / new-password / current-password) pour le trousseau iCloud.
   Un compte = une adresse e-mail (Google, code et **mot de passe** mènent au même compte). Mot de passe facultatif
   (Réglages → Compte, `/auth/password/set` ; PBKDF2 100 000 itérations ; 5 essais ratés → 15 min ; « Mot de passe oublié » = code). `main.jsx` affiche `Login` tant qu'il n'y a pas de session.
   Synchronisation : envoi ~2,5 s après chaque `save()` (`onSave`), récupération à l'ouverture / au retour ; `rev` serveur (409 si un autre
