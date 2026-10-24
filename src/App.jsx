@@ -11,6 +11,7 @@ import Ambiance from './components/Ambiance';
 import DayStrip from './components/DayStrip';
 import { getColorForPercentage, setPalette } from './lib/colors';
 import { StyleCard } from './components/Style';
+import { useFocusLock } from './lib/lock';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
@@ -159,6 +160,7 @@ export default function App() {
   useMidnight();
   usePomodoro();
   usePushSync();
+  useFocusLock();
   useAmbient(S);
   const fmt = scoreFmt(S);
 

@@ -152,6 +152,19 @@ function Pomo({ S }) {
         <Item title="Relancer la concentration après la pause"><Switch label="Concentration automatique" checked={st.autoWork} onChange={(v) => setSetting('autoWork', v)} /></Item>
         <Item title="Son de fin" desc="Un carillon doux à la fin de chaque phase"><Switch label="Son de fin" checked={st.sound} onChange={(v) => setSetting('sound', v)} /></Item>
       </Group>
+      <Group title="Verrou de concentration 🔒" foot="Pendant une concentration verrouillée : pause, réinitialisation et phase suivante demandent d’appuyer 5 secondes sans lâcher. Si tu quittes Fokus, ta sortie est comptée et, avec les notifications activées (Rappels), un rappel « reviens » arrive au bout de 20 secondes. Le bouton 🔒 sous le chrono fait la même chose.">
+        <Item title="Verrouiller les sessions de concentration"><Switch label="Verrou de concentration" checked={!!st.lock} onChange={(v) => setSetting('lock', v)} /></Item>
+        {st.lock && (
+          <Item col title="Bloquer les autres apps (iPhone / iPad)" desc="Une web app ne peut pas bloquer les autres apps elle-même : c’est réservé aux apps de l’App Store. Mais le mode Concentration d’iOS peut le faire pour toi, lancé automatiquement par Fokus.">
+            <ol className="lock-steps">
+              <li>Réglages de l’iPad → <b>Concentration</b> → <b>+</b> → <b>Personnaliser</b>, nomme-le « Fokus ». Dans <b>Apps</b>, choisis « Silencieuses » pour Instagram, TikTok, YouTube… (et dans <b>Options</b>, coche « Masquer les pastilles »). Pour un vrai blocage : <b>Temps d’écran</b> → <b>Limites d’apps</b>.</li>
+              <li>App <b>Raccourcis</b> → <b>+</b> → action <b>« Activer/désactiver Concentration »</b> → Activer « Fokus » <b>jusqu’à</b> … (ou « jusqu’à ce que je le désactive »). Ajoute ensuite l’action <b>« Ouvrir l’URL »</b> : <code>https://fokus-track.com/?page=4</code> (pour revenir dans Fokus). Nomme le raccourci <b>Fokus Focus</b>.</li>
+              <li>Écris ce nom ci-dessous. À chaque « Démarrer » d’une concentration, Fokus lance ton raccourci : le mode Concentration s’active, puis tu reviens au minuteur.</li>
+            </ol>
+            <input className="field" value={st.lockShortcut || ''} onChange={(e) => setSetting('lockShortcut', e.target.value.slice(0, 60))} placeholder="Nom du raccourci (ex. Fokus Focus)" aria-label="Nom du raccourci iOS" autoCapitalize="off" />
+          </Item>
+        )}
+      </Group>
       <Group title="Mini-fenêtre" foot="Bouton « mini-fenêtre » (en haut ou sous le chrono) : une petite fenêtre flottante qui reste à l’écran quand tu quittes Fokus. Pince-la pour l’agrandir ou la réduire, glisse-la où tu veux ; son bouton lecture / pause met le minuteur en pause.">
         <Item title="Contenu">
           {[['auto', 'Automatique'], ['timer', 'Minuteur'], ['day', 'Ma journée']].map(([k, l]) => <Seg key={k} on={(st.pipMode || 'auto') === k} onClick={() => setSetting('pipMode', k)}>{l}</Seg>)}

@@ -40,7 +40,7 @@ export const DEF_SET = {
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: false, pipMode: 'auto',
-  style: 'fokus', meteo: true, ambSharp: true,
+  style: 'fokus', meteo: true, ambSharp: true, lock: false, lockShortcut: '',
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
@@ -153,7 +153,7 @@ export function migrate(raw) {
     seen: seen0,
     pomo: o.pomo && typeof o.pomo === 'object' && Number.isFinite(o.pomo.start)
       ? { tid: o.pomo.tid || null, phase: ['work', 'short', 'long'].includes(o.pomo.phase) ? o.pomo.phase : 'short', start: o.pomo.start, dur: Number.isFinite(+o.pomo.dur) ? +o.pomo.dur : 1500, flow: !!o.pomo.flow,
-          paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0 }
+          paused: o.pomo.paused ?? null, done: o.pomo.done | 0, cr: +o.pomo.cr || 0, out: o.pomo.out | 0 }
       : null,
     pomoDay: o.pomoDay && typeof o.pomoDay.d === 'string' ? { d: o.pomoDay.d, n: o.pomoDay.n | 0 } : { d: '', n: 0 },
     sessions: purgeSessions(arr(o.sessions).filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]))
@@ -852,17 +852,30 @@ const fresh = (p, phase, run, start = Date.now(), dur) => ({
 });
 
 /* Démarrer / mettre en pause */
-export function pomoToggle() {
+/* Verrou de concentration (set.lock) : pendant une concentration en cours, pause / réinitialisation / phase suivante /
+   fin de session exigent un appui maintenu 5 s (force = true, voir HoldButton du Pomodoro). Barre d'espace, mini-fenêtre
+   et onglets de phase sont donc bloqués ; les sorties de l'app sont comptées (pomo.out, lib/lock.js). */
+export const pomoLocked = (St = S) => !!(St.set.lock && St.pomo && St.pomo.phase === 'work' && St.pomo.paused == null);
+function lockGuard(force) {
+  if (force || !pomoLocked()) return false;
+  toast('🔒 Session verrouillée : maintiens le bouton 5 secondes pour l’arrêter.', null, 3500);
+  return true;
+}
+export const pomoOut = () => S.pomo && set({ pomo: { ...S.pomo, out: (S.pomo.out | 0) + 1 } });
+export function pomoToggle(force) {
+  if (lockGuard(force)) return;
   const p = pomoState();
   if (p.paused != null) set({ pomo: { ...p, start: Date.now() - p.paused * 1000, paused: null } });
   else set({ pomo: { ...creditWork(p), paused: pomoElapsed(p) } });
 }
 /* Choisir une phase (Concentration / Pause courte / Pause longue) */
 export function pomoPhase(phase) {
+  if (lockGuard()) return;
   const p = creditWork(pomoState());
   set({ pomo: fresh(p, phase, false) });
 }
-export function pomoReset() {
+export function pomoReset(force) {
+  if (lockGuard(force)) return;
   const p = creditWork(pomoState());
   set({ pomo: fresh(p, p.phase, false) });
 }
@@ -886,12 +899,14 @@ function nextPhase(p, natural, at) {
   }
   return { ...fresh(p, 'work', S.set.autoWork, at), done: p.phase === 'long' ? 0 : p.done };
 }
-export function pomoSkip() {
+export function pomoSkip(force) {
+  if (lockGuard(force)) return;
   const p = creditWork(pomoState());
   set({ pomo: nextPhase(p, false) });
 }
 /* Mode Libre : « Terminer la session » → temps crédité, session comptée, pause proportionnelle proposée */
-export function flowStop() {
+export function flowStop(force) {
+  if (lockGuard(force)) return;
   const p0 = pomoState();
   if (!p0.flow || pomoElapsed(p0) < 5) return;
   const p = creditWork(p0, true);

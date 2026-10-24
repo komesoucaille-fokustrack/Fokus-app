@@ -836,3 +836,14 @@
 .ck-ae-h { margin-top: 4px; font-size: clamp(14px, 2vw, 18px); font-weight: 400; opacity: 0.85; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3); }
 .stage.full .ck-ae-t { font-size: clamp(110px, 26vw, 360px); }
 .stage.full .ck-ae-g { font-size: clamp(22px, 3.6vw, 40px); }
+
+/* Verrou de concentration (Pomodoro) */
+.sbtn.hold { position: relative; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.sbtn.hold > span { position: relative; }
+.hold-fill { position: absolute; inset: 0; background: rgba(147, 197, 253, 0.55); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+.sbtn.holding .hold-fill { transform: scaleX(1); transition: transform var(--hold) linear; }
+.sbtn.locked { opacity: 0.45; }
+.stage-lock { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.18); font-variant-numeric: tabular-nums; }
+.lock-steps { margin: 10px 0 12px; padding-left: 20px; display: grid; gap: 8px; font-size: 13px; line-height: 1.5; color: var(--color-text-2); }
+.lock-steps b { color: var(--color-text); }
+.lock-steps code { font-size: 12px; padding: 1px 5px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); user-select: all; -webkit-user-select: all; }

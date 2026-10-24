@@ -9,7 +9,7 @@ import { CREDITS, SOUNDS, previewAmbient, stopAmbient } from '../lib/ambient';
 import { parseQuick } from '../lib/quickAdd';
 import {
   PHASES, addIdea, flowStop, removeIdea, setPomoMode, toast, addTask, finishFocusTask, focusToday, pomoElapsed, pomoPhase, pomoReset, pomoSkip, pomoState, pomoTask, pomoToday, pomoToggle,
-  setSetting, sortTasks, catByName, todayKey, todayTasks, useStore,
+  pomoLocked, setSetting, sortTasks, catByName, todayKey, todayTasks, useStore,
 } from '../store';
 import Ico from './Icons';
 import { usePip } from './Header';
@@ -51,6 +51,34 @@ const I = {
   exit: 'M9 4v5H4 M15 4v5h5 M9 20v-5H4 M15 20v-5h5',
   idea: 'M9 18h6 M10 22h4 M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z',
 };
+
+/* Bouton « maintenir 5 s » du verrou : se remplit pendant l'appui ; relâché trop tôt, rien ne se passe */
+function HoldButton({ className, onDone, label, children, ms = 5000 }) {
+  const [on, setOn] = useState(false);
+  const tm = useRef(0);
+  const start = (e) => {
+    e.preventDefault();
+    clearTimeout(tm.current);
+    setOn(true);
+    tm.current = setTimeout(() => { tm.current = 0; setOn(false); navigator.vibrate?.(30); onDone(); }, ms);
+  };
+  const stop = () => {
+    if (!tm.current) return;
+    clearTimeout(tm.current);
+    tm.current = 0;
+    setOn(false);
+    toast('🔒 Maintiens 5 secondes sans lâcher.', null, 2200);
+  };
+  useEffect(() => () => clearTimeout(tm.current), []);
+  return (
+    <button type="button" className={className + ' hold' + (on ? ' holding' : '')} style={{ '--hold': ms + 'ms' }}
+      onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => { if (e.detail === 0) toast('🔒 Maintiens le bouton 5 secondes.', null, 2200); }} aria-label={label + ' (maintenir 5 secondes)'}>
+      <i className="hold-fill" aria-hidden="true" />
+      <span>{children}</span>
+    </button>
+  );
+}
 
 /* Salutation du chrono « Aesthetic » (minuscules, comme une note) */
 const greet = (pseudo, d) => {
@@ -96,7 +124,14 @@ function Stage({ full, onFull, onExit }) {
   const saveIdea = (e) => { e.preventDefault(); if (idea.trim()) { addIdea(idea); toast('💡 Idée notée — on la reverra à la pause.'); } setIdea(''); setNote(false); };
   const ready = p.paused === 0;
   const scrim = bg.scrim ? (bg.scrim[0] === 'dark' ? `rgba(0,0,0,${bg.scrim[1]})` : `rgba(255,255,255,${bg.scrim[1]})`) : null;
-  const toggle = () => { unlockAudio(); pomoToggle(); };
+  const locked = pomoLocked(S);
+  const toggle = () => {
+    unlockAudio();
+    // verrou + raccourci iOS : le mode Concentration est lancé au démarrage d'une concentration
+    const starting = !running && p.phase === 'work';
+    pomoToggle();
+    if (starting && S.set.lock && S.set.lockShortcut) location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(S.set.lockShortcut);
+  };
 
   return (
     <div className={'stage ' + (full ? 'full ' : '') + (full && idle ? 'idle' : '')} style={{ background: bg.back || bg.css || '#050608', color: bg.ink }}>
@@ -111,6 +146,7 @@ function Stage({ full, onFull, onExit }) {
       {scrim && <div className="stage-scrim" style={{ background: `radial-gradient(ellipse at 50% 50%, ${scrim}, ${scrim.replace(/[\d.]+\)$/, (m) => Math.min(0.85, parseFloat(m) + 0.2) + ')')})` }} />}
       <div className="stage-in">
         <div className="stage-top">
+          {locked && <span className="stage-lock">🔒 Verrouillé{S.pomo.out ? ` · ${S.pomo.out} sortie${S.pomo.out > 1 ? 's' : ''}` : ' · aucune sortie'}</span>}
           <span className="stage-phase">{hour ? 'Heure' : flow ? (up >= 3600 ? 'Libre · h : min' : 'Concentration libre') : p.phase !== 'work' && S.set.pomoMode === 'flow' ? `Pause · ${Math.round(p.dur / 60)} min` : PHASES[p.phase]}</span>
           {!hour && S.set.pomoMode !== 'flow' && (
             <span className="dots" aria-label={`${p.done % S.set.cycle} / ${S.set.cycle} sessions`}>
@@ -131,11 +167,19 @@ function Stage({ full, onFull, onExit }) {
         )}
         <div className="stage-task">{t && S.set.clock !== 'aesthetic' ? t.text : ' '}</div>
         <div className="stage-ctl">
-          <button className="sbtn" onClick={pomoReset} aria-label="Réinitialiser" title="Réinitialiser"><Icon d={I.reset} /></button>
-          <button className="sbtn main" onClick={toggle}>{running ? 'Pause' : ready ? 'Démarrer' : 'Reprendre'}</button>
+          <button className={'sbtn ' + (locked ? 'locked' : '')} onClick={() => pomoReset()} aria-label="Réinitialiser" title={locked ? 'Verrouillé pendant la session' : 'Réinitialiser'}><Icon d={I.reset} /></button>
+          {locked
+            ? <HoldButton className="sbtn main" label="Pause" onDone={() => pomoToggle(true)}>Pause 🔒</HoldButton>
+            : <button className="sbtn main" onClick={toggle}>{running ? 'Pause' : ready ? 'Démarrer' : 'Reprendre'}</button>}
           {flow
-            ? <button className="sbtn" onClick={flowStop} disabled={up < 5}>Terminer la session</button>
-            : <button className="sbtn" onClick={pomoSkip} aria-label="Phase suivante" title="Phase suivante"><Icon d={I.skip} /></button>}
+            ? (locked
+              ? <HoldButton className="sbtn" label="Terminer la session" onDone={() => flowStop(true)}>Terminer 🔒</HoldButton>
+              : <button className="sbtn" onClick={() => flowStop()} disabled={up < 5}>Terminer la session</button>)
+            : <button className={'sbtn ' + (locked ? 'locked' : '')} onClick={() => pomoSkip()} aria-label="Phase suivante" title={locked ? 'Verrouillé pendant la session' : 'Phase suivante'}><Icon d={I.skip} /></button>}
+          {locked
+            ? <HoldButton className="sbtn on" label="Retirer le verrou" onDone={() => { setSetting('lock', false); toast('Verrou retiré.'); }}>🔒</HoldButton>
+            : <button className={'sbtn ' + (S.set.lock ? 'on' : '')} onClick={() => { setSetting('lock', !S.set.lock); toast(S.set.lock ? 'Verrou désactivé.' : '🔒 Verrou activé : pendant la concentration, il faudra maintenir 5 s pour mettre en pause.', null, 4200); }}
+              aria-pressed={S.set.lock} aria-label="Verrou de concentration" title="Verrou de concentration">{S.set.lock ? '🔒' : '🔓'}</button>}
           {p.phase === 'work' && <button className={'sbtn ' + (note ? 'on' : '')} onClick={() => setNote((n) => !n)} aria-label="Noter une idée" title="Noter une idée (sans arrêter le temps)"><Icon d={I.idea} /></button>}
           <button className={'sbtn ' + (hour ? 'on' : '')} onClick={() => setHour((h) => !h)} title="Afficher l’heure qui défile (le minuteur continue)">Heure</button>
           {full
