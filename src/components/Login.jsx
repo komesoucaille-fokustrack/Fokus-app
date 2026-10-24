@@ -253,7 +253,7 @@ export default function Login() {
         {emailLogin() && tab === 'up' ? <Signup onSwitch={() => setTab('in')} /> : <LoginMethods key="in" initial={emailLogin() ? 'pw' : 'email'} />}
         <p className="login-foot">Gratuit, sans pub. Ton adresse sert uniquement à te connecter et à sauvegarder ta progression.</p>
         <nav className="login-nav" aria-label="En savoir plus">
-          <a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Minuteur Pomodoro</a> · <a href="./confidentialite/">Confidentialité</a>
+          <a href="./decouvrir/">Découvrir Fokus</a> · <a href="./pomodoro/">Minuteur Pomodoro</a> · <a href="./technique-pomodoro/">Technique Pomodoro</a> · <a href="./confidentialite/">Confidentialité</a>
           {' · '}<button type="button" className="login-link login-contact" onClick={() => setContact((v) => !v)} aria-expanded={contact}>Contact</button>
         </nav>
         {contact && <div className="login-contact-box"><b>Une question, un problème ?</b><ContactForm /></div>}

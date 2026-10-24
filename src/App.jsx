@@ -338,7 +338,7 @@ export default function App() {
           </section>
         ) : UI.page === 3 ? (
           <div ref={page} key="p3"><Upcoming /></div>
-        ) : UI.page === 5 && LABO && S.set.mine !== false ? (
+        ) : UI.page === 5 && S.set.mine !== false ? (
           <div ref={page} key="p5"><Suspense fallback={<div className="mine-stage" />}><Mine /></Suspense></div>
         ) : UI.page === 4 ? (
           <div ref={page} key="p4"><Suspense fallback={<div className="stage-ph" />}><Pomodoro /></Suspense></div>

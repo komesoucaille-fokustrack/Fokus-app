@@ -47,3 +47,19 @@ details p { margin: 8px 0 0; color: var(--mut); }
 footer.bottom { color: var(--mut); font-size: 14px; text-align: center; padding: 24px 0 0; }
 footer.bottom a { color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+/* Minuteur de la page Pomodoro */
+.pomo { text-align: center; }
+.pomo-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid var(--edge); flex-wrap: wrap; justify-content: center; }
+.pomo-tabs button { min-height: 44px; padding: 0 14px; border-radius: 11px; border: 0; background: transparent; color: var(--mut); font: inherit; font-size: 15px; font-weight: 650; cursor: pointer; }
+.pomo-tabs button[aria-selected="true"] { background: #f5f6f8; color: #050608; }
+.pomo-time { font-size: clamp(76px, 22vw, 150px); font-weight: 800; letter-spacing: -.04em; line-height: 1; margin: 22px 0 14px; font-variant-numeric: tabular-nums; }
+.pomo-bar { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, .07); overflow: hidden; max-width: 460px; margin: 0 auto; }
+.pomo-bar i { display: block; height: 100%; background: linear-gradient(90deg, #059669, #10b981, #86efac); transform: scaleX(0); transform-origin: left; transition: transform .25s linear; }
+[data-pomo="short"] .pomo-bar i, [data-pomo="long"] .pomo-bar i { background: linear-gradient(90deg, #3b82f6, #93c5fd); }
+.pomo-msg { color: var(--mut) !important; margin: 14px 0 16px !important; min-height: 1.6em; }
+.pomo-cta { justify-content: center; }
+.pomo-cta .btn { min-width: 150px; font: inherit; font-weight: 650; cursor: pointer; }
+.pomo-set { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; margin: 14px 0 6px; color: var(--mut); font-size: 14px; }
+.pomo-set input { width: 58px; min-height: 36px; margin: 0 4px; border-radius: 10px; border: 1px solid var(--edge); background: rgba(255, 255, 255, .05); color: var(--text); font: inherit; text-align: center; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .pomo-bar i { transition: none; } }
+@media (max-width: 440px) { .pomo-tabs { flex-wrap: nowrap; } .pomo-tabs button { padding: 0 9px; font-size: 14px; } .card.pomo { padding: 18px 12px; } }

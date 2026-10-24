@@ -219,8 +219,9 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   de saisie rapide, le principe étant déjà dans `Intro.jsx` ; sinon 3 points clés ; installation sur l'écran d'accueil,
   « Inviter des amis » via `shareFokus()` = partage natif ou copie du lien) ; bouton « Partager Fokus » dans Réglages → Données.
 - **Référencement Google** : `index.html` porte titre « Fokus Track — … », description, `canonical`, Open Graph (`public/og.png`
-  1200×630) et JSON-LD `WebApplication` (alternateName « Fokus Track ») ; pages statiques indexables `public/pomodoro/` (minuteur
-  Pomodoro, lien `../?page=4`) et `public/decouvrir/` (présentation), style commun `public/site.css` ; `public/sitemap.xml` ;
+  1200×630) et JSON-LD `WebApplication` (alternateName « Fokus Track ») ; pages statiques indexables `public/pomodoro/` (**vrai minuteur qui marche dans la page** 25/5/15 + durées libres, sonnerie Web Audio,
+  JSON-LD WebApplication + FAQPage + fil d'Ariane, lien `../?page=4`), `public/technique-pomodoro/` (guide : principe, origine, variantes,
+  erreurs, révisions ; JSON-LD Article + HowTo) et `public/decouvrir/` (présentation), style commun `public/site.css` ; `public/sitemap.xml` ;
   pied de page `.site-foot` de la page Tâches avec liens vers ces pages. Le service worker ne met en cache que l'app (`./`),
   jamais ces pages. Adresse officielle **https://fokus-track.com/** (DNS Cloudflare : 4 enregistrements A GitHub + CNAME www, nuage gris ; GitHub Settings → Pages → Custom domain ; l'ancienne adresse github.io y redirige) : URL absolues dans index.html, pages, sitemap, `server/wrangler.toml` (ALLOWED_ORIGIN, APP_URL).
 - **Compte / connexion** (`lib/cloud.js`, `Login.jsx`, `Account.jsx`, `src/cloud-config.js`) : **connexion obligatoire** voulue par
@@ -305,13 +306,13 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Labo (`src/env.js` `LABO`, `src/lib/labo.js` importé en premier) : clés du stockage préfixées `labo:` (données séparées de l'app),
   copie IndexedDB `labo-backup`, caches du service worker `labo-`, pas de compte ni de synchronisation, pas de statistiques,
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
-- **La mine** (jeu dans le labo, page 5 = **onglet « ⛏️ La mine » entre Pomodoro et Progression** dans l'en-tête, seulement dans le labo,
+- **La mine** (jeu **publié dans l'app** le 24/10/2026, page 5 = **onglet « ⛏️ La mine » entre Pomodoro et Progression** dans l'en-tête,
   pour regarder le mineur creuser pendant la concentration ; carte aussi dans l'onglet Pomodoro) :
   **Mondes** : monde 1 « La mine de ta ville » (vélo, ≈ 12,5 h) puis **monde 2 « Les volcans d'Auvergne »** (`theme 'volcans'`,
   `mul` 6 = valeurs et missions ×6, `tough` 4 = roche 4× plus dure ; cendre, pouzzolane, soufre, obsidienne, olivine, zircon, grenat,
   saphir du Velay, cœur de lave ; objectif la voiture 160 000 Fk ≈ 10 h). Départ depuis l'Atelier une fois le véhicule construit :
   chapitre 2 raconté (`STORY2`), `travel()` vend le coffre et ouvre une nouvelle mine (Fokoins, améliorations, collection gardés) ;
-  bouton de test « Débloquer » réservé au labo. Missions par indice de minerai (`ore#i`), récompenses × `mul`.
+  bouton de test « Débloquer » réservé au labo (comme « +1 h », « +10 min », « Recommencer »). Missions par indice de minerai (`ore#i`), récompenses × `mul`.
   **Interrupteur** `set.mine` (Réglages → Pomodoro → « La mine », activé par défaut pour tous, même les nouveaux inscrits) : retire
   l'onglet, la carte Pomodoro et la page (la partie est gardée) ; l'écran d'arrivée explique d'abord que c'est un petit jeu en bonus,
   retirable (« Retirer ce jeu »). Améliorations en plus : Boussole du géologue (repérage), Wagonnet et rails (trajets), Casse-croûte

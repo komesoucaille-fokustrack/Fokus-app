@@ -3,7 +3,6 @@ import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { pomoElapsed, setModal, setPage, toast, useStore } from '../store';
 import Icon from './Icons';
-import { LABO } from '../env';
 import { openPip, pipActive, pipSupported } from '../lib/pip';
 
 /* Plein écran (Safari iPad : API préfixée webkit) */
@@ -56,7 +55,7 @@ function Loupe() {
 export default function Header() {
   const { S, UI } = useStore();
   const full = useFullscreen();
-  const mine = LABO && S.set.mine !== false; // onglet du petit jeu (labo, retirable dans Réglages → Pomodoro)
+  const mine = S.set.mine !== false; // onglet du petit jeu (retirable dans Réglages → Pomodoro)
   const [canFull] = useState(fsSupported);
   const upcoming = S.tasks.filter((t) => !t.done && (t.date === null || t.date > S.last)).length;
   const open = (m) => { if (!UI.busy) setModal(m); };
