@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import Clock, { CLOCKS, useNow } from './Clocks';
 import { fmtMin } from './TaskList';
 import Concept from './Concepts';
-import { BGS, BG_GROUPS, bgOf, thumbOf } from '../lib/backgrounds';
+import { BGS, BG_GROUPS, PHOTO_SUBS, bgOf, thumbOf } from '../lib/backgrounds';
 import { unlockAudio } from '../lib/sound';
 import { CREDITS, SOUNDS, previewAmbient, stopAmbient } from '../lib/ambient';
 import { parseQuick } from '../lib/quickAdd';
@@ -14,6 +14,7 @@ import {
 import Ico from './Icons';
 import { usePip } from './Header';
 import { pipSupported } from '../lib/pip';
+import { useCloud } from '../lib/cloud';
 
 const two = (n) => String(n).padStart(2, '0');
 
@@ -51,6 +52,12 @@ const I = {
   idea: 'M9 18h6 M10 22h4 M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V17h6v-.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z',
 };
 
+/* Salutation du chrono « Aesthetic » (minuscules, comme une note) */
+const greet = (pseudo, d) => {
+  const h = d.getHours(), w = h < 5 ? 'bonne nuit' : h < 12 ? 'bonjour' : h < 18 ? 'bel après-midi' : h < 22 ? 'bonsoir' : 'bonne nuit';
+  return pseudo ? `${w}, ${pseudo.toLowerCase()}` : w;
+};
+
 /* Scène : fond choisi + chrono + commandes (dans la page ou en plein écran) */
 function Stage({ full, onFull, onExit }) {
   const { S } = useStore();
@@ -59,7 +66,8 @@ function Stage({ full, onFull, onExit }) {
   const running = p.paused == null;
   const [hour, setHour] = useState(false);
   const [idle, setIdle] = useState(false);
-  const now = useNow(hour);
+  const now = useNow(hour || S.set.clock === 'aesthetic');
+  const pseudo = useCloud().user?.pseudo;
   useTick(running);
   const bg = bgOf(S.set.bg);
   const t = p.tid && S.tasks.find((x) => x.id === p.tid);
@@ -111,7 +119,8 @@ function Stage({ full, onFull, onExit }) {
           )}
         </div>
         <div className={'stage-clock ' + (running || hour ? '' : 'paused')}>
-          {!bg.concept && <Clock style={S.set.clock} a={a} b={b} frac={frac} ink={bg.ink} theme={bg.flip} />}
+          {!bg.concept && <Clock style={S.set.clock} a={a} b={b} frac={frac} ink={bg.ink} theme={bg.flip} sec={hour ? two(now.getSeconds()) : null}
+            greet={greet(pseudo, now)} hint={hour ? now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : t ? t.text : p.phase === 'work' ? 'un pas après l’autre ✨' : 'respire, tu l’as bien mérité 🌸'} />}
         </div>
         {note && (
           <form className="stage-note" onSubmit={saveIdea}>
@@ -120,7 +129,7 @@ function Stage({ full, onFull, onExit }) {
             <button type="button" className="sbtn" onClick={() => setNote(false)} aria-label="Fermer">✕</button>
           </form>
         )}
-        <div className="stage-task">{t ? t.text : ' '}</div>
+        <div className="stage-task">{t && S.set.clock !== 'aesthetic' ? t.text : ' '}</div>
         <div className="stage-ctl">
           <button className="sbtn" onClick={pomoReset} aria-label="Réinitialiser" title="Réinitialiser"><Icon d={I.reset} /></button>
           <button className="sbtn main" onClick={toggle}>{running ? 'Pause' : ready ? 'Démarrer' : 'Reprendre'}</button>
@@ -128,9 +137,7 @@ function Stage({ full, onFull, onExit }) {
             ? <button className="sbtn" onClick={flowStop} disabled={up < 5}>Terminer la session</button>
             : <button className="sbtn" onClick={pomoSkip} aria-label="Phase suivante" title="Phase suivante"><Icon d={I.skip} /></button>}
           {p.phase === 'work' && <button className={'sbtn ' + (note ? 'on' : '')} onClick={() => setNote((n) => !n)} aria-label="Noter une idée" title="Noter une idée (sans arrêter le temps)"><Icon d={I.idea} /></button>}
-          {full
-            ? <button className={'sbtn ' + (hour ? 'on' : '')} onClick={() => setHour((h) => !h)} title="Afficher l’heure">Heure</button>
-            : null}
+          <button className={'sbtn ' + (hour ? 'on' : '')} onClick={() => setHour((h) => !h)} title="Afficher l’heure qui défile (le minuteur continue)">Heure</button>
           {full
             ? <button className="sbtn" onClick={onExit} aria-label="Quitter le plein écran" title="Quitter le plein écran (Échap)"><Icon d={I.exit} /></button>
             : <button className="sbtn" onClick={onFull} aria-label="Plein écran" title="Plein écran (F)"><Icon d={I.full} /></button>}
@@ -311,6 +318,7 @@ export function BgPicker({ onPick, value, onChange, extra = [] }) {
   const { S } = useStore();
   const cur = value ?? S.set.bg;
   const pick = (id) => { (onChange || ((v) => setSetting('bg', v)))(id); onPick?.(); };
+  const [sub, setSub] = useState(() => BGS.find((b) => b.id === cur)?.sub || 'rose'); // catégorie de photos affichée
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3">
       {extra.length > 0 && (
@@ -325,8 +333,17 @@ export function BgPicker({ onPick, value, onChange, extra = [] }) {
       {BG_GROUPS.map(([g, label]) => (
         <div key={g}>
           <div className="mb-1.5 text-[12px] font-semibold tracking-wide text-mut uppercase">{label}</div>
+          {g === 'photo' && (
+            <div className="bgsubs" role="group" aria-label="Catégories de photos">
+              {PHOTO_SUBS.map(([k, l]) => (
+                <button key={k} type="button" className={'seg ' + (sub === k ? 'on' : '')} onClick={() => setSub(k)} aria-pressed={sub === k}>
+                  {l} <span className="tabular-nums opacity-60">{BGS.filter((b) => b.sub === k).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="bgpick">
-            {BGS.filter((b) => b.group === g).map((b) => (
+            {BGS.filter((b) => b.group === g && (g !== 'photo' || b.sub === sub)).map((b) => (
               <button key={b.id} type="button" className={'bgt ' + (cur === b.id ? 'on' : '')} onClick={() => pick(b.id)} title={b.by ? `${b.name} — photo : ${b.by} (Unsplash)` : b.name} aria-label={'Fond : ' + b.name}>
                 {b.img
                   ? <img src={thumbOf(b)} alt="" loading="lazy" decoding="async" />

@@ -34,7 +34,7 @@ const ProgressCard = forwardRef(function ProgressCard({ s, text, busy, fmt }, re
       {/* textes partagés avec la face 3D (cardText du store) : un seul nœud texte par élément */}
       <div className="truncate text-[13px] text-mut tabular-nums" ref={r.label}>{text.label}</div>
       <div className="flex items-end justify-between gap-2">
-        <div className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular-nums" ref={r.pct}>0%</div>
+        <div className="text-[56px] leading-none font-extrabold tracking-[-0.04em] tabular-nums whitespace-nowrap" ref={r.pct}>0%</div>
         <div className="text-right text-[13px] text-mut tabular-nums" ref={r.sub}>{text.sub}</div>
       </div>
       <div id="pwrap" ref={r.pwrap}>

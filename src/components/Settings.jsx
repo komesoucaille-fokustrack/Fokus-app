@@ -363,9 +363,12 @@ function Look({ S }) {
   const st = S.set;
   return (
     <>
-      <Group title="Ambiance de l’app" foot="Une photo ou une couleur, très floutée et assombrie, derrière toute l’interface. Elle ne ralentit pas l’app.">
-        <Item title="Intensité">
+      <Group title="Ambiance de l’app" foot="Une photo, un thème ou un dégradé derrière toute l’interface. Photo nette + Intense = la vraie image, sans voile ni dégradé. L’image est peinte une seule fois : elle ne ralentit pas l’app.">
+        <Item title="Intensité" desc={st.ambSharp !== false ? 'Intense = l’image telle quelle' : undefined}>
           {[[1, 'Subtile'], [2, 'Moyenne'], [3, 'Intense']].map(([v, l]) => <Seg key={v} on={(st.ambLevel ?? 2) === v} onClick={() => setSetting('ambLevel', v)}>{l}</Seg>)}
+        </Item>
+        <Item title="Photo nette" desc="Désactivé : photo floutée et assombrie (plus discrète)">
+          <Switch label="Photo nette" checked={st.ambSharp !== false} onChange={(v) => setSetting('ambSharp', v)} />
         </Item>
         <div className="si col">
           <BgPicker value={st.amb} onChange={(v) => setSetting('amb', v)} extra={[['pomo', 'Comme le Pomodoro', 'linear-gradient(135deg,#2a2a30,#0c0c0e)'], ['none', 'Aucune (noir)', '#050608']]} />

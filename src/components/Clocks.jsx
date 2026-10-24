@@ -54,9 +54,22 @@ function Minimal({ a, b, frac, ink }) {
   );
 }
 
-export const CLOCKS = [['classic', 'Classique'], ['flip', 'Flip'], ['ring', 'Anneau'], ['minimal', 'Minimal']];
+/* « Aesthetic » (façon Flocus) : salutation douce en minuscules, grands chiffres arrondis et lumineux, petite ligne d'humeur.
+   En mode Heure, les secondes défilent discrètement à côté. */
+function Aesthetic({ a, b, ink, greet, hint, sec }) {
+  return (
+    <div className="ck-ae" style={{ color: ink }}>
+      {greet && <div className="ck-ae-g">{greet}</div>}
+      <div className="ck-ae-t">{a}<span className="sep">:</span>{b}{sec != null && <span className="ck-ae-s">{sec}</span>}</div>
+      {hint && <div className="ck-ae-h">{hint}</div>}
+    </div>
+  );
+}
 
-export default function Clock({ style, a, b, frac, ink, theme }) {
+export const CLOCKS = [['aesthetic', 'Aesthetic'], ['classic', 'Classique'], ['flip', 'Flip'], ['ring', 'Anneau'], ['minimal', 'Minimal']];
+
+export default function Clock({ style, a, b, frac, ink, theme, greet, hint, sec }) {
+  if (style === 'aesthetic') return <Aesthetic a={a} b={b} ink={ink} greet={greet} hint={hint} sec={sec} />;
   if (style === 'flip') return <Flip a={a} b={b} theme={theme} />;
   if (style === 'ring') return <Ring a={a} b={b} frac={frac} ink={ink} />;
   if (style === 'minimal') return <Minimal a={a} b={b} frac={frac} ink={ink} />;

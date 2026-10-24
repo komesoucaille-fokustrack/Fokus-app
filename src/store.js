@@ -40,7 +40,7 @@ export const DEF_SET = {
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: false, pipMode: 'auto',
-  style: 'fokus', meteo: true,
+  style: 'fokus', meteo: true, ambSharp: true,
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,

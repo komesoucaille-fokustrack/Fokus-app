@@ -817,3 +817,22 @@
 .meteo-x { margin-top: 6px; min-height: 36px; font-size: 13px; color: var(--color-mut); }
 .meteo-chip { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border-radius: 999px;
   font-size: 13px; color: var(--color-text-2); background: var(--color-glass); border: 1px solid var(--color-edge); font-variant-numeric: tabular-nums; }
+
+/* Catégories de photos dans le sélecteur de fonds */
+.bgsubs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; padding-bottom: 2px; scrollbar-width: none; }
+.bgsubs::-webkit-scrollbar { display: none; }
+.bgsubs .seg { flex: none; }
+/* Photo nette derrière l'app : les textes posés directement sur le fond restent lisibles */
+.amb-photo .hello, .amb-photo .site-foot, .amb-photo .tl-head, .amb-photo .tl-tip { text-shadow: 0 1px 2px rgba(0,0,0,.6), 0 0 18px rgba(0,0,0,.5); }
+.amb-photo .hello-d, .amb-photo .hello-s, .amb-photo .meteo-q i, .amb-photo .site-foot, .amb-photo .site-foot a { color: rgba(255,255,255,.92); }
+
+/* Chrono « Aesthetic » (façon Flocus) : doux, arrondi, lumineux */
+.ck-ae { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.ck-ae-g { font-size: clamp(18px, 3.2vw, 30px); font-weight: 500; letter-spacing: -0.01em; opacity: 0.92; text-shadow: 0 1px 16px rgba(0, 0, 0, 0.25); }
+.ck-ae-t { font-size: clamp(88px, 20vw, 220px); font-weight: 600; letter-spacing: -0.045em; line-height: 0.95; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 34px rgba(255, 255, 255, 0.28), 0 6px 40px rgba(0, 0, 0, 0.2); }
+.ck-ae-t .sep { opacity: 0.75; margin: 0 0.02em; }
+.ck-ae-s { font-size: 0.22em; font-weight: 500; letter-spacing: 0; margin-left: 0.25em; opacity: 0.7; vertical-align: 0.15em; }
+.ck-ae-h { margin-top: 4px; font-size: clamp(14px, 2vw, 18px); font-weight: 400; opacity: 0.85; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.3); }
+.stage.full .ck-ae-t { font-size: clamp(110px, 26vw, 360px); }
+.stage.full .ck-ae-g { font-size: clamp(22px, 3.6vw, 40px); }
