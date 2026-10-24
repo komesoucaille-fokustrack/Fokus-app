@@ -1,14 +1,13 @@
 import { AIR, BEDROCK, PICKS } from './data.js';
-import { ENTRY, START_Y, cap, dirtEdge, tile, tileAt } from './sim.js';
-import { PATCH, drawTree, drawHeadframe, drawLadder, drawLantern, drawMarket, drawMiner, drawShop, drawSupport, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
+import { ENTRY, START_Y, cap, dirtEdge, tile } from './sim.js';
+import { OUT, drawTree, drawHeadframe, drawLadder, drawLantern, drawMarket, drawMiner, drawRail, drawShop, drawSupport, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
 
 /* =====================================================================
-   LA MINE — rendu d'une image : caméra qui suit le personnage, ciel + ville en surface, galeries creusées.
-   Lumière : sous terre tout est noir ; seules les lanternes posées par le mineur et sa lampe frontale éclairent.
-   La lumière se propage le long des galeries (pas à travers la roche) et n'éclaire qu'une case de paroi :
-   impossible de voir un minerai qui n'est pas au bord d'une galerie éclairée.
-   Ne dessine que les cases visibles ; matières en motifs (une seule passe par matière), lumière calculée par case
-   puis lissée en agrandissant une toute petite image.
+   LA MINE — rendu d'une image (DA « Fokus Mine », dessin animé coloré) : caméra qui suit le personnage,
+   ciel + puys + ville en surface, coupe du sol en couches colorées, galeries creusées aux bords arrondis.
+   Lumière : le sol reste visible, mais l'intérieur des galeries est sombre loin des lanternes et de la lampe
+   frontale, et un minerai n'apparaît que s'il est éclairé (la lumière suit les galeries, une case de paroi).
+   Ne dessine que les cases visibles ; couches en motifs (un remplissage par couche).
    ===================================================================== */
 const SKY_ROWS = 6; // hauteur du ciel au-dessus du sol (en cases)
 /* bâtiments de la surface (en cases) : on les touche pour y entrer */
@@ -18,7 +17,7 @@ export const BUILDINGS = [
   { id: 'market', x0: 13.6, x1: 17.2, h: 3.4 },
 ];
 const MARKET_X = 15.4; // le personnage vend devant l'étal
-const DARK = [8, 7, 18]; // couleur de l'obscurité (indigo très sombre, jamais un noir plat)
+const DARK = [22, 12, 26]; // obscurité des galeries (prune très sombre)
 const h2 = (x, y) => { let h = Math.imul(x * 374761393 + y * 668265263, 1274126177); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
 
 export function createView(canvas, W) {
@@ -27,21 +26,25 @@ export function createView(canvas, W) {
     const r = canvas.getBoundingClientRect();
     v.dpr = Math.min(2, devicePixelRatio || 1);
     v.w = r.width; v.h = r.height;
-    v.TS = r.width < 600 ? 38 : 48;
+    v.TS = r.width < 600 ? 40 : 52;
     canvas.width = Math.round(r.width * v.dpr); canvas.height = Math.round(r.height * v.dpr);
     v.tiles = makeTiles(W, Math.round(v.TS * v.dpr));
     const ctx = v.ctx, T = v.tiles;
-    v.pat = { mat: {}, wall: {} };
-    for (const k of [1, 2]) { v.pat.mat[k] = ctx.createPattern(T.mat[k], 'repeat'); v.pat.wall[k] = ctx.createPattern(T.wall[k], 'repeat'); }
-    // vignette (préparée une fois)
+    v.pat = { layer: T.layer.map((c) => ctx.createPattern(c, 'repeat')), cave: T.cave.map((c) => ctx.createPattern(c, 'repeat')) };
     v.vig = document.createElement('canvas'); v.vig.width = 256; v.vig.height = 256;
-    const vc = v.vig.getContext('2d'), vg = vc.createRadialGradient(128, 128, 60, 128, 128, 182);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); vc.fillStyle = vg; vc.fillRect(0, 0, 256, 256);
+    const vc = v.vig.getContext('2d'), vg = vc.createRadialGradient(128, 128, 80, 128, 128, 182);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,4,16,.32)'); vc.fillStyle = vg; vc.fillRect(0, 0, 256, 256);
     v.skyKey = '';
   };
   v.resize();
   return v;
 }
+/* limite (en cases) entre la couche i et la suivante, à l'abscisse wx (cases) : ondulée et continue */
+export function layerEdge(W, i, wx) {
+  if (i === 0) return dirtEdge(W, wx);
+  return W.layerAt[i - 1] + Math.sin(wx * 0.33 + i * 1.7) * 1.3 + Math.sin(wx * 0.91 + i * 4.1) * 0.55;
+}
+export const layerOf = (W, x, y) => { let i = 0; while (i < W.layers.length - 1 && y + 0.5 >= layerEdge(W, i, x + 0.5)) i++; return i; };
 
 /* position (pieds) du personnage en cases + pose */
 function alongRoute(pts, k) {
@@ -130,140 +133,133 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.globalCompositeOperation = 'source-over';
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
-  // ciel + ville (préparés pour l'heure courante et la taille de l'écran)
+  // ciel + puys + ville (préparés pour l'heure courante et la taille de l'écran)
   const hour = new Date().getHours(), night = skyColors(hour)[2];
   const skyH = SKY_ROWS * TS, key = `${v.w}x${skyH}@${hour}`;
   if (v.skyKey !== key) {
     v.sky = document.createElement('canvas'); v.sky.width = Math.round(v.w * dpr); v.sky.height = Math.round(skyH * dpr);
     const sc = v.sky.getContext('2d'); sc.scale(dpr, dpr); paintSkyline(sc, v.w, skyH, hour); v.skyKey = key;
   }
-  ctx.fillStyle = `rgb(${DARK})`; ctx.fillRect(0, 0, v.w, v.h);
   const groundY = -cy; // ligne du sol à l'écran
+  ctx.fillStyle = W.layers[W.layers.length - 1][3]; ctx.fillRect(0, 0, v.w, v.h);
   if (groundY > 0) {
     ctx.drawImage(v.sky, 0, groundY - skyH, v.w, skyH);
     ctx.fillStyle = skyColors(hour)[0]; if (groundY - skyH > 0) ctx.fillRect(0, 0, v.w, groundY - skyH + 1);
   }
 
-  // cases visibles (+ une case de marge pour les formes arrondies)
+  // cases visibles
   const x0 = Math.max(0, Math.floor(cx / TS)), x1 = Math.min(W.width - 1, Math.ceil((cx + v.w) / TS));
   const y0 = Math.max(0, Math.floor(cy / TS)), y1 = Math.min(W.depth - 1, Math.ceil((cy + v.h) / TS));
-  const T = v.tiles;
   const solid = (x, y) => y >= 0 && tile(W, set, x, y) !== AIR;
   const isAir = (x, y) => y >= 0 && tile(W, set, x, y) === AIR;
-  const m = new DOMMatrix().translateSelf(-cx, -cy).scaleSelf(TS / T.S);
-  const fillPat = (pat, path) => { pat.setTransform?.(m); ctx.fillStyle = pat; path ? ctx.fill(path) : ctx.fill(); };
+  const T = v.tiles, m = new DOMMatrix().translateSelf(-cx, -cy).scaleSelf(TS / T.S);
+  const fillPat = (pat, path) => { pat.setTransform?.(m); ctx.fillStyle = pat; ctx.fill(path); };
   const gTop = Math.max(0, groundY);
-  const ores = [], airs = [];
-  if (gTop < v.h) {
-    // 1) la roche, d'un seul tenant
-    ctx.beginPath(); ctx.rect(0, gTop, v.w, v.h - gTop); fillPat(v.pat.mat[2]);
-    // 2) la couche de terre : limite ondulée continue (même formule que la simulation) + poches arrondies
-    const dirt = new Path2D();
-    dirt.moveTo(-2, groundY);
-    for (let px = -2; px <= v.w + 8; px += 8) dirt.lineTo(px, dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy);
-    dirt.lineTo(v.w + 8, groundY); dirt.closePath();
-    for (let y = Math.max(y0, 8); y <= Math.min(y1, 32); y++) for (let x = x0 - 1; x <= x1 + 1; x++) {
-      if (tileAt(W, x, y) !== 1 || y < dirtEdge(W, x)) continue;
-      const rr = TS * (0.68 + h2(x, y) * 0.1), px = x * TS - cx + TS / 2, py = y * TS - cy + TS / 2;
-      dirt.moveTo(px + rr, py); dirt.ellipse(px, py, rr, rr * 0.9, 0, 0, 7);
-    }
-    fillPat(v.pat.mat[1], dirt);
-    // liseré à la limite terre / roche (la ligne ondulée seulement)
-    const edge = new Path2D();
-    for (let px = -2; px <= v.w + 8; px += 8) { const ey = dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy; px < 0 ? edge.moveTo(px, ey) : edge.lineTo(px, ey); }
-    ctx.strokeStyle = 'rgba(14,9,16,.5)'; ctx.lineWidth = TS * 0.08; ctx.stroke(edge);
-    ctx.save(); ctx.translate(0, -TS * 0.04); ctx.strokeStyle = 'rgba(255,220,190,.07)'; ctx.lineWidth = TS * 0.03; ctx.stroke(edge); ctx.restore();
-  }
-  // 3) minerais (visibles seulement s'ils sont éclairés : l'obscurité les recouvre ensuite)
-  for (let y = y0; y <= y1; y++) for (let x = x0 - 1; x <= x1 + 1; x++) {
-    const k = tile(W, set, x, y);
-    if (k === AIR) { airs.push([x, y, x * TS - cx, y * TS - cy]); continue; }
-    if (k >= 3) { ores.push([x, y, x * TS - cx, y * TS - cy, k]); ctx.drawImage(T.ore[k][(x * 7 + y * 13) % 3], x * TS - cx, y * TS - cy, TS, TS); }
-  }
-  // 4) galeries aux bords organiques : union de disques (une case) et de passages (entre deux cases voisines)
-  const tun = new Path2D();
-  for (const [x, y, sx, sy] of airs) {
-    // centre légèrement décalé et rayon variable : parois irrégulières, jamais un festonnage régulier
-    const ccx = sx + TS / 2 + (h2(x * 5, y) - 0.5) * TS * 0.14, ccy = sy + TS / 2 + (h2(x, y * 5) - 0.5) * TS * 0.1, rr = TS * (0.5 + h2(x, y) * 0.1);
-    tun.moveTo(ccx + rr, ccy); tun.arc(ccx, ccy, rr, 0, Math.PI * 2);
-    if (isAir(x + 1, y)) { const hh = TS * (0.42 + h2(x * 3, y) * 0.1); tun.rect(sx + TS / 2, sy + TS / 2 - hh + (h2(x, y * 9) - 0.5) * TS * 0.06, TS, hh * 2); }
-    if (isAir(x, y + 1)) { const ww = TS * (0.38 + h2(x, y * 3) * 0.08); tun.rect(sx + TS / 2 - ww, sy + TS / 2, ww * 2, TS); }
-    if (y === 0) tun.rect(sx + TS * 0.08, sy - 1, TS * 0.84, TS / 2 + 1); // ouverture du puits au ras du sol
-  }
-  // rebord de roche : contour sombre + arête claire sous le sol des galeries (dessinés avant le creux, qui en recouvre la moitié)
-  ctx.lineJoin = 'round';
-  ctx.save(); ctx.translate(0, TS * 0.045); ctx.strokeStyle = 'rgba(255,228,200,.22)'; ctx.lineWidth = TS * 0.09; ctx.stroke(tun); ctx.restore();
-  ctx.strokeStyle = 'rgba(10,8,18,.75)'; ctx.lineWidth = TS * 0.1; ctx.stroke(tun);
-  fillPat(v.pat.wall[2], tun);
-  ctx.save(); ctx.clip(tun);
-  if (gTop < v.h) { // paroi de terre au-dessus de la limite terre / roche
-    const dw = new Path2D(); dw.moveTo(-2, groundY);
-    for (let px = -2; px <= v.w + 8; px += 8) dw.lineTo(px, dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy);
-    dw.lineTo(v.w + 8, groundY); dw.closePath(); fillPat(v.pat.wall[1], dw);
-  }
-  // ombres intérieures (plafond, parois, sol) — à l'intérieur du creux seulement
-  for (const [x, y, sx, sy] of airs) {
-    const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
-    if (up) { const gr = ctx.createLinearGradient(0, sy, 0, sy + TS * 0.6); gr.addColorStop(0, 'rgba(6,5,14,.75)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 1, sy - TS * 0.1, TS + 2, TS * 0.7); }
-    if (dn) { const gr = ctx.createLinearGradient(0, sy + TS, 0, sy + TS * 0.72); gr.addColorStop(0, 'rgba(6,5,14,.4)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 1, sy + TS * 0.72, TS + 2, TS * 0.4); }
-    if (lf) { const gr = ctx.createLinearGradient(sx, 0, sx + TS * 0.35, 0); gr.addColorStop(0, 'rgba(6,5,14,.5)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - TS * 0.1, sy, TS * 0.45, TS); }
-    if (rt) { const gr = ctx.createLinearGradient(sx + TS, 0, sx + TS * 0.65, 0); gr.addColorStop(0, 'rgba(6,5,14,.5)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx + TS * 0.65, sy, TS * 0.45, TS); }
-  }
-  ctx.restore();
-  // 5) décor des galeries : gravier, racines, stalactites, cristaux, boisages, échelles
-  for (const [x, y, sx, sy] of airs) {
-    const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
-    if (dn) for (let i = 0; i < 3; i++) { // gravier au sol
-      const px = sx + TS * (0.05 + h2(x * 5 + i, y) * 0.9), pr = TS * (0.025 + h2(x, y * 3 + i) * 0.04), py = sy + TS * (0.98 + Math.abs(px - sx - TS / 2) / TS * 0.06) - pr * 0.7;
-      ctx.fillStyle = i % 2 ? '#4d4458' : '#2c2735'; ctx.beginPath(); ctx.ellipse(px, py, pr * 1.4, pr, 0, 0, 7); ctx.fill();
-      ctx.fillStyle = 'rgba(255,235,210,.1)'; ctx.beginPath(); ctx.ellipse(px - pr * 0.3, py - pr * 0.4, pr * 0.5, pr * 0.25, 0, 0, 7); ctx.fill();
-    }
-    if (up && y < 12 && h2(x, y + 7) < 0.5) { // racines qui pendent près de la surface
-      ctx.strokeStyle = 'rgba(70,45,30,.9)'; ctx.lineWidth = Math.max(1, TS / 36);
-      for (let i = 0; i < 2; i++) { const rx = sx + TS * (0.2 + h2(x + i, y) * 0.6), rl = TS * (0.18 + h2(y, x + i) * 0.22); ctx.beginPath(); ctx.moveTo(rx, sy + TS * 0.04); ctx.quadraticCurveTo(rx + TS * 0.06 * Math.sin(t * 0.8 + x), sy + rl * 0.6, rx - TS * 0.03, sy + rl); ctx.stroke(); }
-    } else if (up && h2(x * 3, y) < 0.35) { // stalactites
-      for (let i = 0; i < 2; i++) {
-        const rx = sx + TS * (0.15 + h2(x, y + i * 5) * 0.7), rl = TS * (0.08 + h2(x + i * 9, y) * 0.12), rw = rl * 0.35;
-        const gr = ctx.createLinearGradient(0, sy, 0, sy + rl); gr.addColorStop(0, '#2a2534'); gr.addColorStop(1, '#5c5470');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(rx - rw, sy + TS * 0.02); ctx.lineTo(rx, sy + TS * 0.02 + rl); ctx.lineTo(rx + rw, sy + TS * 0.02); ctx.closePath(); ctx.fill();
-      }
-    }
-    if (y > 30 && (dn || up) && h2(x * 7, y * 3) < 0.12) { // petits cristaux décoratifs dans les profondeurs
-      const base = dn ? sy + TS * 0.98 : sy + TS * 0.02, dir = dn ? -1 : 1, cxx = sx + TS * (0.3 + h2(x, y * 7) * 0.4), hue = y > 70 ? ['#7ee0d0', '#d9fff8'] : ['#a99cff', '#efeaff'];
-      for (let i = 0; i < 3; i++) {
-        const ox = (i - 1) * TS * 0.07, hh = TS * (0.12 + h2(x + i, y) * 0.14) * (i === 1 ? 1.3 : 1), ww = TS * 0.035;
-        const gr = ctx.createLinearGradient(cxx + ox - ww, 0, cxx + ox + ww, 0); gr.addColorStop(0, hue[1]); gr.addColorStop(1, hue[0]);
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(cxx + ox - ww, base); ctx.lineTo(cxx + ox - ww * 0.8 + (i - 1) * ww, base + dir * hh * 0.8); ctx.lineTo(cxx + ox + (i - 1) * ww * 1.2, base + dir * hh); ctx.lineTo(cxx + ox + ww, base); ctx.closePath(); ctx.fill();
-      }
-    }
-    const tunnel = up && dn && (!lf || !rt);
-    if (tunnel && h2(x, y) < 0.2 && y > 1) drawSupport(ctx, sx, sy, TS);
-    // échelle seulement dans les puits étroits (pas dans les grandes salles)
-    if (isAir(x, y + 1) && ((lf && rt) || (solid(x - 1, y + 1) && solid(x + 1, y + 1)))) drawLadder(ctx, sx, sy + TS * 0.5, TS);
-  }
-  // teinte de profondeur : la roche change de couleur en descendant (terre chaude → ardoise violette → bleu → turquoise)
-  if (gTop < v.h) {
-    const dg = ctx.createLinearGradient(0, groundY, 0, groundY + W.depth * TS);
-    dg.addColorStop(0, 'rgb(255,246,236)'); dg.addColorStop(0.25, 'rgb(226,218,240)'); dg.addColorStop(0.6, 'rgb(190,204,240)'); dg.addColorStop(1, 'rgb(170,218,214)');
-    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = dg; ctx.fillRect(0, gTop, v.w, v.h - gTop);
-    ctx.globalCompositeOperation = 'source-over';
-  }
-  // lanternes posées par le mineur
+
+  // ---------- lumière (calculée d'abord : elle décide quels minerais sont visibles) ----------
   const lampR = 4.8 + 0.5 * (g.up.lant || 0), sources = [], lit = [];
   const ly0 = Math.max(0, y0 - 6), ly1 = Math.min(W.depth - 1, y1 + 6), lx0 = Math.max(0, x0 - 6), lx1 = Math.min(W.width - 1, x1 + 6);
   for (const k of g.lamps) {
     const lx = k % W.width, ly = Math.floor(k / W.width);
     if (lx < lx0 || lx > lx1 || ly < ly0 || ly > ly1) continue;
-    const fl = 1 + 0.03 * Math.sin(t * 7 + lx) * Math.sin(t * 4.3 + ly);
-    sources.push({ x: lx + 0.5, y: ly + 0.45, r: lampR * fl, i: 1 });
+    sources.push({ x: lx + 0.5, y: ly + 0.45, r: lampR * (1 + 0.03 * Math.sin(t * 7 + lx) * Math.sin(t * 4.3 + ly)), i: 1 });
     if (lx >= x0 - 1 && lx <= x1 + 1 && ly >= y0 - 1 && ly <= y1 + 1) lit.push([lx, ly]);
   }
-  for (const [lx, ly] of lit) drawLantern(ctx, lx * TS - cx, ly * TS - cy, TS, t, solid(lx, ly - 1));
+  const helm = { x: hero.x + hero.face * 0.15, y: hero.y - 0.75, r: (3.5 + vision * 0.875) * (1 + Math.sin(t * 6) * 0.01), i: 1, wall: 0.95 };
+  sources.push(helm, { x: ENTRY + 0.5, y: -0.5, r: 5, i: 0.9 });
+  const cols = x1 - x0 + 3, rows = y1 - y0 + 3, Lx0 = x0 - 1, Ly0 = y0 - 1;
+  const L = computeLight(v, W, set, Lx0, Ly0, cols, rows, sources);
+  const Lat = (x, y) => (x < Lx0 || y < Ly0 || x >= Lx0 + cols || y >= Ly0 + rows ? 0 : L[(y - Ly0) * cols + (x - Lx0)]);
+
+  // ---------- 1) la coupe du sol : couches colorées, limites ondulées cernées ----------
+  const NL = W.layers.length, polys = [], edges = [];
+  if (gTop < v.h) {
+    const wxOf = (px) => (px + cx) / TS;
+    for (let i = 0; i < NL; i++) {
+      const p = new Path2D(), e = new Path2D();
+      // bord haut
+      if (i === 0) { p.moveTo(-4, groundY); p.lineTo(v.w + 4, groundY); }
+      else { for (let px = -4; px <= v.w + 10; px += 10) { const y = layerEdge(W, i - 1, wxOf(px)) * TS - cy; px < 0 ? p.moveTo(px, y) : p.lineTo(px, y); } }
+      // bord bas (à l'envers)
+      if (i === NL - 1) { p.lineTo(v.w + 10, v.h + 4); p.lineTo(-4, v.h + 4); }
+      else { for (let px = v.w + 10; px >= -4; px -= 10) { const y = layerEdge(W, i, wxOf(px)) * TS - cy; p.lineTo(px, y); } for (let px = -4; px <= v.w + 10; px += 10) { const y = layerEdge(W, i, wxOf(px)) * TS - cy; px < 0 ? e.moveTo(px, y) : e.lineTo(px, y); } }
+      p.closePath(); polys.push(p); edges.push(e);
+      fillPat(v.pat.layer[i], p);
+    }
+    // limites entre couches : trait foncé épais + liseré clair dessous
+    for (let i = 0; i < NL - 1; i++) {
+      ctx.strokeStyle = OUT; ctx.lineWidth = TS * 0.07; ctx.stroke(edges[i]);
+      ctx.save(); ctx.translate(0, TS * 0.06); ctx.strokeStyle = W.layers[i + 1][2]; ctx.globalAlpha = 0.55; ctx.lineWidth = TS * 0.035; ctx.stroke(edges[i]); ctx.restore();
+    }
+  }
+  // ---------- 2) minerais : visibles seulement s'ils sont éclairés (apparition en fondu) ----------
+  const ores = [], airs = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+    const k = tile(W, set, x, y);
+    if (k === AIR) { airs.push([x, y, x * TS - cx, y * TS - cy]); continue; }
+    if (k < 3) continue;
+    const l = Lat(x, y);
+    if (l < 0.18) continue;
+    ores.push([x, y, x * TS - cx, y * TS - cy, k, l]);
+    ctx.globalAlpha = Math.min(1, (l - 0.18) * 3);
+    ctx.drawImage(T.ore[k][(x * 7 + y * 13) % 3], x * TS - cx, y * TS - cy, TS, TS);
+  }
+  ctx.globalAlpha = 1;
+
+  // ---------- 3) galeries aux bords arrondis ----------
+  const tun = new Path2D();
+  for (const [x, y, sx, sy] of airs) {
+    const ccx = sx + TS / 2 + (h2(x * 5, y) - 0.5) * TS * 0.1, ccy = sy + TS / 2 + (h2(x, y * 5) - 0.5) * TS * 0.06, rr = TS * (0.52 + h2(x, y) * 0.06);
+    tun.moveTo(ccx + rr, ccy); tun.arc(ccx, ccy, rr, 0, Math.PI * 2);
+    if (isAir(x + 1, y)) { const hh = TS * (0.46 + h2(x * 3, y) * 0.05); tun.rect(sx + TS / 2, sy + TS / 2 - hh, TS, hh * 2); }
+    if (isAir(x, y + 1)) { const ww = TS * (0.4 + h2(x, y * 3) * 0.05); tun.rect(sx + TS / 2 - ww, sy + TS / 2, ww * 2, TS); }
+    if (y === 0) tun.rect(sx + TS * 0.1, sy - 1, TS * 0.8, TS / 2 + 1); // ouverture du puits au ras du sol
+  }
+  // contour épais (la moitié intérieure est recouverte par le creux)
+  ctx.strokeStyle = OUT; ctx.lineWidth = TS * 0.17; ctx.stroke(tun);
+  ctx.save(); ctx.clip(tun);
+  for (let i = 0; i < polys.length; i++) fillPat(v.pat.cave[i], polys[i]);
+  // ombres intérieures : sous le plafond et le long des parois
+  for (const [x, y, sx, sy] of airs) {
+    const up = solid(x, y - 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
+    if (up) { const gr = ctx.createLinearGradient(0, sy, 0, sy + TS * 0.55); gr.addColorStop(0, 'rgba(10,4,12,.55)'); gr.addColorStop(1, 'rgba(10,4,12,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 1, sy - TS * 0.1, TS + 2, TS * 0.65); }
+    if (lf) { const gr = ctx.createLinearGradient(sx, 0, sx + TS * 0.3, 0); gr.addColorStop(0, 'rgba(10,4,12,.4)'); gr.addColorStop(1, 'rgba(10,4,12,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - TS * 0.1, sy, TS * 0.4, TS); }
+    if (rt) { const gr = ctx.createLinearGradient(sx + TS, 0, sx + TS * 0.7, 0); gr.addColorStop(0, 'rgba(10,4,12,.4)'); gr.addColorStop(1, 'rgba(10,4,12,0)'); ctx.fillStyle = gr; ctx.fillRect(sx + TS * 0.6, sy, TS * 0.4, TS); }
+  }
+  ctx.restore();
+  // décor : rails au sol, boisages, échelles, racines, stalactites, cristaux
+  for (const [x, y, sx, sy] of airs) {
+    const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y), li = layerOf(W, x, y);
+    if (dn && (!lf || !rt)) drawRail(ctx, sx, sy, TS);
+    if (up && li === 0 && h2(x, y + 7) < 0.5) {
+      ctx.strokeStyle = '#6b4226'; ctx.lineWidth = Math.max(1.5, TS / 26);
+      for (let i = 0; i < 2; i++) { const rx = sx + TS * (0.2 + h2(x + i, y) * 0.6), rl = TS * (0.16 + h2(y, x + i) * 0.2); ctx.beginPath(); ctx.moveTo(rx, sy + TS * 0.04); ctx.quadraticCurveTo(rx + TS * 0.06 * Math.sin(t * 0.8 + x), sy + rl * 0.6, rx - TS * 0.03, sy + rl); ctx.stroke(); }
+    } else if (up && h2(x * 3, y) < 0.3) {
+      for (let i = 0; i < 2; i++) {
+        const rx = sx + TS * (0.18 + h2(x, y + i * 5) * 0.64), rl = TS * (0.1 + h2(x + i * 9, y) * 0.12), rw = rl * 0.38, p = new Path2D();
+        p.moveTo(rx - rw, sy + TS * 0.04); p.quadraticCurveTo(rx - rw * 0.2, sy + rl * 0.7, rx, sy + TS * 0.04 + rl); p.quadraticCurveTo(rx + rw * 0.2, sy + rl * 0.7, rx + rw, sy + TS * 0.04); p.closePath();
+        ctx.fillStyle = W.layers[li][1]; ctx.fill(p); ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(1.2, TS / 30); ctx.stroke(p);
+      }
+    }
+    if (li >= 3 && (dn || up) && h2(x * 7, y * 3) < 0.12) { // petits cristaux
+      const base = dn ? sy + TS * 0.97 : sy + TS * 0.03, dir = dn ? -1 : 1, cxx = sx + TS * (0.3 + h2(x, y * 7) * 0.4), hue = li >= 4 ? ['#5fe0cf', '#d9fff8'] : ['#b59cff', '#efeaff'];
+      for (let i = 0; i < 3; i++) {
+        const ox = (i - 1) * TS * 0.08, hh = TS * (0.14 + h2(x + i, y) * 0.12) * (i === 1 ? 1.3 : 1), ww = TS * 0.045, p = new Path2D();
+        p.moveTo(cxx + ox - ww, base); p.lineTo(cxx + ox - ww, base + dir * hh * 0.75); p.lineTo(cxx + ox + (i - 1) * ww * 0.5, base + dir * hh); p.lineTo(cxx + ox + ww, base + dir * hh * 0.75); p.lineTo(cxx + ox + ww, base); p.closePath();
+        ctx.fillStyle = hue[0]; ctx.fill(p); ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(1, TS / 34); ctx.stroke(p);
+        ctx.fillStyle = hue[1]; ctx.fillRect(cxx + ox - ww * 0.6, base + dir * hh * 0.7, ww * 0.5, -dir * hh * 0.5);
+      }
+    }
+    const tunnel = up && dn && (!lf || !rt);
+    if (tunnel && h2(x, y) < 0.22 && y > 1) drawSupport(ctx, sx, sy, TS);
+    if (isAir(x, y + 1) && ((lf && rt) || (solid(x - 1, y + 1) && solid(x + 1, y + 1)))) drawLadder(ctx, sx, sy + TS * 0.5, TS);
+  }
   // fissures sur la case en cours de creusage
   if (hero.target && live && g.prog > 0.02) {
     const [tx2, ty2] = hero.target, sx = tx2 * TS - cx, sy = ty2 * TS - cy;
-    ctx.strokeStyle = 'rgba(10,6,3,.8)'; ctx.lineWidth = Math.max(1.4, TS / 26); ctx.lineCap = 'round';
+    ctx.strokeStyle = OUT; ctx.lineWidth = Math.max(1.8, TS / 22);
     const n = Math.ceil(g.prog * 6);
     for (let i = 0; i < n; i++) {
       const a = i * 2.4 + tx2, rr = TS * (0.18 + 0.28 * g.prog);
@@ -271,147 +267,94 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
       ctx.lineTo(sx + TS / 2 + Math.cos(a) * rr * 0.55, sy + TS / 2 + Math.sin(a) * rr * 0.55); ctx.lineTo(sx + TS / 2 + Math.cos(a + 0.35) * rr, sy + TS / 2 + Math.sin(a + 0.35) * rr); ctx.stroke();
     }
   }
-  // surface : herbe, bâtiments, chevalement
+
+  // ---------- 4) obscurité dans les galeries loin des lumières (le sol, lui, reste visible) ----------
+  if (gTop < v.h && airs.length) {
+    const S = v.shade;
+    if (S.width !== cols || S.height !== rows) { S.width = cols; S.height = rows; v.img = null; }
+    const sc = S.getContext('2d'), img = v.img || (v.img = sc.createImageData(cols, rows)), d = img.data;
+    for (let i = 0; i < L.length; i++) { d[i * 4] = DARK[0]; d[i * 4 + 1] = DARK[1]; d[i * 4 + 2] = DARK[2]; d[i * 4 + 3] = Math.round((1 - Math.min(1, Math.pow(L[i], 0.7))) * 235); }
+    sc.putImageData(img, 0, 0);
+    ctx.save(); ctx.clip(tun); ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(S, Lx0 * TS - cx, Ly0 * TS - cy, cols * TS, rows * TS);
+    ctx.restore();
+  }
+  for (const [lx, ly] of lit) drawLantern(ctx, lx * TS - cx, ly * TS - cy, TS, t, solid(lx, ly - 1));
+
+  // ---------- 5) surface : herbe, arbres, bâtiments, chevalement ----------
   if (groundY > -TS) {
     const gx0 = Math.max(0, Math.floor(cx / TS)), gx1 = Math.ceil((cx + v.w) / TS);
-    const gg = ctx.createLinearGradient(0, groundY - TS * 0.1, 0, groundY + TS * 0.22);
-    gg.addColorStop(0, night ? '#2f4d38' : '#6c9a4e'); gg.addColorStop(1, night ? '#1d3022' : '#3f6430');
-    ctx.fillStyle = gg; ctx.fillRect(0, groundY - TS * 0.04, v.w, TS * 0.22);
-    ctx.strokeStyle = night ? '#3c6448' : '#86b862'; ctx.lineWidth = Math.max(1, TS / 30); ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (let x = gx0; x <= gx1; x++) for (let i = 0; i < 6; i++) {
+    ctx.fillStyle = night ? '#2f7a3c' : '#5cbf45'; ctx.fillRect(0, groundY - TS * 0.12, v.w, TS * 0.3);
+    ctx.fillStyle = night ? '#3f9150' : '#86dc5c'; ctx.fillRect(0, groundY - TS * 0.12, v.w, TS * 0.08);
+    ctx.strokeStyle = OUT; ctx.lineWidth = TS * 0.06; ctx.beginPath(); ctx.moveTo(0, groundY + TS * 0.18); ctx.lineTo(v.w, groundY + TS * 0.18); ctx.stroke();
+    // touffes et petites fleurs
+    for (let x = gx0; x <= gx1; x++) {
       if (x === ENTRY) continue;
-      const bx = x * TS - cx + TS * h2(x, i), bh = TS * (0.08 + h2(i, x) * 0.14), lean = (h2(x + i, 3) - 0.5) * TS * 0.08;
-      ctx.moveTo(bx, groundY); ctx.quadraticCurveTo(bx + lean * 0.3, groundY - bh * 0.6, bx + lean, groundY - bh);
+      const bx = x * TS - cx;
+      for (let i = 0; i < 2; i++) {
+        const px = bx + TS * h2(x, i), hh = TS * (0.1 + h2(i, x) * 0.1);
+        ctx.fillStyle = night ? '#2f7a3c' : '#4caf3c'; ctx.beginPath(); ctx.moveTo(px - TS * 0.06, groundY - TS * 0.1); ctx.lineTo(px, groundY - TS * 0.1 - hh); ctx.lineTo(px + TS * 0.06, groundY - TS * 0.1); ctx.closePath(); ctx.fill();
+      }
+      if (h2(x, 9) < 0.18) { const fx = bx + TS * h2(x, 3); ctx.fillStyle = ['#ffffff', '#ffd34d', '#ff7a9c'][Math.floor(h2(x, 4) * 3)]; ctx.beginPath(); ctx.arc(fx, groundY - TS * 0.16, TS * 0.045, 0, 7); ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1; ctx.stroke(); }
     }
-    ctx.stroke();
-    // la terre s'assombrit doucement sous l'herbe (raccord avec le sous-sol)
-    const sg = ctx.createLinearGradient(0, groundY + TS * 0.15, 0, groundY + TS * 1.4);
-    sg.addColorStop(0, 'rgba(8,7,18,0)'); sg.addColorStop(1, 'rgba(8,7,18,.45)');
-    ctx.fillStyle = sg; ctx.fillRect(0, groundY + TS * 0.15, v.w, TS * 1.25);
-    for (const [tx3, sd] of [[8.4, 3], [9.1, 5], [18.2, 7], [19.4, 2], [23.5, 9]]) drawTree(ctx, tx3 * TS - cx, groundY, TS, night, sd);
-    drawWorkshop(ctx, 0.2 * TS - cx, groundY, TS, night, goal.progress, goal.built);
-    drawShop(ctx, 4.4 * TS - cx, groundY, TS, night);
-    drawHeadframe(ctx, (ENTRY + 0.5) * TS - cx, groundY, TS, live && g.act !== 'rest' ? t : 0, night);
-    drawMarket(ctx, 13.6 * TS - cx, groundY, TS, night, t);
+    for (const [tx3, sd] of [[8.5, 3], [19.2, 7], [24.5, 9], [30, 4]]) drawTree(ctx, tx3 * TS - cx, groundY - TS * 0.06, TS, night, sd);
+    drawWorkshop(ctx, 0.2 * TS - cx, groundY - TS * 0.06, TS, night, goal.progress, goal.built);
+    drawShop(ctx, 4.4 * TS - cx, groundY - TS * 0.06, TS, night);
+    drawHeadframe(ctx, (ENTRY + 0.5) * TS - cx, groundY - TS * 0.06, TS, live && g.act !== 'rest' ? t : 0, night);
+    drawMarket(ctx, 13.6 * TS - cx, groundY - TS * 0.06, TS, night, t);
   }
-  // éclats de roche
+
+  // ---------- 6) éclats de roche, personnage ----------
   if (live && hero.anim === 'dig') {
     const ph = (t * 1.6) % 1;
     if (ph > 0.88 && v.lastHit < 0.88 && hero.target) {
-      const [tx2, ty2] = hero.target;
-      for (let i = 0; i < 7; i++) v.parts.push({ x: (tx2 + 0.5) * TS, y: (ty2 + 0.5) * TS, vx: (Math.random() - 0.5) * 150, vy: -Math.random() * 170, life: 0.7, r: 1 + Math.random() * 2.2, c: Math.random() < 0.5 ? '#b49478' : '#6e5d50' });
+      const [tx2, ty2] = hero.target, col = W.layers[layerOf(W, tx2, ty2)];
+      for (let i = 0; i < 7; i++) v.parts.push({ x: (tx2 + 0.5) * TS, y: (ty2 + 0.5) * TS, vx: (Math.random() - 0.5) * 150, vy: -Math.random() * 170, life: 0.7, r: 1.5 + Math.random() * 2.5, c: Math.random() < 0.5 ? col[1] : col[2] });
     }
     v.lastHit = ph;
   }
   v.parts = v.parts.filter((p) => (p.life -= dt) > 0);
   for (const p of v.parts) {
     p.vy += 560 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
-    ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x - cx, p.y - cy, p.r, 0, 7); ctx.fill();
+    ctx.globalAlpha = Math.min(1, p.life * 2); ctx.fillStyle = p.c; ctx.strokeStyle = OUT; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(p.x - cx, p.y - cy, p.r, 0, 7); ctx.fill(); ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  // personnage
-  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.15, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1], bag: g.bagN / cap(g) });
+  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.18, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1], bag: g.bagN / cap(g) });
 
-  // ---------- lumière ----------
-  const under = groundY < v.h;
-  if (under) {
-    const helm = { x: hero.x + hero.face * 0.15, y: hero.y - 0.75, r: (3.5 + vision * 0.875) * (1 + Math.sin(t * 6) * 0.01), i: 1, wall: 0.95 };
-    sources.push(helm, { x: ENTRY + 0.5, y: -0.5, r: 5, i: 0.9 });
-    const cols = x1 - x0 + 3, rows = y1 - y0 + 3, Lx0 = x0 - 1, Ly0 = y0 - 1;
-    const L = computeLight(v, W, set, Lx0, Ly0, cols, rows, sources);
-    // image d'obscurité à deux points par case : dans la roche, seule la moitié tournée vers la galerie est éclairée
-    // (la lumière ne « traverse » pas : un minerai à deux cases d'une galerie reste invisible)
-    const S = v.shade, C2 = cols * 2, R2 = rows * 2;
-    if (S.width !== C2 || S.height !== R2) { S.width = C2; S.height = R2; v.img = null; }
-    const sc = S.getContext('2d'), img = v.img || (v.img = sc.createImageData(C2, R2)), d = img.data;
-    const open = (x, y) => y < 0 || tile(W, set, x, y) === AIR;
-    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-      const x = Lx0 + i, y = Ly0 + j, l = L[j * cols + i], so = !open(x, y);
-      for (let b = 0; b < 2; b++) for (let a = 0; a < 2; a++) {
-        let val = l;
-        if (so && l > 0) { const hx = x + (a ? 1 : -1), vy = y + (b ? 1 : -1); if (!(open(hx, y) || open(x, vy) || open(hx, vy))) val = l * 0.6; }
-        const o = ((j * 2 + b) * C2 + i * 2 + a) * 4;
-        d[o] = DARK[0]; d[o + 1] = DARK[1]; d[o + 2] = DARK[2]; d[o + 3] = Math.round((1 - Math.min(1, Math.pow(val, 0.75))) * 255);
-      }
-    }
-    // flou 3 × 3 sur l'opacité : bords de lumière doux, jamais en escalier
-    const A = v.alpha && v.alpha.length === C2 * R2 ? v.alpha : (v.alpha = new Uint8ClampedArray(C2 * R2));
-    for (let i = 0; i < C2 * R2; i++) A[i] = d[i * 4 + 3];
-    for (let j = 0; j < R2; j++) for (let i = 0; i < C2; i++) {
-      let sum = 0, n = 0;
-      for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= C2 || jj >= R2) continue; sum += A[jj * C2 + ii]; n++; }
-      d[(j * C2 + i) * 4 + 3] = sum / n;
-    }
-    sc.putImageData(img, 0, 0);
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(S, Lx0 * TS - cx, Ly0 * TS - cy, cols * TS, rows * TS); // lissé en agrandissant
-    const Lat = (x, y) => (x < Lx0 || y < Ly0 || x >= Lx0 + cols || y >= Ly0 + rows ? 0 : L[(y - Ly0) * cols + (x - Lx0)]);
-    // halos chauds (ajoutés)
-    ctx.globalCompositeOperation = 'lighter';
-    const glow = (px, py, rr, a, c = '255,170,90') => { const gr = ctx.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = gr; ctx.fillRect(px - rr, py - rr, rr * 2, rr * 2); };
-    for (const [lx, ly] of lit) glow((lx + 0.5) * TS - cx, (ly + 0.45) * TS - cy, TS * 2.4, 0.2 + 0.02 * Math.sin(t * 8 + lx));
-    const hx = helm.x * TS - cx, hy = helm.y * TS - cy;
-    glow(hx, hy, TS * 2.2, 0.13, '255,214,150');
-    // faisceau de la lampe frontale
-    if (g.act !== 'rest') {
-      const bx = hx + hero.face * TS * 0.25, len = TS * (2.6 + vision * 0.4);
-      const bg = ctx.createLinearGradient(bx, 0, bx + hero.face * len, 0); bg.addColorStop(0, 'rgba(255,230,180,.13)'); bg.addColorStop(1, 'rgba(255,230,180,0)');
-      ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(bx, hy - TS * 0.06); ctx.lineTo(bx + hero.face * len, hy - TS * 0.7); ctx.lineTo(bx + hero.face * len, hy + TS * 0.8); ctx.closePath(); ctx.fill();
-    }
-    // minerais éclairés : lueur colorée + éclats qui scintillent
-    for (const [x, y, sx, sy, k] of ores) {
-      const l = Lat(x, y);
-      if (l < 0.3) continue;
-      const o = W.ores[k - 3];
-      if (o.value >= 20) glow(sx + TS / 2, sy + TS / 2, TS * 0.8, 0.12 * l, hexRgb(o.colors[0]));
-      const ph = (t * 0.6 + x * 0.37 + y * 0.61) % 2.6;
-      if (ph < 0.45) {
-        const a = Math.sin((ph / 0.45) * Math.PI) * l, gx = sx + TS * (0.25 + h2(x, y) * 0.5), gy = sy + TS * (0.25 + h2(y, x) * 0.5), rr = TS * 0.2 * a;
-        ctx.fillStyle = `rgba(255,255,255,${0.85 * a})`;
-        ctx.beginPath(); ctx.moveTo(gx, gy - rr); ctx.lineTo(gx + rr * 0.18, gy - rr * 0.18); ctx.lineTo(gx + rr, gy); ctx.lineTo(gx + rr * 0.18, gy + rr * 0.18); ctx.lineTo(gx, gy + rr); ctx.lineTo(gx - rr * 0.18, gy + rr * 0.18); ctx.lineTo(gx - rr, gy); ctx.lineTo(gx - rr * 0.18, gy - rr * 0.18); ctx.closePath(); ctx.fill();
-      }
-    }
-    // poussière qui flotte dans la lumière
-    for (let i = 0; i < 18; i++) {
-      const a = i * 2.39996, rr = TS * (0.5 + ((i * 37) % 10) / 10 * 3), px = hx + Math.cos(a + t * 0.05) * rr, py = hy + Math.sin(a * 1.3 + t * 0.08) * rr * 0.6;
-      const l = Lat(Math.floor((px + cx) / TS), Math.floor((py + cy) / TS));
-      if (l < 0.2) continue;
-      ctx.fillStyle = `rgba(255,236,200,${(0.1 + 0.1 * Math.sin(t * 0.8 + i)) * l})`; ctx.beginPath(); ctx.arc(px, py, Math.max(0.7, TS * 0.025), 0, 7); ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'source-over';
+  // ---------- 7) halos de lumière et éclats des minerais ----------
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = (px, py, rr, a, c = '255,190,100') => { const gr = ctx.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = gr; ctx.fillRect(px - rr, py - rr, rr * 2, rr * 2); };
+  for (const [lx, ly] of lit) glow((lx + 0.5) * TS - cx, (ly + 0.45) * TS - cy, TS * 2.2, 0.16 + 0.02 * Math.sin(t * 8 + lx));
+  const hx = helm.x * TS - cx, hy = helm.y * TS - cy;
+  if (hero.y > 0.5 && g.act !== 'rest') {
+    const bx = hx + hero.face * TS * 0.25, len = TS * (2.6 + vision * 0.4);
+    const bg = ctx.createLinearGradient(bx, 0, bx + hero.face * len, 0); bg.addColorStop(0, 'rgba(255,236,170,.2)'); bg.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(bx, hy - TS * 0.06); ctx.lineTo(bx + hero.face * len, hy - TS * 0.7); ctx.lineTo(bx + hero.face * len, hy + TS * 0.8); ctx.closePath(); ctx.fill();
   }
-  // rayons de jour qui descendent dans le puits
-  if (groundY > -TS * 2 && groundY < v.h) {
-    const px = (ENTRY + 0.5) * TS - cx, ray = ctx.createLinearGradient(0, groundY, 0, groundY + TS * 4.5);
-    ray.addColorStop(0, night ? 'rgba(170,190,255,.14)' : 'rgba(255,240,200,.22)'); ray.addColorStop(1, 'rgba(255,240,200,0)');
-    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ray;
-    ctx.beginPath(); ctx.moveTo(px - TS * 0.42, groundY); ctx.lineTo(px + TS * 0.42, groundY); ctx.lineTo(px + TS * 0.9, groundY + TS * 4.5); ctx.lineTo(px - TS * 0.2, groundY + TS * 4.5); ctx.closePath(); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
+  for (const [x, y, sx, sy, , l] of ores) {
+    const ph = (t * 0.7 + x * 0.37 + y * 0.61) % 2.4;
+    if (ph < 0.5) {
+      const a = Math.sin((ph / 0.5) * Math.PI) * Math.min(1, l), gx = sx + TS * (0.3 + h2(x, y) * 0.4), gy = sy + TS * (0.3 + h2(y, x) * 0.4), rr = TS * 0.22 * a;
+      ctx.fillStyle = `rgba(255,255,255,${0.95 * a})`;
+      ctx.beginPath(); ctx.moveTo(gx, gy - rr); ctx.lineTo(gx + rr * 0.16, gy - rr * 0.16); ctx.lineTo(gx + rr, gy); ctx.lineTo(gx + rr * 0.16, gy + rr * 0.16); ctx.lineTo(gx, gy + rr); ctx.lineTo(gx - rr * 0.16, gy + rr * 0.16); ctx.lineTo(gx - rr, gy); ctx.lineTo(gx - rr * 0.16, gy - rr * 0.16); ctx.closePath(); ctx.fill();
+    }
   }
-  // grain fin (texture préparée une fois)
-  if (!v.grain) {
-    const gc = document.createElement('canvas'); gc.width = gc.height = 128;
-    const gx = gc.getContext('2d'), im = gx.createImageData(128, 128);
-    for (let i = 0; i < im.data.length; i += 4) { const n = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = n; im.data[i + 3] = 255; }
-    gx.putImageData(im, 0, 0); v.grain = ctx.createPattern(gc, 'repeat');
-  }
-  ctx.globalAlpha = 0.035; ctx.fillStyle = v.grain; ctx.fillRect(0, 0, v.w, v.h); ctx.globalAlpha = 1;
-  // vignette
+  ctx.globalCompositeOperation = 'source-over';
+  // vignette légère
   ctx.drawImage(v.vig, -v.w * 0.08, -v.h * 0.08, v.w * 1.16, v.h * 1.16);
-  // textes flottants (« +1 Or », « au coffre »…)
+  // textes flottants (« +1 Or », « au coffre »…) : gros caractères blancs bordés
   v.pops = (v.pops || []).filter((p) => (p.life -= dt) > 0);
   for (const p of v.pops) {
     const k2 = 1 - p.life / p.max;
     ctx.globalAlpha = Math.min(1, p.life * 1.5);
-    ctx.font = `700 ${Math.round(TS * 0.32)}px Inter Variable, sans-serif`; ctx.textAlign = 'center';
-    ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.lineJoin = 'round'; ctx.strokeText(p.text, p.x * TS - cx, p.y * TS - cy - k2 * TS * 1.2);
+    ctx.font = `800 ${Math.round(TS * 0.36)}px Inter Variable, sans-serif`; ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = OUT; ctx.strokeText(p.text, p.x * TS - cx, p.y * TS - cy - k2 * TS * 1.2);
     ctx.fillStyle = p.color; ctx.fillText(p.text, p.x * TS - cx, p.y * TS - cy - k2 * TS * 1.2);
   }
   ctx.globalAlpha = 1; ctx.textAlign = 'start';
   return hero;
 }
-const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return `${n >> 16},${(n >> 8) & 255},${n & 255}`; };
 
 export const SKY = SKY_ROWS;
 export const pop = (v, text, x, y, color = '#ffe08a') => { (v.pops = v.pops || []).push({ text, x, y, color, life: 1.6, max: 1.6 }); };

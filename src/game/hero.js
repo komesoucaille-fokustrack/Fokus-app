@@ -1,17 +1,17 @@
 /* =====================================================================
    LA MINE — le personnage (Canvas 2D vectoriel)
-   Style « Lueur » : silhouette lisible, contours teintés (jamais noirs), volumes en dégradés, liseré de lumière côté
-   lampe. Mains et pieds flottants (à la Rayman) → animations souples ; écharpe qui ondule, sac à dos qui grossit
+   Style dessin animé : grosse tête, contours épais, couleurs franches (manteau émeraude Fokus ou bleu roi),
+   reflets nets. Mains et pieds flottants (à la Rayman) → animations souples ; écharpe qui ondule, sac à dos qui grossit
    avec le butin. Tout est dessiné pour une case de 40 unités, origine aux pieds.
    ===================================================================== */
 const hex = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const shade = (h, k) => { const f = (c) => Math.round(k > 0 ? c + (255 - c) * k : c * (1 + k)); const [r, g, b] = hex(h); return `rgb(${f(r)},${f(g)},${f(b)})`; };
 
 const HERO = {
-  f: { coat: '#2f6a6e', scarf: '#e8a23c', hair: '#4a2a1c', skin: '#f3cdb0', iris: '#3b2a20' },
-  m: { coat: '#2f4370', scarf: '#d9604a', hair: '#2e1d14', skin: '#eec19c', iris: '#2a2420' },
+  f: { coat: '#16a37a', scarf: '#ff8a3d', hair: '#5a2e1a', skin: '#ffd2b3', iris: '#2b1a12' },
+  m: { coat: '#3b6fd8', scarf: '#ffcf3d', hair: '#3a2214', skin: '#f6c49d', iris: '#2b1a12' },
 };
-const LEATHER = '#a8743f', BOOT = '#3a2a22', HELM = '#e3b04b', BRASS = '#b9893f';
+const LEATHER = '#b57a3f', BOOT = '#5a3a26', HELM = '#ffc928', BRASS = '#c9973f', OUT = '#2b1a16';
 
 /* drawMiner(ctx, x, y = sol, s = taille d'une case, { gender, face: 1 | -1, anim: idle|walk|climb|dig|sleep, t,
    dig: 'side' | 'down', tool (false = sans pioche), helmet (false = cheveux), wave, reach, pickColor, bag (0 → 1), lamp (allumée) }) */
@@ -20,7 +20,7 @@ export function drawMiner(ctx, x, y, s, o) {
   const k = s / 40;
   ctx.save(); ctx.translate(x, y); ctx.scale(f * k, k);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  const line = (c, w = 1.1) => { ctx.strokeStyle = shade(c, -0.5); ctx.lineWidth = w; };
+  const line = (c, w = 1.1) => { ctx.strokeStyle = OUT; ctx.lineWidth = w * 1.9; }; // contour épais commun (dessin animé)
   const breathe = Math.sin(t * 2.2);
   const walk = anim === 'walk' || anim === 'climb' ? t * 9 : 0;
   const bob = anim === 'walk' ? Math.abs(Math.sin(walk)) * -2 : anim === 'sleep' ? 3 : breathe * 0.5;
@@ -93,7 +93,8 @@ export function drawMiner(ctx, x, y, s, o) {
   ctx.fillStyle = P.scarf; ctx.beginPath(); ctx.ellipse(0.5, by - 10.5, 8, 3.2, 0.05, 0, 7); ctx.fill(); line(P.scarf, 0.8); ctx.stroke();
   ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.beginPath(); ctx.ellipse(2.5, by - 11.6, 4, 1, 0, 0, 7); ctx.fill();
 
-  // tête
+  // tête (un peu plus grosse : proportions de dessin animé)
+  ctx.save(); ctx.translate(1, -30); ctx.scale(1.14, 1.14); ctx.translate(-1, 30);
   const hx = 1, hy = -36.5;
   if (o.helmet === false || o.gender === 'f') { // queue de cheval (mineuse) ou chevelure arrière
     const sw = Math.sin(t * 3 + (anim === 'walk' ? walk : 0)) * 2.2;
@@ -151,6 +152,7 @@ export function drawMiner(ctx, x, y, s, o) {
     ctx.fillStyle = BRASS; ctx.beginPath(); ctx.ellipse(lx, ly, 3.3, 3.6, 0, 0, 7); ctx.fill(); line(BRASS, 0.8); ctx.stroke();
     ctx.fillStyle = on ? '#fff8dc' : '#cfc7b0'; ctx.beginPath(); ctx.ellipse(lx + 0.9, ly, 2, 2.4, 0, 0, 7); ctx.fill();
   }
+  ctx.restore();
   ctx.restore();
 
   // mains flottantes (gants de cuir) + pioche

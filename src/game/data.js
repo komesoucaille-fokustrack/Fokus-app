@@ -15,6 +15,10 @@ export const WORLDS = [
   {
     id: 1, name: 'La mine de ta ville', place: 'Ta ville · France', seed: 1013, width: 240, depth: 120, veins: 0.42,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#2f4558',
+    // couches de la coupe du sol (dessin) : [nom, couleur, clair, sombre], limites à la limite terre/roche puis à 30, 58, 88 cases
+    layers: [['Terre', '#c98b55', '#e4ab76', '#99602f'], ['Argile', '#b9613f', '#d67f5a', '#87412b'], ['Schiste', '#8b4e6c', '#ab6b8c', '#5f3349'],
+      ['Granit', '#4f5189', '#6d70aa', '#35366a'], ['Cristal', '#2f6c75', '#4d9099', '#1d4950']],
+    layerAt: [30, 58, 88],
     goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 3000, build: 9000, next: 'La région · Massif central' },
     tiles: {
       [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#5c3d2c', '#7d5642', '#3a2419'] },
