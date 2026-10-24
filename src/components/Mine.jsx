@@ -80,16 +80,23 @@ function StoryArt({ scene, gender }) {
         for (let i = 0; i < 5; i++) { const a = t * 1.5 + i * 1.3, rr = S * (0.6 + (i % 3) * 0.2); ctx.fillStyle = `rgba(255,240,180,${0.4 + 0.4 * Math.sin(a * 2)})`; ctx.beginPath(); ctx.arc(W * 0.7 + Math.cos(a) * rr, H * 0.7 + Math.sin(a) * rr * 0.6, 2, 0, 7); ctx.fill(); }
         hero(W * 0.3, H * 0.94, S * 1.2, { anim: 'idle', t, reach: true });
       } else if (scene === 'study') {
-        const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2b2340'); g.addColorStop(1, '#16121f');
+        // chambre d'étudiant le soir : mur chaud, fenêtre étoilée à rideaux, bureau en bois, lampe, livres, cailloux
+        let g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a2338'); g.addColorStop(1, '#1a1524');
         ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        // fenêtre étoilée, bureau, lampe, livres, cailloux
-        ctx.fillStyle = '#0b1530'; ctx.fillRect(W * 0.62, H * 0.12, W * 0.28, H * 0.36); ctx.strokeStyle = '#6b5a8a'; ctx.lineWidth = 4; ctx.strokeRect(W * 0.62, H * 0.12, W * 0.28, H * 0.36);
-        ctx.fillStyle = '#fff'; for (let i = 0; i < 12; i++) ctx.fillRect(W * 0.63 + ((i * 37) % (W * 0.26)), H * 0.14 + ((i * 23) % (H * 0.3)), 1.6, 1.6);
-        ctx.fillStyle = '#7a4f30'; ctx.fillRect(W * 0.48, H * 0.66, W * 0.5, H * 0.06);
-        const lg = ctx.createRadialGradient(W * 0.86, H * 0.6, 2, W * 0.86, H * 0.6, W * 0.3); lg.addColorStop(0, 'rgba(255,214,120,.45)'); lg.addColorStop(1, 'rgba(255,214,120,0)');
+        const wx = W * 0.6, wy = H * 0.1, ww = W * 0.3, wh = H * 0.4;
+        g = ctx.createLinearGradient(0, wy, 0, wy + wh); g.addColorStop(0, '#0a1430'); g.addColorStop(1, '#1d2a55');
+        ctx.fillStyle = g; ctx.fillRect(wx, wy, ww, wh);
+        ctx.fillStyle = '#fff'; for (let i = 0; i < 16; i++) { ctx.globalAlpha = 0.4 + ((i * 37) % 6) / 10; ctx.fillRect(wx + ((i * 37) % (ww - 4)), wy + ((i * 23) % (wh - 4)), 1.5, 1.5); } ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 4; ctx.strokeRect(wx, wy, ww, wh); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh); ctx.stroke();
+        for (const [cx2, d2] of [[wx - 6, 1], [wx + ww + 6, -1]]) { g = ctx.createLinearGradient(cx2 - 10, 0, cx2 + 10, 0); g.addColorStop(0, '#7a3b3b'); g.addColorStop(1, '#4e2424'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx2 - 9 * d2, wy - 6); ctx.lineTo(cx2 + 9 * d2, wy - 6); ctx.quadraticCurveTo(cx2 + 4 * d2, wy + wh * 0.6, cx2 + 12 * d2, wy + wh + 8); ctx.lineTo(cx2 - 9 * d2, wy + wh + 8); ctx.closePath(); ctx.fill(); }
+        const lg = ctx.createRadialGradient(W * 0.88, H * 0.58, 2, W * 0.88, H * 0.58, W * 0.35); lg.addColorStop(0, 'rgba(255,206,130,.4)'); lg.addColorStop(1, 'rgba(255,206,130,0)');
         ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
-        ['#e5484d', '#4f8ff7', '#f5c542'].forEach((c2, i) => { ctx.fillStyle = c2; ctx.fillRect(W * (0.52 + i * 0.045), H * 0.5, W * 0.04, H * 0.16); });
-        ['#b06df5', '#5ec4d6', '#f5c542'].forEach((c2, i) => { ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(W * (0.72 + i * 0.05), H * 0.64, 6, 0, 7); ctx.fill(); });
+        g = ctx.createLinearGradient(0, H * 0.66, 0, H * 0.73); g.addColorStop(0, '#8a5c38'); g.addColorStop(1, '#5a3a22');
+        ctx.fillStyle = g; ctx.fillRect(W * 0.46, H * 0.66, W * 0.52, H * 0.06); ctx.fillStyle = '#3f2816'; ctx.fillRect(W * 0.5, H * 0.72, W * 0.025, H * 0.3); ctx.fillRect(W * 0.93, H * 0.72, W * 0.025, H * 0.3);
+        ['#7e3b3b', '#2f5a6e', '#a8873a', '#4a3f6b'].forEach((c2, i) => { ctx.fillStyle = c2; ctx.fillRect(W * (0.5 + i * 0.035), H * (0.5 + (i % 2) * 0.02), W * 0.03, H * (0.16 - (i % 2) * 0.02)); ctx.fillStyle = 'rgba(255,230,180,.35)'; ctx.fillRect(W * (0.5 + i * 0.035) + 2, H * 0.55, W * 0.03 - 4, 2); });
+        ctx.strokeStyle = '#2b2b2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(W * 0.92, H * 0.66); ctx.lineTo(W * 0.9, H * 0.5); ctx.lineTo(W * 0.86, H * 0.46); ctx.stroke();
+        ctx.fillStyle = '#c9a24a'; ctx.beginPath(); ctx.moveTo(W * 0.83, H * 0.47); ctx.lineTo(W * 0.89, H * 0.44); ctx.lineTo(W * 0.885, H * 0.52); ctx.closePath(); ctx.fill();
+        [['#b06df5', '#e6d0ff'], ['#5ec4d6', '#d8f6fb'], ['#f5c542', '#fff0a0']].forEach(([c2, c3], i) => { const gx = W * (0.7 + i * 0.05), gy = H * 0.64; const gg = ctx.createRadialGradient(gx - 2, gy - 2, 0, gx, gy, 7); gg.addColorStop(0, c3); gg.addColorStop(1, c2); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 7); ctx.fill(); });
         hero(W * 0.28, H * 0.95, S * 1.25, { anim: 'idle', t, helmet: false });
       } else if (scene === 'go' || scene === 'final') {
         paintSkyline(ctx, W, H, scene === 'go' ? 23 : 10, scene === 'go' ? 3 : 9);

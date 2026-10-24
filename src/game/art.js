@@ -74,13 +74,13 @@ function paintMaterial(ctx, N, S, kind, cols, rnd) {
   }
   if (kind === 'dirt') {
     // cailloux enchâssés
-    for (let i = 0; i < 34; i++) {
-      const x = rnd() * N, y = rnd() * N, r = S * (0.025 + rnd() * 0.06), sq = 0.6 + rnd() * 0.3, rot = rnd() * 3, tone = rnd() * 0.5 - 0.25;
+    for (let i = 0; i < 20; i++) {
+      const x = rnd() * N, y = rnd() * N, r = S * (0.025 + rnd() * 0.05), sq = 0.6 + rnd() * 0.3, rot = rnd() * 3, tone = rnd() * 0.5 - 0.25;
       wrap(N, x, y, r * 2, (px, py) => {
         ctx.save(); ctx.translate(px, py); ctx.rotate(rot);
         ctx.fillStyle = 'rgba(20,10,4,.38)'; ctx.beginPath(); ctx.ellipse(r * 0.12, r * 0.28, r * 1.08, r * sq * 1.08, 0, 0, 7); ctx.fill();
         const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.1);
-        g.addColorStop(0, shade('#94796a', tone)); g.addColorStop(1, shade('#4f3d32', tone - 0.1));
+        g.addColorStop(0, shade('#7a6152', tone)); g.addColorStop(1, shade('#3e2f26', tone - 0.1));
         ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r, r * sq, 0, 0, 7); ctx.fill();
         ctx.restore();
       });
@@ -314,159 +314,8 @@ export function drawLantern(ctx, x, y, S, t, hang = true) {
   ctx.fillRect(cx - w * 0.55, top + h * 0.88, w * 1.1, h * 0.1);
   ctx.restore();
 }
-/* ---------- personnage ---------- */
-const HERO = {
-  f: { suit: '#ff7a45', suitD: '#c4471c', hair: '#5a3220', skin: '#f6cfae' },
-  m: { suit: '#3f7fe0', suitD: '#1f4a99', hair: '#3b2416', skin: '#f2c49c' },
-};
-/* drawMiner(ctx, x, y = sol, s = taille d'une tuile, { gender, face: 1 | -1, anim, t, dig: 'side' | 'down', prog }) */
-export function drawMiner(ctx, x, y, s, o) {
-  const P = HERO[o.gender] || HERO.f, t = o.t, f = o.face || 1;
-  const lw = Math.max(1.4, s / 22);
-  ctx.save(); ctx.translate(x, y); ctx.scale(f, 1);
-  const k = s / 40; // tout est dessiné pour une tuile de 40 px
-  ctx.scale(k, k);
-  ctx.lineWidth = lw / k; ctx.lineJoin = 'round'; ctx.strokeStyle = LINE;
-  const anim = o.anim;
-  const breathe = Math.sin(t * 2.2) * 0.8;
-  const walk = anim === 'walk' || anim === 'climb' ? t * 9 : 0;
-  const bob = anim === 'walk' ? Math.abs(Math.sin(walk)) * -2.2 : anim === 'sleep' ? 2 : breathe * 0.6;
-  // coup de pioche : élan lent puis frappe rapide
-  const ph = anim === 'dig' ? (t * 1.6) % 1 : 0;
-  const swing = anim === 'dig' ? (ph < 0.7 ? -1.25 * (ph / 0.7) : -1.25 + 2.1 * ((ph - 0.7) / 0.3)) : 0;
-  const lean = anim === 'dig' ? swing * 1.5 : 0;
-
-  // mains flottantes (gants)
-  const hand = (x0, y0) => {
-    const gg = ctx.createRadialGradient(x0 - 1, y0 - 1.5, 0.5, x0, y0, 5);
-    gg.addColorStop(0, '#fffaf0'); gg.addColorStop(1, '#d8cbb4');
-    ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(x0, y0, 4.4, 4, 0, 0, 7); ctx.fill(); ctx.stroke();
-  };
-  // ombre
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, -1, 13, 3.2, 0, 0, 7); ctx.fill();
-  // pieds (bottes)
-  const foot = (dx, ph2) => {
-    const lift = anim === 'walk' ? Math.max(0, Math.sin(walk + ph2)) * 4 : 0, fwd = anim === 'walk' ? Math.cos(walk + ph2) * 3.5 : 0;
-    ctx.save(); ctx.translate(dx + fwd, -3.2 - lift);
-    const g = ctx.createLinearGradient(0, -4, 0, 4); g.addColorStop(0, '#6b4a34'); g.addColorStop(1, '#3a2619');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(1.5, 0, 6.2, 3.8, 0, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.ellipse(-0.5, -1.5, 2.6, 1.1, -0.2, 0, 7); ctx.fill();
-    ctx.restore();
-  };
-  if (anim === 'sleep') { foot(-6, 0); foot(7, 0); } else { foot(-6, 0); foot(6, Math.PI); }
-
-  ctx.save(); ctx.translate(0, bob);
-  if (anim === 'sleep') ctx.rotate(-0.12);
-  ctx.rotate(lean * 0.05);
-  // corps (salopette)
-  const by = -17;
-  const g = ctx.createLinearGradient(-9, by - 10, 9, by + 10);
-  g.addColorStop(0, shade(P.suit, 0.18)); g.addColorStop(1, P.suitD);
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(0, by, 9.5, 11 + breathe * 0.15, 0, 0, 7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(-3.5, by - 5, 3, 5, -0.3, 0, 7); ctx.fill();
-  // bretelles + poche
-  ctx.strokeStyle = shade(P.suitD, -0.25); ctx.lineWidth = 1.4;
-  ctx.beginPath(); ctx.moveTo(-5, by - 9); ctx.lineTo(-4, by - 2); ctx.moveTo(5, by - 9); ctx.lineTo(4, by - 2); ctx.stroke();
-  ctx.fillStyle = shade(P.suit, -0.08); ctx.strokeStyle = LINE; ctx.lineWidth = lw / k;
-  ctx.beginPath(); ctx.roundRect(-4, by - 2, 8, 6, 2); ctx.fill(); ctx.stroke();
-
-  // tête
-  const hx = 1, hy = -37;
-  // cheveux derrière (couette de la mineuse)
-  if (o.gender === 'f') {
-    const sw = Math.sin(t * 3 + (anim === 'walk' ? walk : 0)) * 2.5;
-    ctx.fillStyle = P.hair;
-    ctx.beginPath(); ctx.moveTo(hx - 9, hy - 2); ctx.quadraticCurveTo(hx - 21 + sw, hy + 1, hx - 17 + sw, hy + 11); ctx.quadraticCurveTo(hx - 13, hy + 5, hx - 7, hy + 4); ctx.closePath(); ctx.fill(); ctx.stroke();
-  }
-  const sg = ctx.createRadialGradient(hx - 4, hy - 4, 2, hx, hy, 14);
-  sg.addColorStop(0, shade(P.skin, 0.12)); sg.addColorStop(1, shade(P.skin, -0.12));
-  ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(hx, hy, 12, 11.5, 0, 0, 7); ctx.fill(); ctx.stroke();
-  // joues
-  ctx.fillStyle = 'rgba(255,120,110,.35)'; ctx.beginPath(); ctx.ellipse(hx + 7, hy + 4, 3, 2, 0, 0, 7); ctx.fill();
-  // yeux
-  if (anim === 'sleep') {
-    ctx.beginPath(); ctx.moveTo(hx + 2, hy + 1); ctx.quadraticCurveTo(hx + 4.5, hy + 3, hx + 7, hy + 1); ctx.moveTo(hx + 8, hy + 1); ctx.quadraticCurveTo(hx + 10, hy + 3, hx + 11.5, hy + 1); ctx.stroke();
-  } else {
-    const blink = (t % 4.2) > 4.05;
-    const look = anim === 'dig' && o.dig === 'down' ? 1.6 : 0;
-    for (const ex of [4.6, 9.6]) {
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(hx + ex, hy, 2.6, blink ? 0.4 : 3.6, 0, 0, 7); ctx.fill(); ctx.lineWidth = 1; ctx.stroke();
-      if (!blink && o.gender === 'f') { ctx.beginPath(); ctx.moveTo(hx + ex + 1.5, hy - 3.2); ctx.lineTo(hx + ex + 3.4, hy - 4.6); ctx.moveTo(hx + ex + 2.4, hy - 2.4); ctx.lineTo(hx + ex + 4.2, hy - 3.2); ctx.stroke(); }
-      if (!blink) {
-        ctx.fillStyle = '#1b1b24'; ctx.beginPath(); ctx.ellipse(hx + ex + 0.9, hy + 0.6 + look, 1.4, 1.9, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(hx + ex + 1.4, hy - 0.4 + look, 0.6, 0, 7); ctx.fill();
-      }
-    }
-    ctx.lineWidth = lw / k;
-  }
-  // nez + sourire
-  ctx.fillStyle = shade(P.skin, -0.15); ctx.beginPath(); ctx.ellipse(hx + 11.5, hy + 3, 2.2, 1.7, 0, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.lineWidth = 1.2; ctx.moveTo(hx + 5, hy + 6.5); ctx.quadraticCurveTo(hx + 8, hy + 8.6, hx + 10.5, hy + 6.3); ctx.stroke();
-  ctx.lineWidth = lw / k;
-  // mèches (mineur) / frange (mineuse)
-  ctx.fillStyle = P.hair;
-  ctx.beginPath(); ctx.moveTo(hx - 11, hy - 3); ctx.quadraticCurveTo(hx - 4, hy - 1, hx + 2, hy - 5); ctx.quadraticCurveTo(hx + 7, hy - 2, hx + 12, hy - 5);
-  ctx.lineTo(hx + 12, hy - 8); ctx.lineTo(hx - 11, hy - 8); ctx.closePath(); ctx.fill();
-  if (o.helmet === false) { // sans casque (à la maison, dans l'histoire) : chevelure
-    ctx.fillStyle = P.hair;
-    ctx.beginPath(); ctx.moveTo(hx - 12.5, hy - 1); ctx.quadraticCurveTo(hx - 14, hy - 17, hx + 1, hy - 15.5); ctx.quadraticCurveTo(hx + 14, hy - 15, hx + 12.5, hy - 4);
-    ctx.quadraticCurveTo(hx + 7, hy - 3, hx + 3, hy - 6); ctx.quadraticCurveTo(hx - 3, hy - 2, hx - 12.5, hy - 1); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(hx - 4, hy - 11, 4, 1.8, -0.3, 0, 7); ctx.fill();
-  } else {
-  // casque jaune + lampe frontale
-  const hg = ctx.createLinearGradient(0, hy - 20, 0, hy - 4);
-  hg.addColorStop(0, '#ffe066'); hg.addColorStop(1, '#e0a800');
-  ctx.fillStyle = hg;
-  ctx.beginPath(); ctx.moveTo(hx - 13, hy - 6); ctx.quadraticCurveTo(hx - 12, hy - 22, hx + 1, hy - 21); ctx.quadraticCurveTo(hx + 13, hy - 21, hx + 13, hy - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.roundRect(hx - 15, hy - 8, 31, 4.2, 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(hx - 5, hy - 16, 4, 2.2, -0.4, 0, 7); ctx.fill();
-  ctx.fillStyle = '#d9d9d9'; ctx.beginPath(); ctx.ellipse(hx + 12, hy - 12, 3.4, 3.6, 0, 0, 7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff6c8'; ctx.beginPath(); ctx.ellipse(hx + 13, hy - 12, 2, 2.3, 0, 0, 7); ctx.fill();
-  }
-  ctx.restore();
-
-  // mains flottantes (gants) + pioche
-  if (o.tool === false) { // sans pioche (histoire) : les mains suivent le corps
-    const sw = anim === 'walk' ? Math.sin(walk) * 3 : breathe * 0.4;
-    if (o.wave) { const wv = Math.sin(t * 6) * 3; hand(-11, -20 + bob + sw); hand(13 + wv * 0.3, -44 + wv); }
-    else if (o.reach) { hand(-10, -17 + bob); hand(17, -22 + bob + Math.sin(t * 2) * 1.2); }
-    else { hand(-11, -15 + bob + sw); hand(12, -15 + bob - sw); }
-  } else if (anim === 'dig' || anim === 'idle' || anim === 'walk' || anim === 'climb') {
-    // pioche tenue à deux mains, pivot à l'épaule
-    const piv = o.dig === 'down' && anim === 'dig' ? [6, -24] : [8, -22];
-    const base = anim === 'dig' ? (o.dig === 'down' ? 0.5 : 0) : anim === 'walk' ? -0.9 + Math.sin(walk) * 0.08 : -0.7 + breathe * 0.02;
-    const a = base + (anim === 'dig' ? swing * (o.dig === 'down' ? 0.9 : 1) : 0);
-    ctx.save(); ctx.translate(piv[0], piv[1] + bob); ctx.rotate(a);
-    // manche
-    const L = 22;
-    ctx.fillStyle = '#9b6a3e'; ctx.beginPath(); ctx.roundRect(0, -1.6, L, 3.2, 1.6); ctx.fill(); ctx.stroke();
-    // fer de la pioche
-    ctx.save(); ctx.translate(L, 0);
-    const pc = o.pickColor || '#9aa4ae';
-    const ig = ctx.createLinearGradient(0, -12, 0, 12); ig.addColorStop(0, shade(pc, 0.55)); ig.addColorStop(0.5, pc); ig.addColorStop(1, shade(pc, -0.45));
-    ctx.fillStyle = ig;
-    ctx.beginPath(); ctx.moveTo(-1, -2.5); ctx.quadraticCurveTo(2, -10, -4, -14); ctx.quadraticCurveTo(6, -9, 4, -2.5);
-    ctx.lineTo(4, 2.5); ctx.quadraticCurveTo(6, 9, -4, 14); ctx.quadraticCurveTo(2, 10, -1, 2.5); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.restore();
-    hand(7, 0); hand(14, 0);
-    ctx.restore();
-  } else if (anim === 'sleep') {
-    hand(-9, -13); hand(10, -12);
-  }
-  ctx.restore();
-  // « Z z z » quand il dort
-  if (anim === 'sleep') {
-    ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = `700 ${Math.round(s * 0.32)}px Inter Variable, sans-serif`;
-    for (let i = 0; i < 3; i++) {
-      const p = (t * 0.5 + i / 3) % 1;
-      ctx.globalAlpha = Math.sin(p * Math.PI);
-      ctx.fillText('z', x + s * 0.25 + p * s * 0.5, y - s * 1.1 - p * s * 0.8);
-    }
-    ctx.restore();
-  }
-}
-
+/* ---------- personnage : voir hero.js ---------- */
+export { drawMiner } from './hero.js';
 
 /* ---------- surface : ciel, montagnes, ville (peints une fois, mis en cache) ---------- */
 const SKIES = {
@@ -527,37 +376,49 @@ export function paintSkyline(ctx, w, h, hour, seed = 7) {
   ctx.fillStyle = tree;
   for (let x = -10; x < w + 10; x += 6 + rnd() * 10) { const r = h * (0.025 + rnd() * 0.03); ctx.beginPath(); ctx.ellipse(x, ground - r * 0.6, r * 0.8, r * 1.3, 0, 0, 7); ctx.fill(); }
   ctx.fillRect(0, ground - h * 0.02, w, h);
-  // ville : façades sobres, toits d'ardoise ou de tuile, fenêtres chaudes le soir
-  let x = w * 0.2;
+  // ville en silhouettes sur deux plans (plus élégant que des façades détaillées), fenêtres allumées le soir
   const lit = night || kind === 'dusk' || kind === 'dawn';
-  while (x < w * 0.99) {
-    const bw = w * (0.03 + rnd() * 0.035), bh = h * (0.1 + rnd() * 0.14);
-    const wallC = night ? '#1a2038' : kind === 'day' ? ['#d9cbb8', '#e6d9c6', '#cdbba4', '#d4c3ae'][Math.floor(rnd() * 4)] : ['#9d8696', '#a89096', '#8f7b8d'][Math.floor(rnd() * 3)];
-    const roofC = mix(night ? '#121729' : kind === 'day' ? ['#5b5f6b', '#8a4c3a', '#6d4a3d'][Math.floor(rnd() * 3)] : '#4a3a52', haze, night ? 0.05 : 0.25);
-    const wc = mix(wallC, haze, night ? 0.1 : 0.32);
-    const bg = ctx.createLinearGradient(x, 0, x + bw, 0); bg.addColorStop(0, wc); bg.addColorStop(1, shade(wc, -0.16));
-    ctx.fillStyle = bg; ctx.fillRect(x, ground - bh, bw, bh + 2);
-    ctx.fillStyle = roofC; ctx.beginPath(); ctx.moveTo(x - bw * 0.06, ground - bh); ctx.lineTo(x + bw * 0.5, ground - bh - bw * 0.42); ctx.lineTo(x + bw * 1.06, ground - bh); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x, ground - bh, bw, Math.max(1, bh * 0.04));
-    for (let wy = ground - bh + bh * 0.18; wy < ground - h * 0.03; wy += bh * 0.26) {
-      for (let wx = x + bw * 0.18; wx < x + bw * 0.8; wx += bw * 0.32) {
-        const on = lit && rnd() < (night ? 0.55 : 0.35);
-        ctx.fillStyle = on ? '#ffd58a' : night ? '#141a30' : kind === 'day' ? '#5f7f99' : '#5d4e6a';
-        ctx.fillRect(wx, wy, bw * 0.15, bh * 0.11);
-        if (on) { const lg = ctx.createRadialGradient(wx + bw * 0.07, wy + bh * 0.05, 0, wx + bw * 0.07, wy + bh * 0.05, bw * 0.4); lg.addColorStop(0, 'rgba(255,200,120,.25)'); lg.addColorStop(1, 'rgba(255,200,120,0)'); ctx.fillStyle = lg; ctx.fillRect(wx - bw * 0.35, wy - bw * 0.35, bw * 0.85, bw * 0.85); }
+  const town = (scale, t2, so) => {
+    const r2 = rng(seed + so), col = mix(ridge, haze, t2), wins = [];
+    ctx.fillStyle = col;
+    let x = w * 0.16 * scale - 20;
+    while (x < w + 10) {
+      const bw = w * (0.024 + r2() * 0.03) * scale, bh = h * (0.06 + r2() * 0.11) * scale, top = ground - bh, kindR = r2();
+      ctx.beginPath(); ctx.rect(x, top, bw, bh + 2);
+      if (kindR < 0.45) { ctx.moveTo(x - bw * 0.05, top); ctx.lineTo(x + bw / 2, top - bw * 0.45); ctx.lineTo(x + bw * 1.05, top); }
+      else if (kindR < 0.55) { ctx.rect(x + bw * 0.35, top - bh * 0.9, bw * 0.3, bh * 0.9); ctx.moveTo(x + bw * 0.3, top - bh * 0.9); ctx.lineTo(x + bw / 2, top - bh * 1.45); ctx.lineTo(x + bw * 0.7, top - bh * 0.9); }
+      else if (kindR < 0.7) ctx.rect(x + bw * 0.7, top - bh * 0.18, bw * 0.12, bh * 0.18);
+      ctx.fill();
+      for (let wy = top + bh * 0.2; wy < ground - bh * 0.15; wy += bh * 0.22) for (let wx = x + bw * 0.2; wx < x + bw * 0.8; wx += bw * 0.3) {
+        if (r2() < (night ? 0.45 : lit ? 0.3 : 0.12)) wins.push([wx, wy, bw * 0.12, bh * 0.09]);
       }
+      x += bw * (0.92 + r2() * 0.35);
     }
-    if (rnd() < 0.1) { // clocher
-      ctx.fillStyle = shade(wallC, -0.05); ctx.fillRect(x + bw * 1.05, ground - bh * 1.8, bw * 0.38, bh * 1.8);
-      ctx.fillStyle = roofC; ctx.beginPath(); ctx.moveTo(x + bw * 1.0, ground - bh * 1.8); ctx.lineTo(x + bw * 1.24, ground - bh * 2.5); ctx.lineTo(x + bw * 1.48, ground - bh * 1.8); ctx.closePath(); ctx.fill();
-      x += bw * 0.5;
+    for (const [wx, wy, ww, wh] of wins) {
+      ctx.fillStyle = lit ? 'rgba(255,206,130,.95)' : rgba(haze, 0.5); ctx.fillRect(wx, wy, ww, wh);
+      if (lit) { const lg = ctx.createRadialGradient(wx + ww / 2, wy + wh / 2, 0, wx + ww / 2, wy + wh / 2, ww * 3); lg.addColorStop(0, 'rgba(255,190,110,.22)'); lg.addColorStop(1, 'rgba(255,190,110,0)'); ctx.fillStyle = lg; ctx.fillRect(wx - ww * 3, wy - ww * 3, ww * 7, ww * 7); }
     }
-    x += bw * (1.02 + rnd() * 0.3);
-  }
+  };
+  town(0.8, 0.45, 11);
+  town(1, 0.22, 23);
   // brume au pied de la ville
   const mg = ctx.createLinearGradient(0, ground - h * 0.12, 0, h);
   mg.addColorStop(0, rgba(haze, 0)); mg.addColorStop(1, rgba(haze, night ? 0.12 : 0.3));
   ctx.fillStyle = mg; ctx.fillRect(0, ground - h * 0.12, w, h);
+}
+
+/* arbre stylisé (feuillage en volumes doux, liseré de lumière) */
+export function drawTree(ctx, x, groundY, S, night, seed = 1) {
+  const rnd = rng(seed), h = S * (2.2 + rnd() * 0.9), leaf = night ? '#1d3a33' : '#3c6b4a', trunk = night ? '#2a2019' : '#5a3e2a';
+  ctx.save();
+  ctx.fillStyle = trunk; ctx.beginPath(); ctx.moveTo(x - S * 0.08, groundY); ctx.lineTo(x - S * 0.04, groundY - h * 0.55); ctx.lineTo(x + S * 0.04, groundY - h * 0.55); ctx.lineTo(x + S * 0.09, groundY); ctx.closePath(); ctx.fill();
+  const blobs = [[0, -h * 0.62, S * 0.62], [-S * 0.32, -h * 0.5, S * 0.42], [S * 0.34, -h * 0.52, S * 0.44], [0, -h * 0.86, S * 0.46]];
+  for (const [bx, by, r] of blobs) {
+    const g = ctx.createRadialGradient(x + bx - r * 0.35, groundY + by - r * 0.4, r * 0.1, x + bx, groundY + by, r * 1.05);
+    g.addColorStop(0, shade(leaf, night ? 0.12 : 0.3)); g.addColorStop(1, shade(leaf, -0.3));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x + bx, groundY + by, r, 0, 7); ctx.fill();
+  }
+  ctx.restore();
 }
 
 /* chevalement : tour en acier riveté au-dessus du puits, molette et câble */

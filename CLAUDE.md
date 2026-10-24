@@ -307,6 +307,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
 - **La mine** (jeu dans le labo, page 5, carte dans l'onglet Pomodoro) : `src/game/` (`data.js` mondes / minerais / améliorations,
   `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
+  **DA « Lueur » (v3)** : roche ardoise violette, terre ombre chaude, obscurité indigo (jamais noir plat), lumière ambrée des lanternes ;
+  galeries aux **bords organiques** (union de disques décalés + passages, contour sombre + arête claire, ombres intérieures),
+  limite terre / roche ondulée continue (`dirtEdge`), teinte de profondeur (ocre → violet → bleu → turquoise), stalactites, racines,
+  cristaux décoratifs en profondeur, rayons de jour dans le puits, grain fin, ville en silhouettes, arbres (`drawTree`) ;
+  personnage redessiné dans `hero.js` (manteau, écharpe qui flotte, sac à dos qui grossit avec le butin `bag`, casque ocre + lampe laiton) ;
   **v2 premium** : matières peintes sans raccord (`makeTiles`, textures 4 × 4 cases remplies en motif, îlots de terre arrondis dans
   la roche, coins des galeries arrondis), minerais facettés, bâtiments à plaques dorées, ciel en perspective atmosphérique, vignette ;
   **galeries aléatoires** (`plan()` : tronçons de longueur variable, marches, montées, demi-tours, niveau du chantier `DESCENT`,

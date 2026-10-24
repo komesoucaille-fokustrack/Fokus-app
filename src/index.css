@@ -879,17 +879,17 @@
 .fk { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; font-weight: 700; }
 .fk-coin { display: inline-block; flex: none; line-height: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
 .mine { display: grid; gap: 10px; }
-.mine-stage { position: relative; height: min(68vh, 640px); min-height: 380px; border-radius: 22px; overflow: hidden; border: 1px solid var(--color-edge); background: #120c08; box-shadow: 0 20px 50px -20px rgba(0,0,0,.8); }
+.mine-stage { position: relative; height: min(68vh, 640px); min-height: 380px; border-radius: 22px; overflow: hidden; border: 1px solid rgba(190,180,255,.12); background: #080712; box-shadow: 0 24px 60px -24px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.06); }
 .mine-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .mine-hud { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .mine-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 600; color: #fff;
-  background: rgba(12,9,7,.72); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); font-variant-numeric: tabular-nums; }
-.mine-coins { font-size: 16px; color: #ffe08a; }
+  background: linear-gradient(180deg, rgba(26,23,44,.78), rgba(10,9,20,.78)); border: 1px solid rgba(200,190,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 6px 16px -8px rgba(0,0,0,.6); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.mine-coins { font-size: 16px; color: #ffe08a; border-color: rgba(255,214,120,.35); }
 .mine-wait { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(94%, 560px); display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px 10px 16px; border-radius: 18px; background: rgba(12,9,7,.84); border: 1px solid rgba(255,220,150,.22); color: #f5efe6; font-size: 13.5px; }
+  padding: 10px 12px 10px 16px; border-radius: 18px; background: linear-gradient(180deg, rgba(24,21,40,.9), rgba(10,9,20,.9)); border: 1px solid rgba(200,190,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 16px 30px -16px rgba(0,0,0,.8); color: #f2f0fa; font-size: 13.5px; }
 .mine-wait-t { flex: 1; display: grid; gap: 2px; min-width: 0; }
 .mine-wait b { font-size: 14.5px; }
-.mine-wait-t > span { color: #d6cbbd; font-size: 12.5px; }
+.mine-wait-t > span { color: #c9c4dc; font-size: 12.5px; }
 .mine-wait .b { flex: none; }
 .mine-recenter { position: absolute; right: 12px; bottom: 12px; min-height: 40px; padding: 0 14px; border-radius: 99px; background: #fde68a; color: #1a1205; font-weight: 700; font-size: 13.5px; }
 .mine-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

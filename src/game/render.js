@@ -1,6 +1,6 @@
 import { AIR, BEDROCK, PICKS } from './data.js';
-import { ENTRY, START_Y, tile, tileAt } from './sim.js';
-import { PATCH, drawHeadframe, drawLadder, drawLantern, drawMarket, drawMiner, drawShop, drawSupport, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
+import { ENTRY, START_Y, cap, dirtEdge, tile, tileAt } from './sim.js';
+import { PATCH, drawTree, drawHeadframe, drawLadder, drawLantern, drawMarket, drawMiner, drawShop, drawSupport, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
 
 /* =====================================================================
    LA MINE — rendu d'une image : caméra qui suit le personnage, ciel + ville en surface, galeries creusées.
@@ -18,7 +18,7 @@ export const BUILDINGS = [
   { id: 'market', x0: 13.6, x1: 17.2, h: 3.4 },
 ];
 const MARKET_X = 15.4; // le personnage vend devant l'étal
-const DARK = [6, 5, 9]; // couleur de l'obscurité
+const DARK = [8, 7, 18]; // couleur de l'obscurité (indigo très sombre, jamais un noir plat)
 const h2 = (x, y) => { let h = Math.imul(x * 374761393 + y * 668265263, 1274126177); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
 
 export function createView(canvas, W) {
@@ -145,73 +145,109 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
     ctx.fillStyle = skyColors(hour)[0]; if (groundY - skyH > 0) ctx.fillRect(0, 0, v.w, groundY - skyH + 1);
   }
 
-  // cases visibles
+  // cases visibles (+ une case de marge pour les formes arrondies)
   const x0 = Math.max(0, Math.floor(cx / TS)), x1 = Math.min(W.width - 1, Math.ceil((cx + v.w) / TS));
   const y0 = Math.max(0, Math.floor(cy / TS)), y1 = Math.min(W.depth - 1, Math.ceil((cy + v.h) / TS));
   const T = v.tiles;
   const solid = (x, y) => y >= 0 && tile(W, set, x, y) !== AIR;
-  const matOf = (x, y) => (tileAt(W, x, y) === 1 ? 1 : 2);
-  // matières : la roche d'abord (un seul remplissage en motif), puis des îlots de terre aux bords arrondis,
-  // découpés dans la roche ; idem pour la paroi du fond des galeries
-  const solidP = new Path2D(), airP = new Path2D(), dirtP = new Path2D(), dirtW = new Path2D();
-  const ores = [], airs = [];
-  const isle = (p, x, y, sx, sy) => { const rr = TS * (0.7 + h2(x, y) * 0.08); p.moveTo(sx + TS / 2 + rr, sy + TS / 2); p.ellipse(sx + TS / 2, sy + TS / 2, rr, rr * (0.92 + h2(y, x) * 0.12), 0, 0, 7); };
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      const k = tile(W, set, x, y), sx = x * TS - cx, sy = y * TS - cy;
-      if (k === BEDROCK) continue;
-      if (k === AIR) { airP.rect(sx, sy, TS + 0.6, TS + 0.6); airs.push([x, y, sx, sy]); if (matOf(x, y) === 1) isle(dirtW, x, y, sx, sy); continue; }
-      solidP.rect(sx, sy, TS + 0.6, TS + 0.6);
-      if (k === 1) isle(dirtP, x, y, sx, sy);
-      if (k >= 3) ores.push([x, y, sx, sy, k]);
-    }
-  }
-  // arrondis des galeries : coins intérieurs remplis de roche (la galerie ressemble à un vrai tunnel creusé)
-  const r = TS * 0.3;
-  for (const [x, y, sx, sy] of airs) {
-    const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
-    const fil = (px, py, ax, ay) => { // coin (px, py) : carré de côté r moins un quart de disque
-      const ox = px + ax * r, oy = py + ay * r;
-      const a1 = Math.atan2(-ay, 0), a2 = Math.atan2(0, -ax);
-      let dlt = a2 - a1; while (dlt > Math.PI) dlt -= 2 * Math.PI; while (dlt <= -Math.PI) dlt += 2 * Math.PI;
-      solidP.moveTo(px, py); solidP.lineTo(ox, py); solidP.arc(ox, oy, r, a1, a2, dlt < 0); solidP.lineTo(px, py); solidP.closePath();
-    };
-    if (up && lf) fil(sx, sy, 1, 1);
-    if (up && rt) fil(sx + TS, sy, -1, 1);
-    if (dn && lf) fil(sx, sy + TS, 1, -1);
-    if (dn && rt) fil(sx + TS, sy + TS, -1, -1);
-  }
+  const isAir = (x, y) => y >= 0 && tile(W, set, x, y) === AIR;
   const m = new DOMMatrix().translateSelf(-cx, -cy).scaleSelf(TS / T.S);
-  const fillPat = (pat, path) => { pat.setTransform?.(m); ctx.fillStyle = pat; ctx.fill(path); };
-  ctx.save(); ctx.clip(airP); fillPat(v.pat.wall[2], airP); fillPat(v.pat.wall[1], dirtW); ctx.restore();
-  ctx.save(); ctx.clip(solidP); fillPat(v.pat.mat[2], solidP); fillPat(v.pat.mat[1], dirtP); ctx.restore();
-  for (const [x, y, sx, sy, k] of ores) ctx.drawImage(T.ore[k][(x * 7 + y * 13) % 3], sx, sy, TS, TS);
-  // relief : la face supérieure de la roche sous une galerie accroche la lumière
-  for (const [x, y, sx, sy] of airs) {
-    if (!solid(x, y + 1)) continue;
-    const gr = ctx.createLinearGradient(0, sy + TS, 0, sy + TS * 1.22); gr.addColorStop(0, 'rgba(255,226,190,.2)'); gr.addColorStop(1, 'rgba(255,226,190,0)');
-    ctx.fillStyle = gr; ctx.fillRect(sx, sy + TS, TS, TS * 0.22);
+  const fillPat = (pat, path) => { pat.setTransform?.(m); ctx.fillStyle = pat; path ? ctx.fill(path) : ctx.fill(); };
+  const gTop = Math.max(0, groundY);
+  const ores = [], airs = [];
+  if (gTop < v.h) {
+    // 1) la roche, d'un seul tenant
+    ctx.beginPath(); ctx.rect(0, gTop, v.w, v.h - gTop); fillPat(v.pat.mat[2]);
+    // 2) la couche de terre : limite ondulée continue (même formule que la simulation) + poches arrondies
+    const dirt = new Path2D();
+    dirt.moveTo(-2, groundY);
+    for (let px = -2; px <= v.w + 8; px += 8) dirt.lineTo(px, dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy);
+    dirt.lineTo(v.w + 8, groundY); dirt.closePath();
+    for (let y = Math.max(y0, 8); y <= Math.min(y1, 32); y++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+      if (tileAt(W, x, y) !== 1 || y < dirtEdge(W, x)) continue;
+      const rr = TS * (0.68 + h2(x, y) * 0.1), px = x * TS - cx + TS / 2, py = y * TS - cy + TS / 2;
+      dirt.moveTo(px + rr, py); dirt.ellipse(px, py, rr, rr * 0.9, 0, 0, 7);
+    }
+    fillPat(v.pat.mat[1], dirt);
+    // liseré à la limite terre / roche (la ligne ondulée seulement)
+    const edge = new Path2D();
+    for (let px = -2; px <= v.w + 8; px += 8) { const ey = dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy; px < 0 ? edge.moveTo(px, ey) : edge.lineTo(px, ey); }
+    ctx.strokeStyle = 'rgba(14,9,16,.5)'; ctx.lineWidth = TS * 0.08; ctx.stroke(edge);
+    ctx.save(); ctx.translate(0, -TS * 0.04); ctx.strokeStyle = 'rgba(255,220,190,.07)'; ctx.lineWidth = TS * 0.03; ctx.stroke(edge); ctx.restore();
   }
-  // galeries : ombre portée du plafond, sol en gravier, boiseries, échelles
+  // 3) minerais (visibles seulement s'ils sont éclairés : l'obscurité les recouvre ensuite)
+  for (let y = y0; y <= y1; y++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+    const k = tile(W, set, x, y);
+    if (k === AIR) { airs.push([x, y, x * TS - cx, y * TS - cy]); continue; }
+    if (k >= 3) { ores.push([x, y, x * TS - cx, y * TS - cy, k]); ctx.drawImage(T.ore[k][(x * 7 + y * 13) % 3], x * TS - cx, y * TS - cy, TS, TS); }
+  }
+  // 4) galeries aux bords organiques : union de disques (une case) et de passages (entre deux cases voisines)
+  const tun = new Path2D();
+  for (const [x, y, sx, sy] of airs) {
+    // centre légèrement décalé et rayon variable : parois irrégulières, jamais un festonnage régulier
+    const ccx = sx + TS / 2 + (h2(x * 5, y) - 0.5) * TS * 0.14, ccy = sy + TS / 2 + (h2(x, y * 5) - 0.5) * TS * 0.1, rr = TS * (0.5 + h2(x, y) * 0.1);
+    tun.moveTo(ccx + rr, ccy); tun.arc(ccx, ccy, rr, 0, Math.PI * 2);
+    if (isAir(x + 1, y)) { const hh = TS * (0.42 + h2(x * 3, y) * 0.1); tun.rect(sx + TS / 2, sy + TS / 2 - hh + (h2(x, y * 9) - 0.5) * TS * 0.06, TS, hh * 2); }
+    if (isAir(x, y + 1)) { const ww = TS * (0.38 + h2(x, y * 3) * 0.08); tun.rect(sx + TS / 2 - ww, sy + TS / 2, ww * 2, TS); }
+    if (y === 0) tun.rect(sx + TS * 0.08, sy - 1, TS * 0.84, TS / 2 + 1); // ouverture du puits au ras du sol
+  }
+  // rebord de roche : contour sombre + arête claire sous le sol des galeries (dessinés avant le creux, qui en recouvre la moitié)
+  ctx.lineJoin = 'round';
+  ctx.save(); ctx.translate(0, TS * 0.045); ctx.strokeStyle = 'rgba(255,228,200,.22)'; ctx.lineWidth = TS * 0.09; ctx.stroke(tun); ctx.restore();
+  ctx.strokeStyle = 'rgba(10,8,18,.75)'; ctx.lineWidth = TS * 0.1; ctx.stroke(tun);
+  fillPat(v.pat.wall[2], tun);
+  ctx.save(); ctx.clip(tun);
+  if (gTop < v.h) { // paroi de terre au-dessus de la limite terre / roche
+    const dw = new Path2D(); dw.moveTo(-2, groundY);
+    for (let px = -2; px <= v.w + 8; px += 8) dw.lineTo(px, dirtEdge(W, (px + cx) / TS - 0.5) * TS - cy);
+    dw.lineTo(v.w + 8, groundY); dw.closePath(); fillPat(v.pat.wall[1], dw);
+  }
+  // ombres intérieures (plafond, parois, sol) — à l'intérieur du creux seulement
   for (const [x, y, sx, sy] of airs) {
     const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
-    if (up) {
-      const gr = ctx.createLinearGradient(0, sy, 0, sy + TS * 0.55); gr.addColorStop(0, 'rgba(0,0,0,.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(sx, sy, TS, TS * 0.55);
-      ctx.fillStyle = 'rgba(8,5,3,.85)'; // bord du plafond, petites aspérités
-      ctx.beginPath(); ctx.moveTo(sx, sy); for (let i = 0; i <= 6; i++) ctx.lineTo(sx + (TS * i) / 6, sy + TS * (0.02 + h2(x * 7 + i, y) * 0.06)); ctx.lineTo(sx + TS, sy); ctx.closePath(); ctx.fill();
+    if (up) { const gr = ctx.createLinearGradient(0, sy, 0, sy + TS * 0.6); gr.addColorStop(0, 'rgba(6,5,14,.75)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 1, sy - TS * 0.1, TS + 2, TS * 0.7); }
+    if (dn) { const gr = ctx.createLinearGradient(0, sy + TS, 0, sy + TS * 0.72); gr.addColorStop(0, 'rgba(6,5,14,.4)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - 1, sy + TS * 0.72, TS + 2, TS * 0.4); }
+    if (lf) { const gr = ctx.createLinearGradient(sx, 0, sx + TS * 0.35, 0); gr.addColorStop(0, 'rgba(6,5,14,.5)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx - TS * 0.1, sy, TS * 0.45, TS); }
+    if (rt) { const gr = ctx.createLinearGradient(sx + TS, 0, sx + TS * 0.65, 0); gr.addColorStop(0, 'rgba(6,5,14,.5)'); gr.addColorStop(1, 'rgba(6,5,14,0)'); ctx.fillStyle = gr; ctx.fillRect(sx + TS * 0.65, sy, TS * 0.45, TS); }
+  }
+  ctx.restore();
+  // 5) décor des galeries : gravier, racines, stalactites, cristaux, boisages, échelles
+  for (const [x, y, sx, sy] of airs) {
+    const up = solid(x, y - 1), dn = solid(x, y + 1), lf = solid(x - 1, y), rt = solid(x + 1, y);
+    if (dn) for (let i = 0; i < 3; i++) { // gravier au sol
+      const px = sx + TS * (0.05 + h2(x * 5 + i, y) * 0.9), pr = TS * (0.025 + h2(x, y * 3 + i) * 0.04), py = sy + TS * (0.98 + Math.abs(px - sx - TS / 2) / TS * 0.06) - pr * 0.7;
+      ctx.fillStyle = i % 2 ? '#4d4458' : '#2c2735'; ctx.beginPath(); ctx.ellipse(px, py, pr * 1.4, pr, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,235,210,.1)'; ctx.beginPath(); ctx.ellipse(px - pr * 0.3, py - pr * 0.4, pr * 0.5, pr * 0.25, 0, 0, 7); ctx.fill();
     }
-    if (lf) { const gr = ctx.createLinearGradient(sx, 0, sx + TS * 0.3, 0); gr.addColorStop(0, 'rgba(0,0,0,.4)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(sx, sy, TS * 0.3, TS); }
-    if (rt) { const gr = ctx.createLinearGradient(sx + TS, 0, sx + TS * 0.7, 0); gr.addColorStop(0, 'rgba(0,0,0,.4)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(sx + TS * 0.7, sy, TS * 0.3, TS); }
-    if (dn) { // sol : gravier et petites pierres
-      ctx.fillStyle = 'rgba(255,228,196,.22)'; ctx.fillRect(sx, sy + TS - 1, TS, 1.2);
-      for (let i = 0; i < 4; i++) {
-        const u = h2(x * 5 + i, y), px = sx + TS * (0.1 + u * 0.8), pr = TS * (0.03 + h2(x, y * 3 + i) * 0.04);
-        ctx.fillStyle = i % 2 ? '#5a4a3e' : '#3b2f27'; ctx.beginPath(); ctx.ellipse(px, sy + TS - pr * 0.6, pr * 1.3, pr, 0, 0, 7); ctx.fill();
+    if (up && y < 12 && h2(x, y + 7) < 0.5) { // racines qui pendent près de la surface
+      ctx.strokeStyle = 'rgba(70,45,30,.9)'; ctx.lineWidth = Math.max(1, TS / 36);
+      for (let i = 0; i < 2; i++) { const rx = sx + TS * (0.2 + h2(x + i, y) * 0.6), rl = TS * (0.18 + h2(y, x + i) * 0.22); ctx.beginPath(); ctx.moveTo(rx, sy + TS * 0.04); ctx.quadraticCurveTo(rx + TS * 0.06 * Math.sin(t * 0.8 + x), sy + rl * 0.6, rx - TS * 0.03, sy + rl); ctx.stroke(); }
+    } else if (up && h2(x * 3, y) < 0.35) { // stalactites
+      for (let i = 0; i < 2; i++) {
+        const rx = sx + TS * (0.15 + h2(x, y + i * 5) * 0.7), rl = TS * (0.08 + h2(x + i * 9, y) * 0.12), rw = rl * 0.35;
+        const gr = ctx.createLinearGradient(0, sy, 0, sy + rl); gr.addColorStop(0, '#2a2534'); gr.addColorStop(1, '#5c5470');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(rx - rw, sy + TS * 0.02); ctx.lineTo(rx, sy + TS * 0.02 + rl); ctx.lineTo(rx + rw, sy + TS * 0.02); ctx.closePath(); ctx.fill();
+      }
+    }
+    if (y > 30 && (dn || up) && h2(x * 7, y * 3) < 0.12) { // petits cristaux décoratifs dans les profondeurs
+      const base = dn ? sy + TS * 0.98 : sy + TS * 0.02, dir = dn ? -1 : 1, cxx = sx + TS * (0.3 + h2(x, y * 7) * 0.4), hue = y > 70 ? ['#7ee0d0', '#d9fff8'] : ['#a99cff', '#efeaff'];
+      for (let i = 0; i < 3; i++) {
+        const ox = (i - 1) * TS * 0.07, hh = TS * (0.12 + h2(x + i, y) * 0.14) * (i === 1 ? 1.3 : 1), ww = TS * 0.035;
+        const gr = ctx.createLinearGradient(cxx + ox - ww, 0, cxx + ox + ww, 0); gr.addColorStop(0, hue[1]); gr.addColorStop(1, hue[0]);
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(cxx + ox - ww, base); ctx.lineTo(cxx + ox - ww * 0.8 + (i - 1) * ww, base + dir * hh * 0.8); ctx.lineTo(cxx + ox + (i - 1) * ww * 1.2, base + dir * hh); ctx.lineTo(cxx + ox + ww, base); ctx.closePath(); ctx.fill();
       }
     }
     const tunnel = up && dn && (!lf || !rt);
-    if (tunnel && h2(x, y) < 0.22 && y > 1) drawSupport(ctx, sx, sy, TS);
-    else if (lf && rt && (!solid(x, y - 1) || !solid(x, y + 1)) && y > 0) drawLadder(ctx, sx, sy, TS);
+    if (tunnel && h2(x, y) < 0.2 && y > 1) drawSupport(ctx, sx, sy, TS);
+    // échelle seulement dans les puits étroits (pas dans les grandes salles)
+    if (isAir(x, y + 1) && ((lf && rt) || (solid(x - 1, y + 1) && solid(x + 1, y + 1)))) drawLadder(ctx, sx, sy + TS * 0.5, TS);
+  }
+  // teinte de profondeur : la roche change de couleur en descendant (terre chaude → ardoise violette → bleu → turquoise)
+  if (gTop < v.h) {
+    const dg = ctx.createLinearGradient(0, groundY, 0, groundY + W.depth * TS);
+    dg.addColorStop(0, 'rgb(255,246,236)'); dg.addColorStop(0.25, 'rgb(226,218,240)'); dg.addColorStop(0.6, 'rgb(190,204,240)'); dg.addColorStop(1, 'rgb(170,218,214)');
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = dg; ctx.fillRect(0, gTop, v.w, v.h - gTop);
+    ctx.globalCompositeOperation = 'source-over';
   }
   // lanternes posées par le mineur
   const lampR = 4.8 + 0.5 * (g.up.lant || 0), sources = [], lit = [];
@@ -249,6 +285,11 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
       ctx.moveTo(bx, groundY); ctx.quadraticCurveTo(bx + lean * 0.3, groundY - bh * 0.6, bx + lean, groundY - bh);
     }
     ctx.stroke();
+    // la terre s'assombrit doucement sous l'herbe (raccord avec le sous-sol)
+    const sg = ctx.createLinearGradient(0, groundY + TS * 0.15, 0, groundY + TS * 1.4);
+    sg.addColorStop(0, 'rgba(8,7,18,0)'); sg.addColorStop(1, 'rgba(8,7,18,.45)');
+    ctx.fillStyle = sg; ctx.fillRect(0, groundY + TS * 0.15, v.w, TS * 1.25);
+    for (const [tx3, sd] of [[8.4, 3], [9.1, 5], [18.2, 7], [19.4, 2], [23.5, 9]]) drawTree(ctx, tx3 * TS - cx, groundY, TS, night, sd);
     drawWorkshop(ctx, 0.2 * TS - cx, groundY, TS, night, goal.progress, goal.built);
     drawShop(ctx, 4.4 * TS - cx, groundY, TS, night);
     drawHeadframe(ctx, (ENTRY + 0.5) * TS - cx, groundY, TS, live && g.act !== 'rest' ? t : 0, night);
@@ -270,19 +311,11 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
   }
   ctx.globalAlpha = 1;
   // personnage
-  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.15, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1] });
+  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.15, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1], bag: g.bagN / cap(g) });
 
   // ---------- lumière ----------
   const under = groundY < v.h;
   if (under) {
-    // teinte de profondeur : la roche refroidit en descendant (ocre → ardoise → violet)
-    const top = Math.max(0, groundY + TS * 3);
-    if (top < v.h) {
-      const dg = ctx.createLinearGradient(0, groundY, 0, groundY + W.depth * TS);
-      dg.addColorStop(0, 'rgb(255,248,238)'); dg.addColorStop(0.35, 'rgb(214,208,222)'); dg.addColorStop(1, 'rgb(160,150,200)');
-      ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = dg; ctx.fillRect(0, top, v.w, v.h - top);
-      ctx.globalCompositeOperation = 'source-over';
-    }
     const helm = { x: hero.x + hero.face * 0.15, y: hero.y - 0.75, r: (3.5 + vision * 0.875) * (1 + Math.sin(t * 6) * 0.01), i: 1, wall: 0.95 };
     sources.push(helm, { x: ENTRY + 0.5, y: -0.5, r: 5, i: 0.9 });
     const cols = x1 - x0 + 3, rows = y1 - y0 + 3, Lx0 = x0 - 1, Ly0 = y0 - 1;
@@ -301,6 +334,14 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
         const o = ((j * 2 + b) * C2 + i * 2 + a) * 4;
         d[o] = DARK[0]; d[o + 1] = DARK[1]; d[o + 2] = DARK[2]; d[o + 3] = Math.round((1 - Math.min(1, Math.pow(val, 0.75))) * 255);
       }
+    }
+    // flou 3 × 3 sur l'opacité : bords de lumière doux, jamais en escalier
+    const A = v.alpha && v.alpha.length === C2 * R2 ? v.alpha : (v.alpha = new Uint8ClampedArray(C2 * R2));
+    for (let i = 0; i < C2 * R2; i++) A[i] = d[i * 4 + 3];
+    for (let j = 0; j < R2; j++) for (let i = 0; i < C2; i++) {
+      let sum = 0, n = 0;
+      for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= C2 || jj >= R2) continue; sum += A[jj * C2 + ii]; n++; }
+      d[(j * C2 + i) * 4 + 3] = sum / n;
     }
     sc.putImageData(img, 0, 0);
     ctx.imageSmoothingQuality = 'high';
@@ -340,6 +381,22 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
     }
     ctx.globalCompositeOperation = 'source-over';
   }
+  // rayons de jour qui descendent dans le puits
+  if (groundY > -TS * 2 && groundY < v.h) {
+    const px = (ENTRY + 0.5) * TS - cx, ray = ctx.createLinearGradient(0, groundY, 0, groundY + TS * 4.5);
+    ray.addColorStop(0, night ? 'rgba(170,190,255,.14)' : 'rgba(255,240,200,.22)'); ray.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ray;
+    ctx.beginPath(); ctx.moveTo(px - TS * 0.42, groundY); ctx.lineTo(px + TS * 0.42, groundY); ctx.lineTo(px + TS * 0.9, groundY + TS * 4.5); ctx.lineTo(px - TS * 0.2, groundY + TS * 4.5); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // grain fin (texture préparée une fois)
+  if (!v.grain) {
+    const gc = document.createElement('canvas'); gc.width = gc.height = 128;
+    const gx = gc.getContext('2d'), im = gx.createImageData(128, 128);
+    for (let i = 0; i < im.data.length; i += 4) { const n = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = n; im.data[i + 3] = 255; }
+    gx.putImageData(im, 0, 0); v.grain = ctx.createPattern(gc, 'repeat');
+  }
+  ctx.globalAlpha = 0.035; ctx.fillStyle = v.grain; ctx.fillRect(0, 0, v.w, v.h); ctx.globalAlpha = 1;
   // vignette
   ctx.drawImage(v.vig, -v.w * 0.08, -v.h * 0.08, v.w * 1.16, v.h * 1.16);
   // textes flottants (« +1 Or », « au coffre »…)

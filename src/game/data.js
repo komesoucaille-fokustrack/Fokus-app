@@ -17,8 +17,8 @@ export const WORLDS = [
     sky: ['#7ec8f2', '#bfe6ff'], town: '#2f4558',
     goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 3000, build: 9000, next: 'La région · Massif central' },
     tiles: {
-      [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#6e4a32', '#8d6444', '#432c1c'] },
-      [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#5a534d', '#7a7168', '#37312d'] },
+      [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#5c3d2c', '#7d5642', '#3a2419'] },
+      [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#433d52', '#5f5874', '#28232f'] },
     },
     ores: [
       { id: 'charbon', name: 'Charbon', value: 1, hard: 1.6, w: 40, deep: 0, min: 0, colors: ['#2a2a2e', '#55555c', '#121214'] },

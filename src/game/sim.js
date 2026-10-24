@@ -19,7 +19,12 @@ function hash(x, y, s) {
   return (h >>> 0) / 4294967296;
 }
 
-/* Contenu d'origine d'une tuile (avant creusage) */
+/* limite terre / roche : ondulée et continue (bruit lissé le long de x, utilisable aussi entre deux cases pour le dessin) */
+export function dirtEdge(W, x) {
+  const n = (u) => hash(Math.floor(u), 0, W.seed + 4), sm = (u) => { const i = Math.floor(u), f = u - i, k = f * f * (3 - 2 * f); return n(i) * (1 - k) + n(i + 1) * k; };
+  return 6 + sm(x / 7) * 4 + sm(x / 2.3 + 40) * 1.5;
+}
+/* Contenu d'origine d'une tuile (avant creusage) ; quelques poches de terre plus bas */
 export function tileAt(W, x, y) {
   if (x < 0 || x >= W.width || y >= W.depth) return BEDROCK;
   if (y < 0) return AIR;
@@ -41,10 +46,7 @@ export function tileAt(W, x, y) {
     return 3;
   }
   // roche de base : terre en surface, pierre en profondeur (avec des poches)
-  // limite terre / roche ondulée et continue (bruit lissé le long de x), quelques poches de terre plus bas
-  const n = (u) => hash(Math.floor(u), 0, W.seed + 4), sm = (u) => { const i = Math.floor(u), f = u - i, k = f * f * (3 - 2 * f); return n(i) * (1 - k) + n(i + 1) * k; };
-  const edge = 6 + sm(x / 7) * 4 + sm(x / 2.3 + 40) * 1.5;
-  if (y < edge) return DIRT;
+  if (y < dirtEdge(W, x)) return DIRT;
   const p = hash(Math.floor(x / 4), Math.floor(y / 4), W.seed + 5);
   return y < 30 && p < 0.07 && hash(x, y, W.seed + 6) < 0.85 ? DIRT : ROCK;
 }
