@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Sheet from './Sheet';
-import { BADGES, focusSecs, getState, setMine, setPage, toast, useStore } from '../store';
-import { BADGE_FK, COIN, PICKS, SHOP_CATS, TASK_REWARD, UPGRADES, upCost, world } from '../game/data.js';
+import { BADGES, focusSecs, getState, setMine, setPage, setSetting, toast, useStore } from '../store';
+import { BADGE_FK, COIN, PICKS, SHOP_CATS, SKINS, TASK_REWARD, UPGRADES, upCost, world } from '../game/data.js';
 import {
   buy, canTravel, cap, claim, dayKey, depthM, dugSet, fillMissions, fixGame, goalCost, missionProgress, newGame, payBadges, payTasks, price,
-  recover, sell, setDir, stam, step, stockValue, travel,
+  recover, sell, sellPrice, setDir, stam, step, stockValue, travel, buySkin,
 } from '../game/sim.js';
 import { createView, drawFrame, hitBuilding, pop } from '../game/render.js';
 import { COIN_SVG, drawHeadframe, drawMiner, drawPickIconAt, drawWorkshop, paintCave, paintSkyline } from '../game/art.js';
@@ -173,6 +173,11 @@ function Intro({ onStart }) {
       <div className="mine-intro" ref={box}>
         <span className="mine-kicker">Nouvelle aventure</span>
         <h2>⛏️ La mine</h2>
+        <div className="mine-about">
+          <p><b>🎮 Un petit jeu en bonus, rien d’obligatoire.</b> Pendant que tu te concentres, un mineur travaille avec toi : chaque minute de concentration le fait avancer dans sa mine. Vous vous motivez l’un l’autre pour aller chercher ce dont vous rêvez.</p>
+          <p className="mine-about-s">Tu peux le retirer à tout moment, et le remettre ensuite dans Réglages → Pomodoro.</p>
+          <button type="button" className="mine-link" onClick={() => { setSetting('mine', false); setPage(4); toast('⛏️ Jeu retiré. Tu peux le remettre dans Réglages → Pomodoro.', null, 4500); }}>Retirer ce jeu</button>
+        </div>
         <p>Choisis qui va vivre cette aventure. Pendant chacune de tes sessions de concentration, {gender === 'f' ? 'elle' : 'il'} creusera pour toi.</p>
         <div className="mine-pick">
           {[['f', 'Mineuse', 'Maé'], ['m', 'Mineur', 'Noé']].map(([g, l, n]) => (
@@ -236,7 +241,17 @@ function PickIcon({ tier, size = 40 }) {
   return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden="true" />;
 }
 
-function Shop({ g, onBuy, onClose }) {
+function SkinPreview({ g, skin }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current, d = Math.min(2, devicePixelRatio || 1);
+    c.width = 96 * d; c.height = 128 * d;
+    const ctx = c.getContext('2d'); ctx.scale(d, d);
+    drawMiner(ctx, 44, 122, 82, { gender: g.hero.gender, anim: 'idle', t: 0.4, face: 1, skin: skin.c || undefined, pickColor: (PICKS[g.up.pick] || PICKS[0])[1] });
+  }, [g.hero.gender, skin, g.up.pick]);
+  return <canvas ref={ref} style={{ width: 96, height: 128 }} aria-hidden="true" />;
+}
+function Shop({ g, onBuy, onSkin, onClose }) {
   const [cat, setCat] = useState('tools');
   return (
     <Sheet title="🛠️ Boutique d’équipement" sub="« Un bon outil, c’est la moitié du travail. » — le vieux Marcel, vendeur depuis 1972" onClose={onClose} wide>
@@ -244,6 +259,22 @@ function Shop({ g, onBuy, onClose }) {
       <div className="mine-tabs" role="tablist">
         {SHOP_CATS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={cat === k} className={cat === k ? 'on' : ''} onClick={() => setCat(k)}>{l}</button>)}
       </div>
+      {cat === 'style' && (
+        <div className="mine-skins">
+          {SKINS.map((sk) => {
+            const own = g.skins.includes(sk.id), on = g.skin === sk.id;
+            return (
+              <div key={sk.id} className={'mine-skin ' + (on ? 'on' : '')}>
+                <SkinPreview g={g} skin={sk} />
+                <b>{sk.name}</b>
+                <button type="button" className={'b ' + (on ? '' : 'on')} disabled={on || (!own && g.coins < sk.cost)} onClick={() => onSkin(sk.id)}>
+                  {on ? 'Portée ✓' : own ? 'Porter' : <Fk n={sk.cost} size={14} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="mine-shop">
         {UPGRADES.filter((u) => u.cat === cat).map((u) => {
           const n = g.up[u.id] || 0, maxed = n >= u.max, c = maxed ? 0 : upCost(u, n), can = !maxed && g.coins >= c;
@@ -285,7 +316,7 @@ function Market({ g, onSell, onClose }) {
       <div className="mine-prices">
         {known.length === 0 && <p className="si-d">Aucun minerai trouvé pour l’instant. Lance une concentration !</p>}
         {known.map((t) => {
-          const o = t >= 3 ? W.ores[t - 3] : W.tiles[t], p = price(W, t, day), py = price(W, t, yday), q = g.stock[t] || 0;
+          const o = t >= 3 ? W.ores[t - 3] : W.tiles[t], p = sellPrice(g, W, t, day), py = sellPrice(g, W, t, yday), q = g.stock[t] || 0;
           const pct = Math.round((p / o.value - 1) * 100);
           return (
             <div key={t} className="mine-price">
@@ -516,7 +547,7 @@ function Game({ initial }) {
           <button type="button" className="b" onClick={() => { if (confirm('Recommencer la mine à zéro ?')) { setMine(null); location.reload(); } }}>Recommencer</button>
         </div>
       )}
-      {sheet === 'shop' && <Shop g={g} onBuy={onBuy} onClose={() => setSheet(null)} />}
+      {sheet === 'shop' && <Shop g={g} onBuy={onBuy} onSkin={(id) => act((G) => { const sk = SKINS.find((k) => k.id === id), had = G.skins.includes(id); if (buySkin(G, id)) toast(had ? `👕 ${sk.name} enfilée` : `👕 Nouvelle tenue : ${sk.name} !`); })} onClose={() => setSheet(null)} />}
       {sheet === 'market' && <Market g={g} onSell={onSell} onClose={() => setSheet(null)} />}
       {sheet === 'workshop' && <Workshop g={g} onBuy={onBuy} onTravel={onTravel} onClose={() => setSheet(null)} />}
       {chapter && g.w === 1 && <Chapter g={g} scenes={STORY2} kicker="Chapitre 2 · Les volcans d’Auvergne" finish="Descendre dans le volcan 🌋" onDone={doTravel} onClose={() => setChapter(false)} />}

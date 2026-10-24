@@ -1,4 +1,4 @@
-import { AIR, BADGE_FK, WELCOME_FK, BASE_DIG, BEDROCK, DIRT, MISSIONS, REST, ROCK, TASK_REWARD, UPGRADES, WALK, WORLDS, bagCap, priceMul, stamina, upCost, world } from './data.js';
+import { AIR, BADGE_FK, WELCOME_FK, BASE_DIG, BEDROCK, DIRT, MISSIONS, REST, ROCK, TASK_REWARD, UPGRADES, SKINS, WALK, WORLDS, bagCap, priceMul, stamina, upCost, world } from './data.js';
 
 /* =====================================================================
    LA MINE — génération de la mine et simulation (pure : aucun DOM, testable dans Node).
@@ -56,7 +56,7 @@ export const tileInfo = (W, t) => (t >= 3 ? W.ores[t - 3] : W.tiles[t]);
 export function newGame({ gender, name, focus }) {
   return {
     v: 1, w: 1, ww: world(1).width, hero: { gender, name }, x: ENTRY, y: START_Y, dir: 'right', hdir: 'right', pref: 'right', seg: 0, lamps: [], act: 'dig', prog: 0, walk: 0, route: null,
-    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0, lamp: 0, lant: 0, seller: 0 },
+    fat: 0, rest: 0, bag: {}, bagN: 0, coins: 0, earned: 0, up: { pick: 0, bag: 0, boots: 0, stam: 0, auto: 0, lamp: 0, lant: 0, seller: 0, cart: 0, snack: 0, compass: 0, loupe: 0 }, skin: 'classic', skins: ['classic'],
     dug: [], found: {}, base0: focus, used: 0, tasks0: null, tasksPaid: 0, wall: Date.now(), bonus: 0, built: [], at: Date.now(),
     stock: {}, st: { dug: 0, sold: 0, focus: 0, tasks: 0, deep: 0 }, missions: [], mi: 0, badgesPaid: [],
   };
@@ -64,7 +64,7 @@ export function newGame({ gender, name, focus }) {
 /* Parties créées avant une mise à jour : on complète les champs manquants (rien n'est perdu) */
 export function fixGame(g) {
   const d = newGame({ gender: 'f', name: '', focus: 0 });
-  for (const k of ['stock', 'st', 'missions', 'mi', 'badgesPaid', 'hdir', 'seg']) if (g[k] == null) g[k] = d[k];
+  for (const k of ['stock', 'st', 'missions', 'mi', 'badgesPaid', 'hdir', 'seg', 'skin', 'skins']) if (g[k] == null) g[k] = d[k];
   g.up = { ...d.up, ...g.up };
   g.st = { ...d.st, ...g.st };
   if (!g.pref) g.pref = g.dir === 'down' ? 'down' : g.hdir || 'right';
@@ -89,6 +89,9 @@ export const tile = (W, set, x, y) => (x < 0 || x >= W.width || y >= W.depth ? B
 
 const pickSpeed = (g) => 1.3 ** g.up.pick;
 const walkSpeed = (g) => WALK * (1 + 0.25 * g.up.boots);
+/* repos (réduit par le casse-croûte) et prix de vente (augmenté par la loupe de joaillier) */
+export const restTime = (g) => REST * (1 - 0.15 * (g.up.snack || 0));
+export const sellPrice = (g, W, t, day) => price(W, t, day) * (1 + 0.08 * (g.up.loupe || 0));
 export const cap = (g) => bagCap(g.up.bag);
 export const stam = (g) => stamina(g.up.stam);
 
@@ -115,8 +118,9 @@ export function routeToEntry(W, set, x0, y0) {
 /* durée de marche d'un chemin (montées plus lentes) + trajet en surface jusqu'à la base */
 const SURFACE = 7;
 function routeTime(g, pts) {
-  let t = SURFACE / walkSpeed(g);
-  for (let i = 1; i < pts.length; i++) t += (pts[i][1] !== pts[i - 1][1] ? 1 / 0.6 : 1) / walkSpeed(g);
+  const v = walkSpeed(g) * (1 + 0.35 * (g.up.cart || 0)); // wagonnet et rails : trajets plus rapides
+  let t = SURFACE / v;
+  for (let i = 1; i < pts.length; i++) t += (pts[i][1] !== pts[i - 1][1] ? 1 / 0.6 : 1) / v;
   return t;
 }
 
@@ -126,18 +130,19 @@ function routeTime(g, pts) {
    Le choix du joueur (◀ / ⬇ / ▶) n'est qu'une préférence ; un minerai repéré par la lampe frontale attire le mineur. */
 const DIRS = { right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] };
 const TOP = 2; // jamais de galerie plus haut (croûte de surface)
-const DESCENT = 70;
+const DESCENT = 45;
 const other = (d) => (d === 'left' ? 'right' : 'left');
 const diggable = (W, set, x, y) => { if (y < TOP) return false; const k = tile(W, set, x, y); return k !== AIR && k !== BEDROCK; };
 const isAir = (W, set, x, y) => y >= 0 && tile(W, set, x, y) === AIR;
 /* nombre de cases qu'on peut creuser d'affilée dans une direction sans longer une autre galerie */
-function openAhead(W, set, x, y, dir, n) {
+function openAhead(W, set, x, y, dir, n, loose = false) {
   const [dx, dy] = DIRS[dir];
   let c = 0;
   for (let i = 1; i <= n; i++) {
     const nx = x + dx * i, ny = y + dy * i;
     if (!diggable(W, set, nx, ny)) break;
     const hug = dy ? isAir(W, set, nx - 1, ny) || isAir(W, set, nx + 1, ny) : isAir(W, set, nx, ny - 1) || isAir(W, set, nx, ny + 1);
+    if (hug && loose) { c++; continue; } // fin de partie : la mine est pleine de galeries, on accepte de les longer
     if (hug && i > 1) break;
     if (hug && i === 1 && !(dy === 1 && isAir(W, set, nx, ny - 1))) break;
     c++;
@@ -145,7 +150,7 @@ function openAhead(W, set, x, y, dir, n) {
   return c;
 }
 /* portée de repérage des minerais (lampe frontale) */
-export const seeRange = (g) => 1 + Math.floor((g.up.lamp || 0) / 2);
+export const seeRange = (g) => 1 + Math.floor((g.up.lamp || 0) / 2) + (g.up.compass || 0);
 /* lanternes : une toutes les `lampGap` cases creusées */
 export const lampGap = (g) => [7, 6, 5, 4, 3][g.up.lant || 0];
 function placeLamp(W, g, x, y) {
@@ -198,7 +203,7 @@ function plan(W, g, set) {
   ];
   let tot = 0;
   const ok = opts.map(([dir, w, len]) => {
-    const c = w > 0 ? openAhead(W, set, g.x, g.y, dir, len) : 0;
+    const c = w > 0 ? openAhead(W, set, g.x, g.y, dir, len, g.loose) : 0;
     const ww = c ? w * (0.35 + 0.65 * (c / len)) : 0;
     tot += ww;
     return [dir, ww, Math.min(len, c)];
@@ -214,17 +219,22 @@ function plan(W, g, set) {
       return true;
     }
   }
+  // mine déjà très creusée : n'importe quelle case voisine encore pleine fait l'affaire
+  if (g.loose) for (const dir of [h, other(h), 'down', 'up']) {
+    if (openAhead(W, set, g.x, g.y, dir, 1, true)) { g.dir = dir; g.seg = 1; if (dir === 'left' || dir === 'right') g.hdir = dir; return true; }
+  }
   // 3) bloqué : on repart d'un autre endroit de la mine (le plus proche où l'on peut ouvrir une galerie,
   //    de préférence pas plus bas que le niveau du chantier)
-  for (const strict of [true, false]) {
+  for (const strict of [true, false, null]) { // null : dernier recours, on accepte de longer les galeries
     const prev = new Map([[key(W, g.x, g.y), -1]]), q = [key(W, g.x, g.y)];
     for (let i = 0; i < q.length && i < 30000; i++) {
       const k = q[i], x = k % W.width, y = Math.floor(k / W.width);
-      if (i > 0 && y >= TOP && (!strict || y <= lvl + 2) && (strict && y > lvl + 2 ? ['left', 'right'] : ['left', 'right', 'down']).some((dir) => openAhead(W, set, x, y, dir, 3) >= 2)) {
+      if (i > 0 && y >= TOP && (!strict || y <= lvl + 2) && (strict && y > lvl + 2 ? ['left', 'right'] : strict === null ? ['left', 'right', 'down', 'up'] : ['left', 'right', 'down']).some((dir) => openAhead(W, set, x, y, dir, 3, strict === null) >= (strict === null ? 1 : 2))) {
         const pts = [];
         for (let k2 = k; k2 !== -1; k2 = prev.get(k2)) pts.push([k2 % W.width, Math.floor(k2 / W.width)]);
-        g.route = pts.reverse(); g.walkTotal = routeTime(g, g.route) - SURFACE / walkSpeed(g); g.walk = g.walkTotal; g.act = 'move'; g.seg = 0;
+        g.route = pts.reverse(); g.walkTotal = routeTime(g, g.route) - SURFACE / (walkSpeed(g) * (1 + 0.35 * (g.up.cart || 0))); g.walk = g.walkTotal; g.act = 'move'; g.seg = 0;
         g.free = !strict; // plus rien au niveau du chantier : on a le droit de descendre
+        if (strict === null) g.loose = true;
         return false;
       }
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -251,7 +261,7 @@ export function step(g, sec, set = dugSet(g)) {
       if (g.rest <= 1e-6) { g.rest = 0; g.fat = 0; g.act = g.after || 'dig'; g.after = null; }
       continue;
     }
-    if (g.fat >= stam(g)) { g.after = g.act; g.act = 'rest'; g.rest = REST; continue; }
+    if (g.fat >= stam(g)) { g.after = g.act; g.act = 'rest'; g.rest = restTime(g); continue; }
     if (g.act === 'toBase' || g.act === 'toFace') {
       const r = Math.min(t, g.walk);
       g.walk -= r; t -= r; g.fat += r;
@@ -260,7 +270,7 @@ export function step(g, sec, set = dugSet(g)) {
         // arrivée au marché : vente au prix du jour (contrat) ou dépôt au coffre
         if (g.up.seller) {
           let v = 0;
-          for (const [t2, n] of Object.entries(g.bag)) v += price(W, +t2) * n;
+          for (const [t2, n] of Object.entries(g.bag)) v += sellPrice(g, W, +t2) * n;
           g.coins += v; g.earned += v; g.st.sold += v; ev.coins += v;
         } else for (const [t2, n] of Object.entries(g.bag)) g.stock[t2] = (g.stock[t2] || 0) + n;
         ev.sold += g.bagN; ev.home = (ev.home || 0) + 1;
@@ -312,17 +322,17 @@ export function step(g, sec, set = dugSet(g)) {
 /* Repos hors concentration (pauses, app fermée) : la fatigue baisse 6 fois plus vite qu'elle ne monte */
 export function recover(g, wallSec) {
   if (g.act === 'rest') { g.rest = Math.max(0, g.rest - wallSec); if (!g.rest) { g.fat = 0; g.act = g.after || 'dig'; g.after = null; } return; }
-  g.fat = Math.max(0, g.fat - wallSec * (stam(g) / REST));
+  g.fat = Math.max(0, g.fat - wallSec * (stam(g) / restTime(g)));
 }
 
 /* ---------- marché : vente du coffre au prix du jour ---------- */
-export const stockValue = (g, day) => { const W = world(g.w); return Object.entries(g.stock).reduce((s2, [t2, n]) => s2 + price(W, +t2, day) * n, 0); };
+export const stockValue = (g, day) => { const W = world(g.w); return Object.entries(g.stock).reduce((s2, [t2, n]) => s2 + sellPrice(g, W, +t2, day) * n, 0); };
 export function sell(g, t2 = null, day = dayKey()) {
   const W = world(g.w);
   let v = 0;
   for (const [k, n] of Object.entries(g.stock)) {
     if (t2 != null && +k !== +t2) continue;
-    v += price(W, +k, day) * n; delete g.stock[k];
+    v += sellPrice(g, W, +k, day) * n; delete g.stock[k];
   }
   g.coins += v; g.earned += v; g.st.sold += v;
   return v;
@@ -374,6 +384,14 @@ export function buy(g, id) {
   const c = upCost(u, n);
   if (g.coins < c) return false;
   g.coins -= c; g.up[id] = n + 1;
+  return true;
+}
+/* vestiaire : acheter / porter une tenue */
+export function buySkin(g, id) {
+  const sk = SKINS.find((x) => x.id === id);
+  if (!sk) return false;
+  if (!g.skins.includes(id)) { if (g.coins < sk.cost) return false; g.coins -= sk.cost; g.skins.push(id); }
+  g.skin = id;
   return true;
 }
 /* Tâches validées dans Fokus → Fokoins (une seule fois chacune, même après « Annuler ») */

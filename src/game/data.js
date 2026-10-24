@@ -8,7 +8,9 @@ export const COIN = 'Fk';
 /* Tuiles communes à tous les mondes : 0 = galerie creusée, 1 = terre, 2 = roche ; minerais ensuite (id ≥ 3) */
 export const AIR = 0, DIRT = 1, ROCK = 2, BEDROCK = -1;
 
-/* Minerais du monde 1 (« La mine de ta ville », ancienne mine de charbon) :
+/* Durées visées (heures de concentration, d'après l'utilisateur) : monde 1 = 5 h, 2 = 10 h, 3 = 15 h, 4 = 20 h, 5 = 30 h, 6 = 30 h, 7 = 35 h.
+   Mesurées avec node scripts/mine-sim.mjs (monde 1 ≈ 5,0 h ; monde 2 ≈ 10,0 h).
+   Minerais du monde 1 (« La mine de ta ville », ancienne mine de charbon) :
    value (Fk), hard (dureté : temps de creusage relatif), w (poids de tirage), deep (préférence de profondeur), min (profondeur mini, en cases),
    colors = [base, clair, sombre] pour le dessin des cristaux / filons */
 export const WORLDS = [
@@ -19,7 +21,7 @@ export const WORLDS = [
     layers: [['Terre', '#c98b55', '#e4ab76', '#99602f'], ['Argile', '#b9613f', '#d67f5a', '#87412b'], ['Schiste', '#8b4e6c', '#ab6b8c', '#5f3349'],
       ['Granit', '#4f5189', '#6d70aa', '#35366a'], ['Cristal', '#2f6c75', '#4d9099', '#1d4950']],
     layerAt: [30, 58, 88],
-    goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 3000, build: 9000, next: 'La région · Massif central' },
+    goal: { id: 'velo', name: 'le vélo', emoji: '🚲', book: 1000, build: 3000, next: 'La région · Massif central' },
     tiles: {
       [DIRT]: { id: 'terre', name: 'Terre', value: 0.1, hard: 1, colors: ['#5c3d2c', '#7d5642', '#3a2419'] },
       [ROCK]: { id: 'pierre', name: 'Pierre', value: 0.5, hard: 1.5, colors: ['#433d52', '#5f5874', '#28232f'] },
@@ -36,9 +38,9 @@ export const WORLDS = [
     ],
   },
   {
-    id: 2, name: 'Les volcans d’Auvergne', place: 'La région · Massif central', theme: 'volcans', emoji: '🌋', mul: 6, tough: 5, seed: 2027, width: 240, depth: 140, veins: 0.42,
+    id: 2, name: 'Les volcans d’Auvergne', place: 'La région · Massif central', theme: 'volcans', emoji: '🌋', mul: 6, tough: 4, seed: 2027, width: 240, depth: 140, veins: 0.42,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#3a3440',
-    goal: { id: 'voiture', name: 'la voiture', emoji: '🚗', book: 30000, build: 90000, next: 'Le pays · la côte atlantique' },
+    goal: { id: 'voiture', name: 'la voiture', emoji: '🚗', book: 40000, build: 120000, next: 'Le pays · la côte atlantique' },
     tiles: {
       [DIRT]: { id: 'cendre', name: 'Cendre volcanique', value: 0.6, hard: 1.1, colors: ['#8d8682', '#b3aca6', '#5e5853'] },
       [ROCK]: { id: 'basalte', name: 'Basalte', value: 3, hard: 1.6, colors: ['#4b4a57', '#6c6b7a', '#2e2d38'] },
@@ -66,16 +68,30 @@ export const PICKS = [
   ['Pioche en saphir', '#4f8ff7'], ['Pioche en améthyste', '#b06df5'], ['Pioche en diamant', '#a5f3fc'], ['Pioche Fokus', '#10b981'], ['Pioche céleste', '#fff3a3'],
 ];
 /* Améliorations par rayon de la boutique : coût du niveau n = base × mult^n ; effet par niveau (voir sim.js) */
-export const SHOP_CATS = [['tools', '⛏️ Outils'], ['gear', '🎒 Équipement'], ['body', '💪 Forme'], ['auto', '⚙️ Automatisation']];
+export const SHOP_CATS = [['tools', '⛏️ Outils'], ['gear', '🎒 Équipement'], ['body', '💪 Forme'], ['auto', '⚙️ Automatisation'], ['style', '👕 Vestiaire']];
 export const UPGRADES = [
   { id: 'pick', cat: 'tools', name: 'Pioche', desc: 'Creuse plus vite', max: 12, base: 60, mult: 2.05, label: (n) => PICKS[n][0], fx: (n) => `× ${(1.3 ** n).toFixed(2)} vitesse` },
   { id: 'bag', cat: 'gear', name: 'Sac à dos', emoji: '🎒', desc: 'Plus de place avant de remonter', max: 12, base: 40, mult: 1.9, fx: (n) => `${bagCap(n)} places` },
   { id: 'lamp', cat: 'gear', name: 'Lampe frontale', emoji: '🔦', desc: 'Éclaire plus loin : le mineur repère les minerais cachés autour de lui et va les chercher', max: 6, base: 120, mult: 2.4, fx: (n) => `repère à ${1 + Math.floor(n / 2)} case${n > 1 ? 's' : ''} · lumière ${(3.5 + n * 0.7).toFixed(1).replace('.', ',')} cases` },
   { id: 'lant', cat: 'gear', name: 'Lanternes', emoji: '🏮', desc: 'Le mineur accroche plus de lanternes : les galeries sont mieux éclairées', max: 4, base: 150, mult: 2.6, fx: (n) => `une lanterne toutes les ${[7, 6, 5, 4, 3][n]} cases` },
+  { id: 'compass', cat: 'tools', name: 'Boussole du géologue', emoji: '🧭', desc: 'Le mineur sent les filons de plus loin et va les chercher', max: 3, base: 500, mult: 3, fx: (n) => `+${n} case${n > 1 ? 's' : ''} de repérage` },
+  { id: 'cart', cat: 'gear', name: 'Wagonnet et rails', emoji: '🚃', desc: 'Les allers-retours jusqu’au marché se font en wagonnet', max: 6, base: 300, mult: 2.3, fx: (n) => `trajets × ${(1 + 0.35 * n).toFixed(2).replace('.', ',')} plus rapides` },
+  { id: 'snack', cat: 'body', name: 'Casse-croûte', emoji: '🥪', desc: 'Un bon repas : les pauses du mineur sont plus courtes', max: 4, base: 400, mult: 2.5, fx: (n) => `repos de ${Math.round(10 * (1 - 0.15 * n))} min` },
+  { id: 'loupe', cat: 'auto', name: 'Loupe de joaillier', emoji: '🔍', desc: 'Les pierres sont mieux triées : elles se vendent plus cher au marché', max: 5, base: 350, mult: 2.4, fx: (n) => `prix de vente +${8 * n} %` },
   { id: 'boots', cat: 'body', name: 'Chaussures', emoji: '🥾', desc: 'Marche plus vite dans les galeries', max: 10, base: 80, mult: 2, fx: (n) => `× ${(1 + 0.25 * n).toFixed(2)} vitesse` },
   { id: 'stam', cat: 'body', name: 'Endurance', emoji: '💪', desc: 'Mine plus longtemps avant de se reposer', max: 4, base: 600, mult: 3, fx: (n) => `${stamina(n) / 60} min de minage pour 10 min de repos` },
   { id: 'auto', cat: 'auto', name: 'Tri automatique', emoji: '♻️', desc: 'La terre et la pierre sont vendues sur place (ne prennent plus de place dans le sac)', max: 1, base: 250, mult: 1, fx: (n) => (n ? 'Activé' : 'Désactivé') },
   { id: 'seller', cat: 'auto', name: 'Contrat avec le marché', emoji: '🤝', desc: 'Les minerais sont vendus dès l’arrivée, au prix du jour (sinon ils vont au coffre)', max: 1, base: 900, mult: 1, fx: (n) => (n ? 'Vente automatique' : 'Tu vends toi-même') },
+];
+/* Vestiaire : tenues du personnage (couleurs de la salopette, de la chemise, du foulard et du casque) */
+export const SKINS = [
+  { id: 'classic', name: 'Classique', cost: 0, c: null },
+  { id: 'foret', name: 'Garde forestier', cost: 1500, c: { suit: '#4a7a3c', shirt: '#eadfb8', scarf: '#c0843f', helm: '#86b85a' } },
+  { id: 'nuit', name: 'Nuit étoilée', cost: 2500, c: { suit: '#2b3170', shirt: '#cdd7ff', scarf: '#f5c542', helm: '#eef1ff' } },
+  { id: 'rose', name: 'Rose baddie', cost: 3500, c: { suit: '#e0629e', shirt: '#ffe3f0', scarf: '#ffffff', helm: '#ffb3d1' } },
+  { id: 'volcan', name: 'Cœur de volcan', cost: 6000, c: { suit: '#3b2a2e', shirt: '#ffb27a', scarf: '#ff5a1f', helm: '#ff8a3d' } },
+  { id: 'fokus', name: 'Émeraude Fokus', cost: 10000, c: { suit: '#0f5a3c', shirt: '#d1fae5', scarf: '#10b981', helm: '#34d399' } },
+  { id: 'or', name: 'Mineur d’or', cost: 25000, c: { suit: '#1d1d24', shirt: '#f5e6b8', scarf: '#f5c542', helm: '#f5c542' } },
 ];
 /* Prix du marché : chaque minerai varie chaque jour entre −25 % et +25 % (même cours pour tout le monde) */
 export function priceMul(oreId, day) {
@@ -100,7 +116,7 @@ export const bagCap = (n) => 12 + 6 * n;
 export const stamina = (n) => [60, 75, 90, 105, 120][n] * 60;
 export const upCost = (u, n) => Math.round(u.base * u.mult ** n);
 export const REST = 600; // 10 min de repos
-export const BASE_DIG = 3.6; // secondes pour une tuile de dureté 1 avec la pioche de départ
+export const BASE_DIG = 2.4; // secondes pour une tuile de dureté 1 avec la pioche de départ
 export const WALK = 1.4; // tuiles par seconde (montée : × 0,6)
 /* Récompense des tâches validées dans Fokus */
 export const TASK_REWARD = 5;

@@ -1,4 +1,4 @@
-import { AIR, BEDROCK, PICKS } from './data.js';
+import { AIR, BEDROCK, PICKS, SKINS } from './data.js';
 import { ENTRY, START_Y, cap, dirtEdge, tile } from './sim.js';
 import { OUT, drawTree, drawHeadframe, drawLadder, drawLantern, drawMarket, drawMiner, drawRail, drawShop, drawSupport, drawWorkshop, makeTiles, paintSkyline, skyColors } from './art.js';
 
@@ -320,7 +320,7 @@ export function drawFrame(v, g, set, t, dt, live, vision, goal = { progress: 0, 
     ctx.beginPath(); ctx.arc(p.x - cx, p.y - cy, p.r, 0, 7); ctx.fill(); ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.18, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1], bag: g.bagN / cap(g) });
+  drawMiner(ctx, hero.x * TS - cx, hero.y * TS - cy, TS * 1.18, { gender: g.hero.gender, face: hero.face, anim: hero.anim, dig: hero.dig, t, pickColor: (PICKS[g.up.pick] || PICKS[0])[1], bag: g.bagN / cap(g), skin: SKINS.find((k) => k.id === g.skin)?.c });
 
   // ---------- 7) halos de lumière et éclats des minerais ----------
   ctx.globalCompositeOperation = 'lighter';

@@ -14,12 +14,13 @@ const HERO = {
   f: { suit: '#16a37a', shirt: '#f6dcb0', scarf: '#ff7a3d', hair: '#6b3420', skin: '#ffd5b8', iris: '#3a2416', freckles: true },
   m: { suit: '#3767d6', shirt: '#f2d28a', scarf: '#e5484d', hair: '#3a2214', skin: '#f3c39c', iris: '#2b1a12' },
 };
-const GLOVE = '#c0843f', BOOT = '#6a4228', HELM = '#ffc928', BRASS = '#d9a441', PACK = '#a8703c';
+const GLOVE = '#c0843f', BOOT = '#6a4228', HELMET = '#ffc928', BRASS = '#d9a441', PACK = '#a8703c';
 
 /* drawMiner(ctx, x, y = sol, s = taille d'une case, { gender, face: 1 | -1, anim: idle|walk|climb|dig|sleep, t,
-   dig: 'side' | 'down', tool (false = sans pioche), helmet (false = cheveux), wave, reach, pickColor, bag (0 → 1), lamp }) */
+   dig: 'side' | 'down', tool (false = sans pioche), helmet (false = cheveux), wave, reach, pickColor, bag (0 → 1), lamp,
+   skin (tenue du vestiaire : { suit, shirt, scarf, helm }) }) */
 export function drawMiner(ctx, x, y, s, o) {
-  const P = HERO[o.gender] || HERO.f, t = o.t || 0, f = o.face || 1, anim = o.anim || 'idle', home = o.helmet === false;
+  const P = { ...(HERO[o.gender] || HERO.f), ...(o.skin || {}) }, HELM = P.helm || HELMET, t = o.t || 0, f = o.face || 1, anim = o.anim || 'idle', home = o.helmet === false;
   const k = s / 40;
   ctx.save(); ctx.translate(x, y); ctx.scale(f * k, k);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';

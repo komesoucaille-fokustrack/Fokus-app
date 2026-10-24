@@ -308,10 +308,15 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - **La mine** (jeu dans le labo, page 5 = **onglet « ⛏️ La mine » entre Pomodoro et Progression** dans l'en-tête, seulement dans le labo,
   pour regarder le mineur creuser pendant la concentration ; carte aussi dans l'onglet Pomodoro) :
   **Mondes** : monde 1 « La mine de ta ville » (vélo, ≈ 12,5 h) puis **monde 2 « Les volcans d'Auvergne »** (`theme 'volcans'`,
-  `mul` 6 = valeurs et missions ×6, `tough` 5 = roche 5× plus dure ; cendre, pouzzolane, soufre, obsidienne, olivine, zircon, grenat,
-  saphir du Velay, cœur de lave ; objectif la voiture 120 000 Fk ≈ 20 h). Départ depuis l'Atelier une fois le véhicule construit :
+  `mul` 6 = valeurs et missions ×6, `tough` 4 = roche 4× plus dure ; cendre, pouzzolane, soufre, obsidienne, olivine, zircon, grenat,
+  saphir du Velay, cœur de lave ; objectif la voiture 160 000 Fk ≈ 10 h). Départ depuis l'Atelier une fois le véhicule construit :
   chapitre 2 raconté (`STORY2`), `travel()` vend le coffre et ouvre une nouvelle mine (Fokoins, améliorations, collection gardés) ;
   bouton de test « Débloquer » réservé au labo. Missions par indice de minerai (`ore#i`), récompenses × `mul`.
+  **Interrupteur** `set.mine` (Réglages → Pomodoro → « La mine », activé par défaut pour tous, même les nouveaux inscrits) : retire
+  l'onglet, la carte Pomodoro et la page (la partie est gardée) ; l'écran d'arrivée explique d'abord que c'est un petit jeu en bonus,
+  retirable (« Retirer ce jeu »). Améliorations en plus : Boussole du géologue (repérage), Wagonnet et rails (trajets), Casse-croûte
+  (repos plus court, `restTime`), Loupe de joaillier (prix de vente, `sellPrice`) ; **Vestiaire** (`SKINS`, `g.skin`, `g.skins`,
+  `buySkin`) : 7 tenues (Classique → Mineur d'or) ; si la mine est entièrement creusée, le mineur longe les galeries (`g.loose`).
   Personnage complet dans `hero.js` (bras, jambes, salopette à l'anneau Fokus, foulard, casque à pastille Fokus) ; `src/game/` (`data.js` mondes / minerais / améliorations,
   `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
   **DA « Fokus Mine » (v4, choisie par l'utilisateur d'après Idle Miner Tycoon, mais avec notre identité)** : dessin animé net et
@@ -330,7 +335,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   monde 1 large de 240 cases (`fixGame` convertit les anciennes parties : `g.ww`),
   `components/Mine.jsx` (intro + histoire, jeu, lieux, collection, missions), partie dans `S.mine` (`setMine`), temps de jeu =
   `focusSecs()` (concentration Pomodoro depuis le début de l'aventure, impossible d'accélérer), monnaie **Fokoin** (Fk) ;
-  équilibrage : `node scripts/mine-sim.mjs` (monde 1 ≈ 12 h, actuellement 12,5 h). Boutons de test « +1 h » réservés au labo.
+  équilibrage : `node scripts/mine-sim.mjs` — **durées voulues par l'utilisateur : monde 1 = 5 h, 2 = 10 h, 3 = 15 h, 4 = 20 h,
+  5 = 30 h, 6 = 30 h, 7 = 35 h** (mesuré : 5,0 h et 10,0 h ; `BASE_DIG` 2,4, `DESCENT` 45, monde 2 `tough` 4, voiture 160 000 Fk). Boutons de test « +1 h » réservés au labo.
   **Histoire** (`STORY`, 7 scènes racontées comme un récit, accords `{féminin|masculin}`) : le personnage n'a **jamais de pioche**
   pendant le récit (`drawMiner(..., { tool: false })`, sans casque à la maison : `helmet: false`) ; il la trouve dans la mine.
   **Surface** : Atelier (objectif du monde en 3 étapes : livre → pièces → départ), Boutique (rayons `SHOP_CATS`, niveaux, toutes

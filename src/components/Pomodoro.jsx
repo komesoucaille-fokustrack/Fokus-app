@@ -254,7 +254,7 @@ export default function Pomodoro() {
 
       <Stage onFull={enter} />
       {S.ideas.length > 0 && (p.phase !== 'work' || p.paused != null) && <Ideas />}
-      {LABO && <Suspense fallback={null}><MineCard /></Suspense>}
+      {LABO && S.set.mine !== false && <Suspense fallback={null}><MineCard /></Suspense>}
       <SoundCard />
 
       <div className="card mt-4">

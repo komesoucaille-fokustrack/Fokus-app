@@ -33,7 +33,7 @@ export const DEF_CATS = [
   ['c-maison', 'Maison', '🏠', '#fdba74'], ['c-courses', 'Courses', '🛒', '#fde68a'], ['c-perso', 'Perso', '✨', '#f9a8d4'], ['c-social', 'Social', '👥', '#5eead4'],
 ].map(([id, name, emoji, color]) => ({ id, name, emoji, color }));
 export const DEF_SET = {
-  threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct',
+  threshold: 80, jokers: 2, defWeight: 1, scoreMode: 'pct', mine: true,
   pomo: 25, pause: 5, longPause: 15, cycle: 4, autoBreak: true, autoWork: false, sound: true, clock: 'classic', bg: 't-obsidienne',
   amb: 't-obsidienne', ambLevel: 2,
   remind: false, remindAt: '20:00', pomoNotif: false, push: false, pushUrl: '',

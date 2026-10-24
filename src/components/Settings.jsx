@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Sheet from './Sheet';
+import { LABO } from '../env';
 import { BgPicker, Durations } from './Pomodoro';
 import { CLOCKS } from './Clocks';
 import {
@@ -154,6 +155,11 @@ function Pomo({ S }) {
         <Item title="Relancer la concentration après la pause"><Switch label="Concentration automatique" checked={st.autoWork} onChange={(v) => setSetting('autoWork', v)} /></Item>
         <Item title="Son de fin" desc="Un carillon doux à la fin de chaque phase"><Switch label="Son de fin" checked={st.sound} onChange={(v) => setSetting('sound', v)} /></Item>
       </Group>
+      {LABO && (
+        <Group title="La mine ⛏️" foot="Un petit jeu en bonus : un mineur avance pendant tes sessions de concentration. Si tu le retires, ta partie est gardée et tu la retrouves en le remettant.">
+          <Item title="Afficher le jeu de la mine" desc="Onglet « La mine » entre Pomodoro et Progression"><Switch label="Jeu de la mine" checked={st.mine !== false} onChange={(v) => setSetting('mine', v)} /></Item>
+        </Group>
+      )}
       <Group title="Verrou de concentration 🔒" foot="Pendant une concentration verrouillée : pause, réinitialisation et phase suivante demandent d’appuyer 5 secondes sans lâcher. Si tu quittes Fokus, ta sortie est comptée et, avec les notifications activées (Rappels), un rappel « reviens » arrive au bout de 20 secondes. Le bouton 🔒 sous le chrono fait la même chose.">
         <Item title="Verrouiller les sessions de concentration"><Switch label="Verrou de concentration" checked={!!st.lock} onChange={(v) => setSetting('lock', v)} /></Item>
         {st.lock && (

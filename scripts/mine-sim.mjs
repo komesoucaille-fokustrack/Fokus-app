@@ -19,7 +19,7 @@ while (h < 90) {
   for (let k = 0; k < 6; k++) {
     const opts = UPGRADES.filter((u) => g.up[u.id] < u.max).map((u) => ({ u, c: upCost(u, g.up[u.id]) })).sort((a, b) => a.c - b.c);
     const o = opts.find((x) => x.c <= g.coins * 0.6 && (x.u.id !== 'stam' || g.up.pick > 3));
-    if (!o || g.coins >= goalCost(W)) break;
+    if (!o || g.coins >= goalCost(W) * 0.5) break; // près de l'objectif : on économise
     buy(g, o.u.id);
   }
   if (Math.abs(h % 2) < 0.84) log.push(`${h.toFixed(1)} h · ${Math.round(g.coins)} Fk (gagnés ${Math.round(g.earned)}) · prof ${g.y} · pioche ${g.up.pick} sac ${g.up.bag} bottes ${g.up.boots} end ${g.up.stam} tri ${g.up.auto} · trouvés ${JSON.stringify(g.found)}`);
