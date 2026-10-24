@@ -3,7 +3,7 @@ import Chart from 'chart.js/auto';
 import gsap from 'gsap';
 import { K, dayLabel, parseK } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
-import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore } from '../store';
+import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore, METEO } from '../store';
 import { fmtMin } from './TaskList';
 import FocusStats from './FocusStats';
 import Medal from './Medal';
@@ -164,6 +164,36 @@ function Badges({ S }) {
   );
 }
 
+/* Météo du jour : ce que tu fais selon ton énergie (tous les jours enregistrés avec une météo) */
+function MeteoStats({ S }) {
+  const rows = METEO.map(([id, e, l]) => {
+    const days = Object.values(S.hist).filter((h) => h.mt === id && h.t);
+    const n = days.length;
+    return { id, e, l, n, d: n ? days.reduce((a, h) => a + h.d, 0) / n : 0, ok: n ? days.filter((h) => h.p >= 100).length : 0 };
+  });
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  if (!total) return null;
+  const dMax = Math.max(1, ...rows.map((r) => r.d));
+  const low = rows.filter((r) => (r.id === 'rain' || r.id === 'moon') && r.n);
+  const lowAvg = low.length ? low.reduce((a, r) => a + r.d * r.n, 0) / low.reduce((a, r) => a + r.n, 0) : 0;
+  return (
+    <div className="card">
+      <b className="text-[15px]">Ta météo et toi</b>
+      <div className="mt-3 flex flex-col gap-2.5">
+        {rows.filter((r) => r.n).map((r) => (
+          <div key={r.id} className="flex items-center gap-3 text-[13px]">
+            <span className="flex w-36 items-center gap-1.5 truncate"><span className="text-[16px]">{r.e}</span>{r.l}</span>
+            <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/5"><i className="block h-full rounded-full bg-[#93c5fd]" style={{ width: (r.d / dMax) * 100 + '%' }} /></span>
+            <b className="w-24 text-right tabular-nums">{r.d.toFixed(1).replace('.', ',')} / jour</b>
+            <span className="w-20 text-right text-mut tabular-nums">{r.n} j</span>
+          </div>
+        ))}
+        <p className="text-[12px] text-mut">Tâches validées en moyenne selon ta météo du jour · nombre de jours.{lowAvg >= 1 ? ` Même les jours difficiles, tu avances : ${lowAvg.toFixed(1).replace('.', ',')} tâches en moyenne 💪` : ''}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function StatsPage({ S }) {
   const [view, setView] = useState('w');
   const canvas = useRef(null);
@@ -274,6 +304,7 @@ export default function StatsPage({ S }) {
           </div>
         ) : <p className="mt-2 text-[13px] text-mut">Aucune tâche étiquetée validée sur la période. Ajoute « #nom » en saisissant une tâche.</p>}
       </div>
+      <MeteoStats S={S} />
       <FocusStats S={S} />
       <Heatmap S={S} />
       {S.set.showBadges && <Badges S={S} />}

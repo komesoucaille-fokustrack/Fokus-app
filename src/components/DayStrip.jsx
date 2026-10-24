@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { fmtMin } from './TaskList';
-import { dayLoad, setModal, todayKey, todayTasks, taskDur } from '../store';
+import { dayLoad, setModal, todayKey, todayTasks, taskDur, zenOn } from '../store';
 
 /* Bandeau sous la carte du jour : « Estimé · Fait » et alerte douce de surcharge (comme Sunsama).
    Hors de #pcard pour ne pas toucher au relais de l'animation 3D. */
@@ -9,7 +9,7 @@ export function planned(S) {
   return todayTasks(S.tasks, todayKey()).filter((t) => !t.done && (t.est || t.time)).reduce((n, t) => n + taskDur(t, S), 0);
 }
 const DayStrip = forwardRef(function DayStrip({ S }, ref) {
-  const l = dayLoad(S), plan = planned(S), cap = S.set.capacity, over = plan > cap;
+  const l = dayLoad(S), plan = planned(S), cap = S.set.capacity, over = plan > cap && !zenOn(S); // Tranquille : pas d'alerte de surcharge
   if (!l.any && !over && l.done < 1) return <div ref={ref} />;
   return (
     <div ref={ref} className={'daystrip ' + (over ? 'over' : '')}>

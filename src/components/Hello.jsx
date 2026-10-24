@@ -1,8 +1,9 @@
 import { forwardRef } from 'react';
 import { fmtMin } from './TaskList';
-import { focusToday, now, stats, streaks } from '../store';
+import { focusToday, now, stats, streaks, zenOn } from '../store';
 import { getColorForPercentage } from '../lib/colors';
 import { useCloud } from '../lib/cloud';
+import { Meteo } from './Style';
 
 /* En-tête éditorial de « Mes Tâches » : date, salutation selon l'heure, résumé du jour */
 const Hello = forwardRef(function Hello({ S }, ref) {
@@ -15,12 +16,13 @@ const Hello = forwardRef(function Hello({ S }, ref) {
   if (s.n) bits.push(left ? `${left} tâche${left > 1 ? 's' : ''} à faire` : 'Tout est fait ✓');
   if (s.prt && s.pr < s.prt) bits.push(`${s.prt - s.pr} priorité${s.prt - s.pr > 1 ? 's' : ''}`);
   if (fm >= 1) bits.push(`${fmtMin(fm)} de concentration`);
-  if (S.set.showStreak && z.cur > 1) bits.push(`série de ${z.cur} jours`);
+  if (S.set.showStreak && !zenOn(S) && z.cur > 1) bits.push(`série de ${z.cur} jours`);
   return (
     <div ref={ref} className="hello">
       <div className="hello-d">{date}</div>
       <h1 className="hello-t">{hi}{pseudo ? `, ${pseudo}` : ''}<span style={{ color: s.n ? getColorForPercentage(s.p) : '#86efac' }}>.</span></h1>
       {bits.length > 0 && <div className="hello-s">{bits.join('  ·  ')}</div>}
+      <Meteo S={S} />
     </div>
   );
 });

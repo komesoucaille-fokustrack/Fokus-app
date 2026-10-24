@@ -2,7 +2,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { parseQuick } from '../lib/quickAdd';
 import { JOURS_COURTS, dayLabel } from '../lib/dates';
 import { TagChip, fmtMin } from './TaskList';
-import { addRec, addTask, catByName, catOf, deleteRec, describeRule, toast, todayKey, useStore } from '../store';
+import { addRec, addTask, catByName, catOf, deleteRec, describeRule, toast, todayKey, useStore, zenOn } from '../store';
 import { CatSelect } from './Categories';
 
 const KIND = { date: 'hl-date', tag: 'hl-tag', cat: 'hl-cat', weight: 'hl-w', prio: 'hl-p', est: 'hl-est', time: 'hl-date', off: 'hl-off' };
@@ -140,7 +140,7 @@ const QuickAdd = forwardRef(function QuickAdd({ defaultDate, placeholder, allowR
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {[1, 2, 3].map((n) => (
+        {!zenOn(S) && [1, 2, 3].map((n) => (
           <button type="button" key={n} className={'seg pts ' + (w === n ? 'on' : '')} onClick={() => setWeight(n)} aria-pressed={w === n}>{n} pt{n > 1 ? 's' : ''}</button>
         ))}
         <button type="button" className={'seg gold ' + (pr ? 'on' : '')} onClick={() => setPrio((p) => !p)} aria-pressed={pr}>★ Priorité</button>

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
   addSub, addTag, getState, toast, setTaskField, taskDur, clearFlash, deleteSub, deleteTask, editSub, editTask, moveTask, setDate, setOpen, setWeight, startFocus,
-  todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore, catOf,
+  todayKey, toggleSel, togglePrio, toggleSub, toggleTaskTag, uncheck, useStore, catOf, zenOn,
 } from '../store';
 import { addDays, dayLabel } from '../lib/dates';
 import { EstChip, EstEditor, fmtMin } from './Estimate';
@@ -92,14 +92,14 @@ export function Details({ t, today }) {
           </div>
         </div>
       )}
-      <div className="drow">
+      {!zenOn(S) && <div className="drow">
         <span className="dlab">Points</span>
         <div className="segs">
           {[1, 2, 3].map((w) => (
             <button type="button" key={w} className={'seg ' + (t.weight === w ? 'on' : '')} onClick={() => setWeight(t.id, w)}>{w} pt{w > 1 ? 's' : ''}</button>
           ))}
         </div>
-      </div>
+      </div>}
       <div className="drow">
         <span className="dlab">Priorité</span>
         <div className="segs">
@@ -211,8 +211,8 @@ function Task({ t, selected, busy, onGrab, mode, open, flash, today }) {
           <span className="tt">{t.prio && <span className="star">★ </span>}{t.text}</span>
           <span className="meta">
             {t.cat && <CatChip cat={catOf(t.cat, S)} small />}
-            <span className={'chip pts w' + t.weight}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>
-            {t.carried >= 2 && <span className="chip warn">reportée {t.carried}×</span>}
+            {!zenOn(S) && <span className={'chip pts w' + t.weight}>{t.weight} pt{t.weight > 1 ? 's' : ''}</span>}
+            {t.carried >= 2 && !zenOn(S) && <span className="chip warn">reportée {t.carried}×</span>}
             {tags.map((g) => <TagChip key={g.id} tag={g} small />)}
             {t.subs.length > 0 && (
               <span className="chip flex items-center gap-1.5">

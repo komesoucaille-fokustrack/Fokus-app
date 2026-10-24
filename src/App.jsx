@@ -9,7 +9,8 @@ import Upcoming from './components/Upcoming';
 import Hello from './components/Hello';
 import Ambiance from './components/Ambiance';
 import DayStrip from './components/DayStrip';
-import { getColorForPercentage } from './lib/colors';
+import { getColorForPercentage, setPalette } from './lib/colors';
+import { StyleCard } from './components/Style';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
@@ -19,7 +20,7 @@ import { keepAmbient, playAmbient, previewing, stopAmbient } from './lib/ambient
 import { usePushSync } from './lib/pushSync';
 import {
   afterValidate, cardText, carriedTasks, checkDay, dismissToast, exportReminder, gainOf, generateTestData, getState, getUI, markSeen,
-  moveCarried, needsMorning, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter, setCatFilter,
+  moveCarried, needsMorning, zenOn, needsWeekly, pomoElapsed, pomoTick, scoreFmt, selPoints, setBusy, setModal, setOpen, setPage, setTagFilter, setCatFilter,
   openSettings, setSetting, simulateMidnight, sortTasks, stats, toast, toastAction, todayKey, todayTasks, useStore, validateSelection, PHASES,
 } from './store';
 import Icon from './components/Icons';
@@ -128,7 +129,7 @@ function useMidnight() {
 function CarriedBar() {
   const [open, setOpenBar] = useState(false);
   const n = carriedTasks().length;
-  if (!n) return null;
+  if (!n || zenOn()) return null; // Tranquille : les reports ne sont pas signalés
   const today = todayKey();
   return (
     <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[13px] text-mut">
@@ -150,6 +151,7 @@ function CarriedBar() {
 
 export default function App() {
   const { S, UI } = useStore();
+  setPalette(S.set.style); // Tranquille : couleurs douces (barre, lueur, cinématique, calendrier)
   const s = stats(S.tasks);
   const text = cardText(S);
   const [load3D, setLoad3D] = useState(false);
@@ -283,6 +285,7 @@ export default function App() {
       <main className="relative z-[1] mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (
           <section ref={page} key="p1" className="relative">
+            <StyleCard />
             <Welcome />
             <Hello ref={hello} S={S} />
             <div className={'aura ' + (UI.busy ? 'off' : '')} style={{ '--aura': getColorForPercentage(s.p) }} aria-hidden="true" />
@@ -338,7 +341,7 @@ export default function App() {
       <CloudChoice />
       <ValidateButton
         k={visibleSel} onClick={validate}
-        gain={!visibleSel ? '' : S.set.scoreMode === 'pts' ? `${selPoints(UI.sel)} pt${selPoints(UI.sel) > 1 ? 's' : ''}` : `${gainOf(UI.sel)}%`}
+        gain={!visibleSel ? '' : zenOn(S) ? '🌿' : S.set.scoreMode === 'pts' ? `+${selPoints(UI.sel)} pt${selPoints(UI.sel) > 1 ? 's' : ''}` : `+${gainOf(UI.sel)}%`}
       />
 
       <Suspense fallback={null}>

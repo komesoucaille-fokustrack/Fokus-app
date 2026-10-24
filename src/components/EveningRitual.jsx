@@ -4,7 +4,7 @@ import Sheet from './Sheet';
 import { TagChip, fmtMin } from './TaskList';
 import { addDays } from '../lib/dates';
 import { getColorForPercentage } from '../lib/colors';
-import { canPrio, deleteTask, markSeen, setDate, setSetting, stats, taskDur, todayKey, todayTasks, togglePrio, toast, useStore } from '../store';
+import { scoreFmt, canPrio, deleteTask, markSeen, setDate, setSetting, stats, taskDur, todayKey, todayTasks, togglePrio, toast, useStore } from '../store';
 
 /* =====================================================================
    RITUEL DU SOIR « FERMER MA JOURNÉE » — 3 écrans rapides, au pouce :
@@ -46,7 +46,7 @@ export default function EveningRitual({ onClose }) {
         {step === 0 && (
           <>
             <div className="mb-3 flex items-baseline gap-3">
-              <b className="text-[48px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: getColorForPercentage(s.p) }}>{s.p}%</b>
+              <b className="text-[48px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: getColorForPercentage(s.p) }}>{scoreFmt(S)(s.p)}</b>
               <span className="text-[14px] text-mut">{s.c} / {s.n} tâche{s.n > 1 ? 's' : ''}{s.prt ? ` · priorités ${s.pr}/${s.prt}` : ''}</span>
             </div>
             <ul className="m-0 mb-3 max-h-[40vh] overflow-auto p-0">

@@ -24,6 +24,8 @@ import { buzz } from './lib/notify';
    ===================================================================== */
 export const VERSION = 5;
 const KEY = 'focus_state';
+/* Météo du jour : [id, emoji, libellé, part de l'objectif] (voir « Style et météo du jour ») */
+export const METEO = [['sun', '☀️', 'En forme', 1], ['cloud', '⛅', 'Ça va', 0.8], ['rain', '🌧️', 'Fatigué·e', 0.6], ['moon', '🌙', 'Besoin de repos', 0.4]];
 export const PASTELS = ['#fca5a5', '#fdba74', '#fde68a', '#86efac', '#93c5fd', '#c4b5fd', '#f9a8d4', '#5eead4'];
 /* Catégories (v5) : un grand domaine par tâche (emoji + couleur), en plus des étiquettes libres */
 export const DEF_CATS = [
@@ -38,11 +40,12 @@ export const DEF_SET = {
   showStreak: true, showBadges: true, morning: true,
   order: 'manual', pomoMode: 'classic', flowRatio: 5, ambient: 'none', ambVol: 0.5, ambMute: true,
   defDur: 30, capacity: 360, evening: true, eveningAt: '21:00', planView: 'list', testTools: false, pipMode: 'auto',
+  style: 'fokus', meteo: true,
 };
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
   set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
-  sessions: [], ideas: [], pushId: '',
+  sessions: [], ideas: [], pushId: '', mood: { d: '', v: '' },
 });
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -157,6 +160,7 @@ export function migrate(raw) {
       .map((x) => [Math.round(x[0]), Math.round(x[1]), x[2] ? String(x[2]) : null, x[3] === 'f' ? 'f' : 'c', x[4] ? 1 : 0, arr(x[5]).map(String), String(x[6] || '').slice(0, 40), x[7] ? String(x[7]) : null])),
     ideas: arr(o.ideas).filter((x) => x && x.text).map((x) => ({ id: String(x.id || uid()), text: String(x.text), at: +x.at || Date.now() })),
     pushId: typeof o.pushId === 'string' ? o.pushId : '',
+    mood: o.mood && isKey(o.mood.d) && METEO.some((m) => m[0] === o.mood.v) ? { d: o.mood.d, v: o.mood.v } : { d: '', v: '' },
   };
 }
 
@@ -200,27 +204,47 @@ export function useStore() {
 export const now = () => new Date(Date.now() + S.off * 864e5);
 export const todayKey = () => K(now());
 
+/* ---------- Style et météo du jour ----------
+   Style « fokus » (À fond : points, série, tri du matin, rituel du soir) ou « zen » (Tranquille : chaque tâche compte
+   pareil, compteur « 3 faites » au lieu du %, couleurs douces sans rouge, ni série ni reports affichés, aucun écran imposé).
+   Météo du jour (les deux styles) : l'objectif s'adapte à l'énergie du jour → ☀️ 100 %, ⛅ 80 %, 🌧️ 60 %, 🌙 40 % des points ;
+   au-delà = bonus. La série et les badges suivent l'objectif ajusté : un jour sans énergie ne casse rien. */
+export const zenOn = (St = S) => St.set.style === 'zen';
+export const meteoOf = (St = S, k = K(new Date(Date.now() + St.off * 864e5))) => (St.set.meteo !== false && St.mood?.d === k ? METEO.find((m) => m[0] === St.mood.v) || null : null);
+export const setMood = (v) => set({ mood: v ? { d: todayKey(), v } : { d: '', v: '' } });
+/* Choisir un style règle aussi les écrans qui vont avec (chacun reste modifiable ensuite dans les Réglages) */
+export function applyStyle(style) {
+  const zen = style === 'zen';
+  set({ set: { ...S.set, style, showStreak: !zen, morning: !zen, evening: !zen, ...(zen ? { defWeight: 1, scoreMode: 'pct' } : {}) }, seen: { ...S.seen, style: 1 } });
+}
+
 /* ---------- Calculs ---------- */
 export const isToday = (t, k = todayKey()) => !!t.date && t.date <= k;
 export const todayTasks = (tasks = S.tasks, k = todayKey()) => tasks.filter((t) => isToday(t, k));
-/* Score du jour par points : points faits / points totaux (tâches du jour uniquement) */
-export function stats(tasks = S.tasks, k = todayKey()) {
+/* Score du jour par points : points faits / objectif (tâches du jour uniquement).
+   Objectif = points totaux × météo du jour (arrondi, au moins 1) ; style Tranquille : chaque tâche vaut 1. */
+const goalOf = (pt, f) => (pt ? Math.max(1, Math.round(pt * f)) : 0);
+const pctOf = (pd, goal) => (goal ? Math.min(100, Math.round((pd / goal) * 100)) : 0);
+export function stats(tasks = S.tasks, k = todayKey(), St = S) {
   let n = 0, c = 0, pt = 0, pd = 0, prt = 0, pr = 0;
+  const zen = zenOn(St);
   for (const t of tasks) {
     if (!isToday(t, k)) continue;
-    n++; pt += t.weight;
-    if (t.done) { c++; pd += t.weight; }
+    const w = zen ? 1 : t.weight;
+    n++; pt += w;
+    if (t.done) { c++; pd += w; }
     if (t.prio) { prt++; if (t.done) pr++; }
   }
-  return { n, c, pt, pd, prt, pr, p: pt ? Math.round((pd / pt) * 100) : 0 };
+  const m = meteoOf(St, k), goal = goalOf(pt, m ? m[3] : 1);
+  return { n, c, pt, pd, prt, pr, goal, bonus: Math.max(0, pd - goal), p: pctOf(pd, goal) };
 }
 /* Gain (en points de %) si la sélection était validée */
 export function gainOf(sel = UI.sel) {
   const s = stats();
   if (!s.pt) return 0;
   let add = 0;
-  for (const t of S.tasks) if (sel.has(t.id) && !t.done && isToday(t)) add += t.weight;
-  return Math.round(((s.pd + add) / s.pt) * 100) - s.p;
+  for (const t of S.tasks) if (sel.has(t.id) && !t.done && isToday(t)) add += zenOn() ? 1 : t.weight;
+  return pctOf(s.pd + add, s.goal) - s.p;
 }
 /* Ordre d'affichage du jour : priorités en tête, puis l'ordre choisi (ordre du tableau, toujours respecté) */
 /* Ordre d'affichage : priorités (or) en tête, puis 3 pts > 2 pts > 1 pt ; à égalité, l'ordre choisi (tri stable) */
@@ -245,7 +269,7 @@ export function streaks(St = S) {
     run = ok ? run + 1 : 0;
     best = Math.max(best, run);
   }
-  const s = stats(St.tasks, tk), todayOk = s.n > 0 && s.p >= th;
+  const s = stats(St.tasks, tk, St), todayOk = s.n > 0 && s.p >= th;
   if (todayOk) wk[mondayOf(tk)] = (wk[mondayOf(tk)] || 0) + 1;
   const cur = run + (todayOk ? 1 : 0);
   best = Math.max(best, cur);
@@ -293,8 +317,18 @@ export const focusTotal = (St = S) => Object.values(St.hist).reduce((s, h) => s 
 /* Textes de la carte « Aujourd'hui » (partagés avec la face 3D de l'animation) */
 const plural = (n, w) => w + (n > 1 ? 's' : '');
 export function cardText(St = S) {
-  const s = stats(St.tasks), parts = ['Aujourd’hui'];
-  if (s.prt) parts.push((typeof innerWidth !== 'undefined' && innerWidth < 480 ? '★ ' : 'Priorités : ') + `${s.pr}/${s.prt}`);
+  const s = stats(St.tasks, undefined, St), m = meteoOf(St), zen = zenOn(St), parts = ['Aujourd’hui'];
+  const narrow = typeof innerWidth !== 'undefined' && innerWidth < 480;
+  if (m && m[3] < 1) parts.push(`${m[1]} objectif ${Math.round(m[3] * 100)} %`);
+  else if (m) parts.push(m[1]);
+  if (s.prt) parts.push((narrow ? '★ ' : 'Priorités : ') + `${s.pr}/${s.prt}`);
+  if (zen) {
+    const left = s.n - s.c;
+    return {
+      label: parts.join('  ·  '),
+      sub: !s.n ? 'Rien de prévu, profite 🌿' : !left ? 'Tout est fait, bravo 🌿' : s.pd >= s.goal ? `Objectif atteint · ${left} en bonus ✨` : `${left} à faire, à ton rythme 🌿`,
+    };
+  }
   if (St.set.showStreak) {
     const z = streaks(St);
     if (z.cur || z.best) parts.push(`🔥 ${z.cur} j` + (z.best > z.cur ? ` (record ${z.best})` : '') + (z.wcur ? ` · ${z.wcur} sem.` : ''));
@@ -302,14 +336,16 @@ export function cardText(St = S) {
   const tasks = `${s.c} / ${s.n} ${plural(s.n, 'tâche')} ${plural(s.c, 'terminée')}`;
   return {
     label: parts.join('  ·  '),
-    sub: !s.n ? 'Aucune tâche aujourd’hui' : St.set.scoreMode === 'pts' ? `sur ${s.pt} pts · ${tasks}` : tasks,
+    sub: !s.n ? 'Aucune tâche aujourd’hui' : (St.set.scoreMode === 'pts' ? `sur ${s.goal} pts · ${tasks}` : tasks) + (s.bonus ? ` · +${s.bonus} bonus ✨` : ''),
   };
 }
 /* Affichage du score : pourcentage, ou points (convertis depuis le % pour le compteur animé) */
 export const scoreFmt = (St = S) => {
+  const s = stats(St.tasks, undefined, St);
+  // Tranquille : le nombre de tâches faites (« 3 faites »), jamais un pourcentage
+  if (zenOn(St)) return (v) => { const n = v >= 100 ? s.pd : Math.round((v / 100) * s.goal); return n + (n > 1 ? ' faites' : ' faite'); };
   if (St.set.scoreMode !== 'pts') return (v) => Math.round(v) + '%';
-  const pt = stats(St.tasks).pt;
-  return (v) => { const n = Math.round((v / 100) * pt); return n + (n > 1 ? ' pts' : ' pt'); };
+  return (v) => { const n = Math.round((v / 100) * s.goal); return n + (n > 1 ? ' pts' : ' pt'); };
 };
 export function selPoints(sel = UI.sel) {
   let n = 0;
@@ -567,7 +603,7 @@ export function moveCarried(date) {
   ids.forEach((id) => setDate(id, date));
   toast(`${ids.length} ${plural(ids.length, 'tâche')} ${plural(ids.length, 'déplacée')}.`);
 }
-export const needsMorning = (St = S) => St.set.morning && St.seen.morning !== todayKey() && carriedTasks().length > 0;
+export const needsMorning = (St = S) => St.set.morning && !zenOn(St) && St.seen.morning !== todayKey() && carriedTasks().length > 0;
 
 /* ---------- Tâches récurrentes ---------- */
 export function isDue(r, k) {
@@ -923,6 +959,8 @@ function entry(tasks, k, St) {
     if (t.est) { ea[0] += t.est; ea[1] += r1(t.focus || 0); }
   }
   const e = { p: s.p, d: s.c, t: s.n, pd: s.pd, pt: s.pt, pr: s.pr, prt: s.prt, fm: St.fmDay.d === k ? r1(St.fmDay.m) : 0, ps: St.pomoDay.d === k ? St.pomoDay.n : 0, tg };
+  const m = meteoOf(St, k);
+  if (m) e.mt = m[0];
   if (ea[0]) e.ea = ea;
   if (Object.keys(cg).length) e.cg = cg;
   return e;
@@ -984,6 +1022,7 @@ export function generateTestData() {
     const pr = Math.min(prt, Math.round(prt * target + (Math.random() - 0.5)));
     const fm = Math.random() < 0.7 ? Math.round(15 + Math.random() * 110) : 0;
     hist[k] = { p: Math.round((pd / pt) * 100), d, t, pd, pt, pr: Math.max(0, pr), prt, fm, tg, ps: Math.round(fm / 25), ...(d ? { cg } : {}) };
+    if (i < 60) hist[k].mt = METEO[Math.min(3, Math.floor((1 - target) * 3.2 + Math.random() * 0.8))][0]; // météo des 2 derniers mois
     if (fm && Math.random() < 0.5) hist[k].ea = [Math.round(fm * (0.75 + Math.random() * 0.4)), fm];
     // journal de sessions cohérent avec les minutes du jour (pics le matin et en début d'après-midi)
     const day0 = parseK(k).getTime() / 1000 - S.off * 864e2;
@@ -1044,7 +1083,7 @@ export function weekReview(St = S, monday) {
 }
 export const needsWeekly = (St = S) => {
   const m = mondayOf(todayKey());
-  return St.seen.weekly !== m && weekReview(St).n > 0;
+  return !zenOn(St) && St.seen.weekly !== m && weekReview(St).n > 0;
 };
 
 /* ---------- Export / Import / Réinitialisation ---------- */

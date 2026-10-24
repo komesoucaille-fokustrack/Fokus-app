@@ -1,14 +1,17 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import FokusLogo from './FokusLogo';
 import { dismissIntro, useCloud } from '../lib/cloud';
+import { applyStyle } from '../store';
+import { StylePicker } from './Style';
 
 /* =====================================================================
    BIENVENUE — juste après l'inscription (prénom, nom, pseudo, âge), avant d'entrer dans l'app :
-   message d'encouragement + le principe de Fokus en 5 étapes. Une seule fois par compte (m.intro).
+   message d'encouragement + le principe de Fokus en 6 étapes + choix du style (À fond / Tranquille). Une seule fois par compte (m.intro).
    ===================================================================== */
 const STEPS = [
   ['✍️', 'Écris tes tâches du jour', 'Donne-leur 1, 2 ou 3 points selon leur importance, et marque jusqu’à 3 priorités ★. Une tâche, même petite, c’est déjà un pas.'],
+  ['☀️', 'Dis ta météo du jour', 'En forme, fatigué·e, besoin de repos ? Ton objectif du jour s’adapte à ton énergie : un jour difficile peut quand même être une journée réussie.'],
   ['✅', 'Coche, puis touche «\u00a0Valider\u00a0»', 'Ta barre de progression avance en 3D sous tes yeux. À 100 %, tu passes l’arche d’arrivée sous les confettis 🎊'],
   ['⏱️', 'Concentre-toi', 'Le minuteur Pomodoro t’aide à rester focus : une session à la fois, sans pression, et chaque minute compte.'],
   ['🔥', 'Construis ta série', 'Chaque journée réussie allonge ta série. 90 badges t’attendent, du premier pas jusqu’aux records.'],
@@ -18,6 +21,7 @@ const STEPS = [
 export default function Intro() {
   const { user = {} } = useCloud();
   const card = useRef(null);
+  const [style, setStyle] = useState('fokus');
   useLayoutEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
     const ctx = gsap.context(() => {
@@ -40,8 +44,10 @@ export default function Intro() {
             </li>
           ))}
         </ol>
+        <h2 className="intro-h">Comment tu veux avancer ?</h2>
+        <StylePicker value={style} onPick={setStyle} />
         <p className="intro-quote">Pas besoin d’être parfait : vise juste un peu mieux qu’hier. Les petits pas, répétés chaque jour, mènent très loin. 💚</p>
-        <button type="button" className="b on login-go intro-go" onClick={dismissIntro}>C’est parti ! 🚀</button>
+        <button type="button" className="b on login-go intro-go" onClick={() => { applyStyle(style); dismissIntro(); }}>C’est parti ! 🚀</button>
       </div>
     </main>
   );

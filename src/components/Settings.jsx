@@ -17,6 +17,7 @@ import { PUSH_URL } from '../push-config';
 import { daysBetween } from '../lib/dates';
 import { CatsSettings } from './Categories';
 import { shareFokus } from './Welcome';
+import { StyleSettings } from './Style';
 
 /* Rouage (icône paramètres) */
 
@@ -26,6 +27,7 @@ const ICONS = {
   admin: 'M3 3v18h18 M7 15l4-4 3 3 5-6',
   contact: 'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M3 7l9 6 9-6',
   day: 'M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 14h.01 M12 14h.01 M16 14h.01',
+  style: 'M12 21c-4-3-8-6.5-8-11a8 8 0 0 1 16 0c0 4.5-4 8-8 11z M12 13c2-1.5 3-3 3-5 M12 13c-1.5-1-2.5-2.3-2.5-4',
   look: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.1-.3-.3-.5-.7-.5-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.4-4-7.6-9-7.6z M7.5 11h.01 M10.5 7.5h.01 M15 7.5h.01',
   score: 'M4 19V9 M10 19V5 M16 19v-7 M22 19H2',
   motiv: 'M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z',
@@ -40,7 +42,7 @@ const SECTIONS = [
   ...(cloudEnabled() ? [['account', 'Compte']] : []),
   ['admin', 'Administration'], // propriétaire seulement (filtré dans Settings)
   ['contact', 'Contact'],
-  ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
+  ['style', 'Mon style'], ['look', 'Apparence'], ['score', 'Score et affichage'], ['day', 'Ma journée'], ['motiv', 'Série et motivation'], ['pomo', 'Pomodoro'], ['anim', 'Animations'],
   ['notif', 'Rappels'], ['cats', 'Catégories'], ['tags', 'Étiquettes'], ['data', 'Données'],
 ];
 const Ico = ({ k }) => (
@@ -409,7 +411,8 @@ const Contact = () => (
 const Admin = () => <Group title="Tableau de bord" foot="Visible seulement par toi (propriétaire du site). Chiffres en direct, mis à jour toutes les 10 secondes.">
   <div className="si col"><AdminDashboard /></div>
 </Group>;
-const BODY = { day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data, account: Account, admin: Admin, contact: Contact };
+const Style = (p) => <StyleSettings {...p} Group={Group} Item={Item} Switch={Switch} />;
+const BODY = { style: Style, day: Day, look: Look, score: Score, motiv: Motiv, pomo: Pomo, anim: Anim, notif: Notif, cats: Cats, tags: Tags, data: Data, account: Account, admin: Admin, contact: Contact };
 
 /* Panneau « Réglages » : rubriques à gauche (iPad, ordinateur) ou en haut (téléphone) */
 export default function Settings() {
