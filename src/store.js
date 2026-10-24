@@ -45,7 +45,7 @@ export const DEF_SET = {
 const base = () => ({
   version: VERSION, tasks: [], rec: [], hist: {}, tags: [], cats: DEF_CATS.map((c) => ({ ...c })), last: '', off: 0, anim: true, confetti: true,
   set: { ...DEF_SET }, badges: {}, doneTotal: 0, fmDay: { d: '', m: 0 }, lastExport: '', since: '', seen: {}, pomo: null, pomoDay: { d: '', n: 0 },
-  sessions: [], ideas: [], pushId: '', mood: { d: '', v: '' }, arch: [], tz: '',
+  sessions: [], ideas: [], pushId: '', mood: { d: '', v: '' }, arch: [], tz: '', mine: null,
 });
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
@@ -315,6 +315,18 @@ export const jokersLeft = (St = S) => Math.max(0, St.set.jokers - jokersUsed(St.
 
 /* Minutes de concentration d'aujourd'hui */
 export const focusToday = (St = S) => (St.fmDay.d === K(new Date(Date.now() + St.off * 864e5)) ? St.fmDay.m : 0);
+/* La mine (jeu) : partie enregistrée avec le reste (synchronisée avec le compte) */
+export const setMine = (mine) => set({ mine });
+/* Secondes de concentration au total, y compris la session en cours pas encore créditée (temps de jeu de la mine) */
+export function focusSecs(St = S) {
+  let s = focusTotal(St) * 60;
+  const p = St.pomo;
+  if (p && p.phase === 'work' && p.paused == null) {
+    const el = p.flow ? pomoElapsed(p) : Math.min(pomoElapsed(p), p.dur);
+    s += Math.max(0, el - (p.cr || 0));
+  }
+  return s;
+}
 export const focusTotal = (St = S) => Object.values(St.hist).reduce((s, h) => s + (h.fm || 0), 0) + focusToday(St);
 
 /* Textes de la carte « Aujourd'hui » (partagés avec la face 3D de l'animation) */

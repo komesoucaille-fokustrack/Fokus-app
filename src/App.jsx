@@ -41,6 +41,7 @@ const MorningTriage = lazy(() => import('./components/MorningTriage'));
 const WeeklyReview = lazy(() => import('./components/WeeklyReview'));
 const Overload = lazy(() => import('./components/Overload'));
 const Timeline = lazy(() => import('./components/Timeline'));
+const Mine = lazy(() => import('./components/Mine'));
 const EveningRitual = lazy(() => import('./components/EveningRitual'));
 const TITLE = document.title; // titre de index.html (référencement), remis quand le minuteur s'arrête
 
@@ -337,6 +338,8 @@ export default function App() {
           </section>
         ) : UI.page === 3 ? (
           <div ref={page} key="p3"><Upcoming /></div>
+        ) : UI.page === 5 && LABO ? (
+          <div ref={page} key="p5"><Suspense fallback={<div className="mine-stage" />}><Mine /></Suspense></div>
         ) : UI.page === 4 ? (
           <div ref={page} key="p4"><Suspense fallback={<div className="stage-ph" />}><Pomodoro /></Suspense></div>
         ) : (

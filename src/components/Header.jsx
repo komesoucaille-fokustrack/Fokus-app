@@ -66,7 +66,7 @@ export default function Header() {
   const nav = useRef(null), ind = useRef(null), first = useRef(true);
   useLayoutEffect(() => {
     const place = (anim) => {
-      const b = nav.current?.querySelector(`[data-p="${UI.page}"]`);
+      const b = nav.current?.querySelector(`[data-p="${UI.page === 5 ? 4 : UI.page}"]`); // la mine (labo) est rangée sous Pomodoro
       if (!b) return;
       const to = { x: b.offsetLeft, y: b.offsetTop, width: b.offsetWidth, height: b.offsetHeight };
       if (anim) gsap.to(ind.current, { ...to, duration: 0.55, ease: 'expo.out' });
@@ -88,7 +88,7 @@ export default function Header() {
       <nav className="navseg" ref={nav}>
         <i className="navind" ref={ind} aria-hidden="true" />
         {[[1, 'Mes Tâches', 'Tâches'], [3, 'À venir', 'À venir', upcoming || ''], [4, 'Pomodoro', 'Pomodoro', live], [2, 'Ma Progression', 'Progrès']].map(([n, l, sl, x]) => (
-          <button key={n} data-p={n} className={UI.page === n ? 'on' : ''} onClick={() => setPage(n)} aria-current={UI.page === n ? 'page' : undefined}>
+          <button key={n} data-p={n} className={UI.page === n || (n === 4 && UI.page === 5) ? 'on' : ''} onClick={() => setPage(n)} aria-current={UI.page === n ? 'page' : undefined}>
             <span className="hidden sm:inline">{l}</span><span className="sm:hidden">{sl}</span>
             {x ? <span className="ml-1 text-[11px] opacity-60 tabular-nums">{x}</span> : null}
           </button>

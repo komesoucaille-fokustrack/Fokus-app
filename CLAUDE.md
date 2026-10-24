@@ -305,6 +305,11 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 - Labo (`src/env.js` `LABO`, `src/lib/labo.js` importé en premier) : clés du stockage préfixées `labo:` (données séparées de l'app),
   copie IndexedDB `labo-backup`, caches du service worker `labo-`, pas de compte ni de synchronisation, pas de statistiques,
   pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
+- **La mine** (jeu dans le labo, page 5, carte dans l'onglet Pomodoro) : `src/game/` (`data.js` mondes / minerais / améliorations,
+  `sim.js` mine générée par graine + simulation pure, `render.js` + `art.js` dessins Canvas 2D vectoriels « à la Rayman »),
+  `components/Mine.jsx` (intro + histoire, jeu, boutique, collection), partie dans `S.mine` (`setMine`), temps de jeu =
+  `focusSecs()` (concentration Pomodoro depuis le début de l'aventure, impossible d'accélérer), monnaie **Fokoin** (Fk) ;
+  équilibrage : `node scripts/mine-sim.mjs` (monde 1 ≈ 12 h). Boutons de test « +1 h » réservés au labo.
 - Idée validée par l'utilisateur → fusion de `labo` dans `main` (le labo suit main : fusionner main dans labo après chaque publication).
 
 ## Workflow

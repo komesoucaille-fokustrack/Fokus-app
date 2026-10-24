@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import Clock, { CLOCKS, useNow } from './Clocks';
 import { fmtMin } from './TaskList';
@@ -15,6 +15,8 @@ import Ico from './Icons';
 import { usePip } from './Header';
 import { pipSupported } from '../lib/pip';
 import { useCloud } from '../lib/cloud';
+import { LABO } from '../env';
+const MineCard = lazy(() => import('./Mine').then((m) => ({ default: m.MineCard })));
 
 const two = (n) => String(n).padStart(2, '0');
 
@@ -252,6 +254,7 @@ export default function Pomodoro() {
 
       <Stage onFull={enter} />
       {S.ideas.length > 0 && (p.phase !== 'work' || p.paused != null) && <Ideas />}
+      {LABO && <Suspense fallback={null}><MineCard /></Suspense>}
       <SoundCard />
 
       <div className="card mt-4">

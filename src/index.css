@@ -874,3 +874,63 @@
 /* Labo (fokus-track.com/labo/) : pastille toujours visible, pour ne jamais confondre avec l'app */
 .labo-pill { position: fixed; left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 260; padding: 6px 14px; border-radius: 99px;
   font-size: 12.5px; font-weight: 700; color: #0b0c10; background: #fde68a; box-shadow: 0 6px 24px rgba(0,0,0,.45); text-decoration: none; }
+
+/* ===== La mine (jeu, labo) ===== */
+.fk { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.fk-coin { display: inline-block; flex: none; line-height: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+.mine { display: grid; gap: 10px; }
+.mine-stage { position: relative; height: min(68vh, 640px); min-height: 380px; border-radius: 22px; overflow: hidden; border: 1px solid var(--color-edge); background: #120c08; box-shadow: 0 20px 50px -20px rgba(0,0,0,.8); }
+.mine-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.mine-hud { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.mine-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border-radius: 99px; font-size: 13.5px; font-weight: 600; color: #fff;
+  background: rgba(12,9,7,.72); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); font-variant-numeric: tabular-nums; }
+.mine-coins { font-size: 16px; color: #ffe08a; }
+.mine-wait { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(92%, 440px); display: grid; gap: 6px; justify-items: center; text-align: center;
+  padding: 14px 16px; border-radius: 18px; background: rgba(12,9,7,.84); border: 1px solid rgba(255,220,150,.22); color: #f5efe6; font-size: 13.5px; }
+.mine-wait b { font-size: 15.5px; }
+.mine-wait span { color: #d6cbbd; }
+.mine-recenter { position: absolute; right: 12px; bottom: 12px; min-height: 40px; padding: 0 14px; border-radius: 99px; background: #fde68a; color: #1a1205; font-weight: 700; font-size: 13.5px; }
+.mine-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mine-dirs { display: flex; gap: 6px; }
+.mine-goalpill { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: 18px; }
+.mine-bar { display: block; height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.mine-bar.sm { width: 110px; height: 8px; }
+.mine-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f5c542, #ffe9a0); }
+.mine-note { font-size: 12.5px; color: var(--color-mut); margin: 0; }
+.mine-test { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: #fde68a; padding: 8px 10px; border-radius: 12px; border: 1px dashed rgba(253,230,138,.45); }
+.mine-bal { margin-bottom: 10px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.mine-shop { display: grid; gap: 8px; }
+.mine-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.035); border: 1px solid var(--color-edge); }
+.mine-item-e { font-size: 26px; text-align: center; }
+.mine-item-t { display: grid; gap: 2px; font-size: 13px; color: var(--color-mut); }
+.mine-item-t b { color: var(--color-text); font-size: 15px; }
+.mine-item-t em { font-style: normal; font-weight: 500; color: var(--color-mut); font-size: 12.5px; }
+.mine-fx { color: #fde68a; font-variant-numeric: tabular-nums; }
+.mine-goal { margin-top: 14px; display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: rgba(245,197,66,.07); border: 1px solid rgba(245,197,66,.3); }
+.mine-goal p { margin: 0; font-size: 13.5px; color: var(--color-text-2); }
+.mine-col { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.mine-ore { display: grid; grid-template-columns: 30px 1fr; column-gap: 8px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.035); border: 1px solid var(--color-edge); font-size: 13.5px; }
+.mine-ore i { grid-row: span 3; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 -2px 4px rgba(0,0,0,.4); }
+.mine-ore em { font-style: normal; font-size: 12px; color: var(--color-mut); }
+.mine-ore.unk { opacity: .55; }
+.mine-ore.unk i { filter: grayscale(1) brightness(.5); }
+.mine-intro { max-width: 620px; margin: 0 auto; display: grid; gap: 14px; padding: 18px; border-radius: 24px; background: rgba(14,11,9,.88); border: 1px solid rgba(255,220,150,.18); }
+.mine-intro h2 { margin: 0; font-size: 24px; font-weight: 800; }
+.mine-intro p { margin: 0; color: var(--color-text-2); line-height: 1.5; }
+.mine-story { font-size: 16.5px; color: #f5efe6 !important; }
+.mine-story-art { width: 100%; height: 240px; border-radius: 16px; display: block; background: #120c08; }
+.mine-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mine-hero { display: grid; gap: 6px; padding: 8px; border-radius: 18px; border: 2px solid var(--color-edge); background: rgba(255,255,255,.03); font-size: 15px; }
+.mine-hero .mine-story-art { height: 170px; }
+.mine-hero.on { border-color: #fde68a; box-shadow: 0 0 0 3px rgba(253,230,138,.18); }
+.mine-name { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+.mine-go { min-height: 48px; font-size: 16px; }
+.mine-dots { display: flex; justify-content: center; gap: 6px; }
+.mine-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.2); }
+.mine-dots i.on { background: #fde68a; }
+.mine-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; margin-top: 14px; padding: 14px 16px; border-color: rgba(245,197,66,.3) !important; }
+.mine-card-e { font-size: 28px; }
+.mine-card-t { flex: 1; display: grid; gap: 2px; font-size: 13.5px; color: var(--color-text-2); }
+.mine-card-t b { color: var(--color-text); font-size: 15.5px; }
+.mine-card-go { font-weight: 700; color: #fde68a; white-space: nowrap; }
+@media (max-width: 600px) { .mine-goalpill { margin-left: 0; } .mine-stage { height: 62vh; } }
