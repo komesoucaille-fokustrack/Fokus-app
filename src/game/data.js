@@ -36,7 +36,7 @@ export const WORLDS = [
     ],
   },
   {
-    id: 2, name: 'Les volcans d’Auvergne', place: 'La région · Massif central', theme: 'volcans', emoji: '🌋', mul: 6, tough: 8, seed: 2027, width: 240, depth: 140, veins: 0.42,
+    id: 2, name: 'Les volcans d’Auvergne', place: 'La région · Massif central', theme: 'volcans', emoji: '🌋', mul: 6, tough: 5, seed: 2027, width: 240, depth: 140, veins: 0.42,
     sky: ['#7ec8f2', '#bfe6ff'], town: '#3a3440',
     goal: { id: 'voiture', name: 'la voiture', emoji: '🚗', book: 30000, build: 90000, next: 'Le pays · la côte atlantique' },
     tiles: {
