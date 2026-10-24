@@ -2,11 +2,42 @@ import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import Sheet from './Sheet';
 import { fmtMin } from './TaskList';
-import { getColorForPercentage } from '../lib/colors';
+import { ZEN_BLUE, getColorForPercentage } from '../lib/colors';
 import { addDays, dayLabel, parseK } from '../lib/dates';
-import { todayKey, useStore, weekReview } from '../store';
+import { focusToday, stats, todayKey, useStore, weekReview, zenOn } from '../store';
 
 const short = (k) => parseK(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+/* Style Tranquille : juste ce qui a été fait (aucun pourcentage, aucune comparaison, aucune série) */
+function ZenWeek({ S, r, tk, grid, onClose, current }) {
+  const days = [...Array(7)].map((_, i) => addDays(r.from, i)).filter((k) => k <= tk);
+  const doneOf = (k) => (k === tk ? stats(S.tasks).c : S.hist[k]?.d || 0);
+  const fmOf = (k) => (k === tk ? focusToday(S) : S.hist[k]?.fm || 0);
+  const done = days.reduce((a, k) => a + doneOf(k), 0), fm = days.reduce((a, k) => a + fmOf(k), 0);
+  const top = days.reduce((b, k) => (doneOf(k) > (b ? doneOf(b) : 0) ? k : b), null);
+  return (
+    <Sheet title={current ? 'Ma semaine' : 'Ta semaine'} sub={`Du ${short(r.from)} au ${short(r.to)}`} onClose={onClose}>
+      <div ref={grid} className="grid grid-cols-2 gap-2.5">
+        <div className="stat col-span-2">
+          <span className="slab">Cette semaine, tu as fait</span>
+          <b className="text-[44px] leading-none tracking-[-0.04em] tabular-nums" style={{ color: ZEN_BLUE }}>{done} tâche{done > 1 ? 's' : ''}</b>
+          <span className="text-[13px] text-mut">Chaque petit pas compte. Bravo 🌿</span>
+        </div>
+        <div className="stat">
+          <span className="slab">Ta plus belle journée</span>
+          <b className="text-lg">{top ? `${doneOf(top)} faite${doneOf(top) > 1 ? 's' : ''}` : '–'}</b>
+          <span className="text-[13px] text-mut">{top ? dayLabel(top, tk) : 'Rien d’enregistré'}</span>
+        </div>
+        <div className="stat">
+          <span className="slab">Concentration</span>
+          <b className="text-lg tabular-nums">{fm >= 1 ? fmtMin(fm) : '–'}</b>
+          <span className="text-[13px] text-mut">Minuteur ▶</span>
+        </div>
+      </div>
+      <button className="b on mt-4 w-full py-3!" onClick={onClose}>Continuer</button>
+    </Sheet>
+  );
+}
 
 /* « Bilan de la semaine » : moyenne et écart, meilleure journée, série, priorités, concentration */
 export default function WeeklyReview({ onClose, current }) {
@@ -18,6 +49,7 @@ export default function WeeklyReview({ onClose, current }) {
     gsap.from(grid.current.children, { y: 14, opacity: 0, duration: 0.6, stagger: 0.06, ease: 'expo.out', delay: 0.1, clearProps: 'transform,opacity' });
   }, []);
   const col = getColorForPercentage(r.avg ?? 0);
+  if (zenOn(S)) return <ZenWeek S={S} r={r} tk={tk} grid={grid} onClose={onClose} current={current} />;
   const diff = r.avg != null && r.prevAvg != null ? r.avg - r.prevAvg : null;
   return (
     <Sheet title={current ? 'Bilan de cette semaine' : 'Bilan de la semaine'} sub={`Du ${short(r.from)} au ${short(r.to)}`} onClose={onClose}>

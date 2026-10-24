@@ -9,7 +9,7 @@ import { focusToday, todayKey } from '../store';
    Sources : hist[jour].fm (minutes par jour), journal des sessions (heures, étiquettes, tâches, sessions terminées),
    hist[jour].ea (précision des estimations).
    ===================================================================== */
-const BLUE = '#93c5fd', MINT = '#86efac';
+const BLUE = '#93c5fd', MINT0 = '#86efac';
 const axis = { ticks: { color: '#a0a0a0', font: { family: 'Inter Variable' } }, grid: { color: 'rgba(255,255,255,.06)' }, border: { display: false } };
 const tip = { backgroundColor: '#0b0c10', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 10, displayColors: false };
 
@@ -50,6 +50,7 @@ export function focusData(S, weeks) {
 }
 
 export default function FocusStats({ S }) {
+  const MINT = S.set.style === 'zen' ? '#3b82f6' : MINT0; // Tranquille : tout en bleu
   const [weeks, setWeeks] = useState(4);
   const d = useMemo(() => focusData(S, weeks), [S, weeks]);
   const daily = useRef(null), trend = useRef(null), hrs = useRef(null);

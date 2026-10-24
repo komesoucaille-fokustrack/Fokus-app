@@ -2,8 +2,8 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* Couleur continue (lueur, moyenne de la Page 2) */
 const STOPS_FOKUS = [[0, '#f87171'], [20, '#fb7185'], [40, '#fb923c'], [55, '#fdba74'], [75, '#fde047'], [83, '#059669'], [90, '#065f46'], [94, '#10b981'], [97, '#6ee7b7'], [100, '#86efac']];
-/* Style « Tranquille » : lavande → bleu doux → menthe, jamais de rouge (aucune couleur d'alerte) */
-const STOPS_ZEN = [[0, '#c4b5fd'], [30, '#a5b4fc'], [55, '#93c5fd'], [75, '#7dd3fc'], [90, '#5eead4'], [100, '#86efac']];
+/* Style « Tranquille » : uniquement du bleu (clair → franc), ni rouge ni vert : aucune couleur qui juge */
+const STOPS_ZEN = [[0, '#bfdbfe'], [40, '#93c5fd'], [75, '#60a5fa'], [100, '#3b82f6']];
 let STOPS = STOPS_FOKUS;
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16));
 
@@ -25,8 +25,9 @@ const TIERS_FOKUS = [
   [100, ['#065f46', '#10b981', '#6ee7b7', '#86efac']], // Verts → menthe lumineux
 ];
 const TIERS_ZEN = [
-  [30, ['#c4b5fd', '#a5b4fc']], [55, ['#a5b4fc', '#93c5fd']], [75, ['#93c5fd', '#7dd3fc']], [90, ['#7dd3fc', '#5eead4']], [100, ['#93c5fd', '#5eead4', '#86efac']],
+  [40, ['#bfdbfe', '#93c5fd']], [75, ['#93c5fd', '#60a5fa']], [100, ['#93c5fd', '#60a5fa', '#3b82f6']],
 ];
+export const ZEN_BLUE = '#60a5fa';
 let TIERS = TIERS_FOKUS;
 /* Palette selon le style (appelé au rendu de l'app ; la cinématique utilise les mêmes fonctions) */
 export function setPalette(style) {

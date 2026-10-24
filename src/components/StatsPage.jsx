@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import gsap from 'gsap';
 import { K, dayLabel, parseK } from '../lib/dates';
-import { getColorForPercentage } from '../lib/colors';
-import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore, METEO } from '../store';
+import { ZEN_BLUE, getColorForPercentage } from '../lib/colors';
+import { BADGES, BADGE_CATS, TIERS, badgeCtx, clearNewBadge, toast, focusToday, now, setModal, stats, streaks, todayKey, useStore, METEO, zenOn } from '../store';
 import { fmtMin } from './TaskList';
 import FocusStats from './FocusStats';
 import Medal from './Medal';
@@ -71,7 +71,10 @@ function Heatmap({ S }) {
   const tk = todayKey(), t = parseK(tk);
   const [pick, setPick] = useState(tk);
   const months = [...Array(12)].map((_, i) => new Date(t.getFullYear(), t.getMonth() - 11 + i, 1));
-  const live = stats(S.tasks);
+  const live = stats(S.tasks), zen = zenOn(S);
+  // Tranquille : intensité de bleu selon le nombre de tâches faites (jamais un pourcentage)
+  const dMax = zen ? Math.max(1, live.c, ...Object.values(S.hist).map((x) => x.d || 0)) : 1;
+  const tint = (d) => (zen ? (d.d ? `rgba(96,165,250,${(0.28 + 0.72 * Math.min(1, d.d / dMax)).toFixed(2)})` : undefined) : getColorForPercentage(d.p));
   const data = (k) => (k === tk ? (live.n ? { p: live.p, d: live.c, t: live.n, pd: live.pd, pt: live.pt, pr: live.pr, prt: live.prt, fm: focusToday(S) } : null) : S.hist[k]);
   const h = data(pick);
   return (
@@ -90,13 +93,13 @@ function Heatmap({ S }) {
                 {[...Array(lead)].map((_, i) => <span key={'e' + i} />)}
                 {[...Array(dim)].map((_, i) => {
                   const k = K(new Date(m.getFullYear(), m.getMonth(), i + 1)), d = data(k), fut = k > tk;
-                  const bg = d && d.t > 0 ? getColorForPercentage(d.p) : undefined;
+                  const bg = d && d.t > 0 ? tint(d) : undefined;
                   return (
                     <button
                       type="button" key={k} disabled={fut}
                       className={'hc ' + (k === pick ? 'pick ' : '') + (d?.jk ? 'jk ' : '') + (fut ? 'fut' : '')}
                       style={bg ? { background: bg } : undefined}
-                      title={`${dayLabel(k, tk)} : ${d && d.t ? d.p + ' %' : 'aucune donnée'}`}
+                      title={`${dayLabel(k, tk)} : ${d && d.t ? (zen ? `${d.d} faite${d.d > 1 ? 's' : ''}` : d.p + ' %') : 'aucune donnée'}`}
                       onClick={() => setPick(k)} onMouseEnter={() => setPick(k)}
                     />
                   );
@@ -108,7 +111,9 @@ function Heatmap({ S }) {
       </div>
       <div className="mt-4 rounded-xl border border-line bg-cont px-4 py-3 text-[14px]">
         <b className="mr-2">{dayLabel(pick, tk)}</b>
-        {h && h.t > 0 ? (
+        {h && h.t > 0 && zen ? (
+          <span className="text-mut tabular-nums"><b style={{ color: ZEN_BLUE }}>{h.d} tâche{h.d > 1 ? 's' : ''} faite{h.d > 1 ? 's' : ''}</b>{h.fm > 0 && ` · ⏱ ${fmtMin(h.fm)}`}</span>
+        ) : h && h.t > 0 ? (
           <span className="text-mut tabular-nums">
             <b style={{ color: getColorForPercentage(h.p) }}>{h.p} %</b> · {h.d}/{h.t} tâches · {h.pd ?? h.d}/{h.pt ?? h.t} pts
             {h.prt > 0 && ` · Priorités ${h.pr}/${h.prt}`}{h.fm > 0 && ` · ⏱ ${fmtMin(h.fm)}`}{h.jk && ' · 🃏 joker utilisé'}
@@ -203,7 +208,9 @@ export default function StatsPage({ S }) {
   const z = streaks(S);
   const tags = Object.entries(tg).map(([id, c]) => ({ g: S.tags.find((x) => x.id === id), c })).filter((x) => x.g).sort((a, b) => b.c - a.c);
   const tagMax = Math.max(1, ...tags.map((x) => x.c));
-  const col = getColorForPercentage(avg);
+  const zen = zenOn(S);
+  const col = zen ? ZEN_BLUE : getColorForPercentage(avg);
+  const doneTotal = pts.reduce((a, p) => a + (p ? p.d : 0), 0);
 
   useEffect(() => {
     const chart = new Chart(canvas.current, {
@@ -211,7 +218,7 @@ export default function StatsPage({ S }) {
       data: {
         labels,
         datasets: [{
-          data: pts.map((p) => (p ? p.p : null)),
+          data: pts.map((p) => (p ? (zen ? p.d : p.p) : null)), // Tranquille : tâches faites, pas de pourcentage
           borderColor: col, borderWidth: 3.5,
           pointBackgroundColor: col, pointBorderColor: '#121318', pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 8,
           tension: 0.4, fill: true, spanGaps: true,
@@ -229,7 +236,9 @@ export default function StatsPage({ S }) {
         animation: { duration: 900, easing: 'easeOutQuart' },
         interaction: { mode: 'index', intersect: false },
         scales: {
-          y: { min: 0, max: 100, ticks: { color: '#a0a0a0', callback: (v) => v + '%', stepSize: 20, font: { family: 'Inter Variable' } }, grid: { color: 'rgba(255,255,255,.06)' }, border: { display: false } },
+          y: zen
+            ? { min: 0, suggestedMax: 4, ticks: { color: '#a0a0a0', precision: 0, font: { family: 'Inter Variable' } }, grid: { color: 'rgba(255,255,255,.06)' }, border: { display: false } }
+            : { min: 0, max: 100, ticks: { color: '#a0a0a0', callback: (v) => v + '%', stepSize: 20, font: { family: 'Inter Variable' } }, grid: { color: 'rgba(255,255,255,.06)' }, border: { display: false } },
           x: { ticks: { color: '#a0a0a0', maxRotation: 0, autoSkip: true, font: { family: 'Inter Variable' } }, grid: { display: false }, border: { color: 'rgba(255,255,255,.08)' } },
         },
         plugins: {
@@ -240,6 +249,7 @@ export default function StatsPage({ S }) {
               title: (i) => titles[i[0].dataIndex],
               label: (i) => {
                 const p = pts[i.dataIndex];
+                if (zen) return [`${p.d} tâche${p.d > 1 ? 's' : ''} faite${p.d > 1 ? 's' : ''}`, ...(p.fm ? [`Concentration : ${fmtMin(p.fm)}`] : [])];
                 if (!p.n) return 'Aucune donnée enregistrée (0%)';
                 return view === 'y'
                   ? [`Moyenne : ${p.p}%`, `${p.d}/${p.t} tâches sur ${p.n} jour${p.n > 1 ? 's' : ''}`, ...(p.fm ? [`Concentration : ${fmtMin(p.fm)}`] : [])]
@@ -251,7 +261,7 @@ export default function StatsPage({ S }) {
       },
     });
     return () => chart.destroy();
-  }, [view, S]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, S, zen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section>
@@ -259,14 +269,14 @@ export default function StatsPage({ S }) {
         <div className="flex flex-wrap gap-2">
           {VIEWS.map(([k, l]) => <button key={k} className={'b ' + (view === k ? 'on' : '')} onClick={() => setView(k)}>{l}</button>)}
         </div>
-        <button className="b" onClick={() => setModal('weekly')}>Bilan de la semaine</button>
+        <button className="b" onClick={() => setModal('weekly')}>{zen ? 'Ma semaine' : 'Bilan de la semaine'}</button>
       </div>
       <div className="card">
-        <div className="text-[13px] text-mut">Moyenne de la période</div>
+        <div className="text-[13px] text-mut">{zen ? 'Ce que tu as fait sur la période 🌿' : 'Moyenne de la période'}</div>
         <div
           className="my-2 mb-3.5 inline-block rounded-[14px] border-2 px-5 py-1.5 text-[44px] font-extrabold tracking-[-0.04em] tabular-nums transition-colors duration-700"
           style={{ color: col, borderColor: col, boxShadow: `0 0 30px ${col}33` }}
-        >{avg}%</div>
+        >{zen ? `${doneTotal} tâche${doneTotal > 1 ? 's' : ''}` : `${avg}%`}</div>
         <div className="relative h-[340px]"><canvas ref={canvas} /></div>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-mut tabular-nums">
           <span>⏱ Concentration : <b className="text-white">{fmtMin(fm)}</b></span>

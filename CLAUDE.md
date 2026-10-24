@@ -32,6 +32,7 @@ Claude gère 100 % du code, des builds et du déploiement. Chaque push sur `main
   l'en-tête, aux toasts et aux boutons du minuteur ; coupé sous `prefers-reduced-transparency` / `prefers-reduced-motion`.
 - **Cartes en verre fumé** (`.task`, `.card`, `.daystrip`…) : reflet en haut + liseré spéculaire `inset 0 1px 0 rgba(255,255,255,.13)`
   + ombre fixe ; priorités : filet or à gauche. Carte du jour `#pcard` **toujours opaque `#121215`** (= face 3D de `Card3D.jsx`, relais pixel).
+- **Fenêtres** (`Sheet.jsx`) : la page derrière est figée (corps en position fixe, en-tête gardé en place, retour au même endroit).
 - **Seule zone « wow »** : la lumière `.aura` derrière la carte du jour, dégradé radial (sans filtre) de la couleur de la progression.
 - **Logo** (kit source dans `brand/`) : anneau de progression vert (`#059669 → #10b981 → #86efac`) + logotype « FOKUS » dont le O est
   l'anneau ; `FokusLogo.jsx` (en-tête) et bannière de l'arche (mêmes tracés `LOGO_SVG`) ; icônes `public/icon*.png`, `favicon*`.
@@ -124,7 +125,8 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
   badges Polyvalent / Touche-à-tout / Spécialiste.
 - **Mon style** (`Style.jsx`, `set.style`, `applyStyle`) : « À fond » (`fokus`, suivi complet) ou « Tranquille » (`zen`, demandé
   par les premiers retours : « que les plus chill trouvent leur compte ») : chaque tâche vaut 1, compteur « 3 faites » au lieu du %,
-  palette douce sans rouge (`setPalette` de `colors.js`, suivie par la cinématique), ni points, ni série, ni « reportée N× », ni
+  **tout en bleu** (ni rouge ni vert : `setPalette` de `colors.js`, suivie par la cinématique ; `ZEN_BLUE`), Page 2 simplifiée
+  (tâches faites par jour au lieu du %, calendrier en intensité de bleu, « Ma semaine » = juste ce qui a été fait), ni points, ni série, ni « reportée N× », ni
   surcharge, ni tri du matin / bilan / rituel imposés, bouton Valider « 🌿 ». Choisi à l'inscription (`Intro.jsx`), par la carte
   unique `StyleCard` (comptes existants, `seen.style`) ou Réglages → Mon style.
 - **Météo du jour** (idée originale de Fokus, `METEO`, `S.mood`, `hist.mt`) : ☀️ 100 % · ⛅ 80 % · 🌧️ 60 % · 🌙 40 % — l'objectif du jour

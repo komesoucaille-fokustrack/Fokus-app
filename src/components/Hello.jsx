@@ -20,7 +20,7 @@ const Hello = forwardRef(function Hello({ S }, ref) {
   return (
     <div ref={ref} className="hello">
       <div className="hello-d">{date}</div>
-      <h1 className="hello-t">{hi}{pseudo ? `, ${pseudo}` : ''}<span style={{ color: s.n ? getColorForPercentage(s.p) : '#86efac' }}>.</span></h1>
+      <h1 className="hello-t">{hi}{pseudo ? `, ${pseudo}` : ''}<span style={{ color: s.n ? getColorForPercentage(s.p) : zenOn(S) ? '#60a5fa' : '#86efac' }}>.</span></h1>
       {bits.length > 0 && <div className="hello-s">{bits.join('  ·  ')}</div>}
       <Meteo S={S} />
     </div>
