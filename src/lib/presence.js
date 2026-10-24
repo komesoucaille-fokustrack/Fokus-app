@@ -1,6 +1,7 @@
 import { PUSH_URL } from '../push-config';
 import { focusTotal, getState, onSave } from '../store';
 import { sessionToken } from './cloud';
+import { LABO } from '../env';
 
 /* =====================================================================
    SIGNAL DE PRÉSENCE (statistiques du tableau de bord, server/src/stats.js)
@@ -40,6 +41,7 @@ const start = () => { clearInterval(timer); last = now(); send(); timer = setInt
 
 /* Démarrage (main.jsx) : en production, ou en local si une adresse de serveur est réglée */
 export function initPresence() {
+  if (LABO) return; // le labo ne compte pas dans les statistiques
   if (!import.meta.env.PROD && !getState().set.pushUrl) return;
   if (!(getState().set.pushUrl || PUSH_URL)) return;
   // données reçues d'un autre appareil (ou effacées) : nouvelle base, rien n'est compté

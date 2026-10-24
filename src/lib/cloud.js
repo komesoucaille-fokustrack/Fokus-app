@@ -3,6 +3,7 @@ import { EMAIL_LOGIN, GOOGLE_CLIENT_ID, REQUIRE_LOGIN } from '../cloud-config';
 import { PUSH_URL } from '../push-config';
 import { applyRemote, getState, onSave, resetAll, toast } from '../store';
 import { isStandalone } from './push';
+import { LABO } from '../env';
 
 /* =====================================================================
    COMPTE FOKUS — connexion (Google ou code par e-mail) + sauvegarde de la progression sur le serveur (server/src/account.js)
@@ -24,8 +25,9 @@ const notify = () => { snap = { ...m, ...ui }; subs.forEach((f) => f()); };
 const persist = () => { try { localStorage.setItem(LS, JSON.stringify(m)); } catch { /* stockage indisponible */ } notify(); };
 const setUi = (p) => { ui = { ...ui, ...p }; notify(); };
 
-export const googleLogin = () => !!GOOGLE_CLIENT_ID;
-export const emailLogin = () => !!EMAIL_LOGIN;
+// labo : pas de compte (les essais ne doivent jamais écraser les vraies données synchronisées)
+export const googleLogin = () => !!GOOGLE_CLIENT_ID && !LABO;
+export const emailLogin = () => !!EMAIL_LOGIN && !LABO;
 export const cloudEnabled = () => googleLogin() || emailLogin();
 export const loginRequired = () => !!REQUIRE_LOGIN && cloudEnabled();
 export const useCloud = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => snap);

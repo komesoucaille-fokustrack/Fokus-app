@@ -1,0 +1,18 @@
+# Labo : un envoi sur la branche « labo » republie le site (app de main + labo dans /labo/).
+# Le déploiement GitHub Pages ne peut partir que de main : on le relance donc à partir de main.
+name: Labo
+
+on:
+  push:
+    branches: [labo]
+
+permissions:
+  actions: write
+
+jobs:
+  relancer:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh workflow run deploy.yml --ref main --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}

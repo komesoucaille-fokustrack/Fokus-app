@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /labo/
+
+Sitemap: https://fokus-track.com/sitemap.xml

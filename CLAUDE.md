@@ -297,6 +297,16 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 
 - Raccourcis Siri, récap de l'année. (Synchronisation : validée par l'utilisateur → compte Google, voir plus haut.)
 
+## Labo (prototypes, demandé par l'utilisateur)
+
+- **Toute nouvelle idée se teste d'abord dans le labo**, jamais directement dans l'app : branche **`labo`** → publiée sur
+  **https://fokus-track.com/labo/** (même déploiement : `deploy.yml` construit main à la racine et `labo` avec `VITE_LABO=1`
+  dans `/labo/` ; un envoi sur `labo` relance le déploiement via `labo.yml`). Les utilisateurs ne voient rien tant que ce n'est pas validé.
+- Labo (`src/env.js` `LABO`, `src/lib/labo.js` importé en premier) : clés du stockage préfixées `labo:` (données séparées de l'app),
+  copie IndexedDB `labo-backup`, caches du service worker `labo-`, pas de compte ni de synchronisation, pas de statistiques,
+  pastille « 🧪 Labo », `noindex` + `robots.txt` `Disallow: /labo/`.
+- Idée validée par l'utilisateur → fusion de `labo` dans `main` (le labo suit main : fusionner main dans labo après chaque publication).
+
 ## Workflow
 
 - `npm run dev` (local), `npm run build` (vérification obligatoire avant push), push sur `main` → déploiement Pages automatique.

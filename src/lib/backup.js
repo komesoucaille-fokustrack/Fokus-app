@@ -1,5 +1,7 @@
 /* Copie de secours automatique dans IndexedDB (au cas où Safari viderait le localStorage) */
-const DB = 'fokus-backup', STORE = 'kv';
+import { LABO } from '../env';
+
+const DB = LABO ? 'labo-backup' : 'fokus-backup', STORE = 'kv';
 
 function open() {
   return new Promise((res, rej) => {

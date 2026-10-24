@@ -23,10 +23,21 @@ function serviceWorker() {
   };
 }
 
+/* Labo (VITE_LABO=1, servi sur /labo/) : jamais indexé par Google, nom distinct */
+function labo() {
+  return {
+    name: 'fokus-labo',
+    transformIndexHtml(html) {
+      if (process.env.VITE_LABO !== '1') return html;
+      return html.replace('<head>', '<head>\n    <meta name="robots" content="noindex, nofollow" />').replace(/<link rel="canonical"[^>]*>\s*/, '');
+    },
+  };
+}
+
 // base './' : chemins relatifs → fonctionne tel quel sur GitHub Pages (https://<user>.github.io/<repo>/)
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), serviceWorker()],
+  plugins: [react(), tailwindcss(), serviceWorker(), labo()],
   build: {
     chunkSizeWarningLimit: 1500,
   },

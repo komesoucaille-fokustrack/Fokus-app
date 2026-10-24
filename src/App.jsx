@@ -13,6 +13,7 @@ import { getColorForPercentage, setPalette } from './lib/colors';
 import { StyleCard } from './components/Style';
 import { useFocusLock } from './lib/lock';
 import { startCalendars } from './lib/calendars';
+import { LABO } from './env';
 import { race, canAnimate, skip } from './cinematic/engine';
 import { celebrate } from './lib/celebrate';
 import { addDays, mondayOf } from './lib/dates';
@@ -285,6 +286,7 @@ export default function App() {
       )}
 
       <Header />
+      {LABO && <a className="labo-pill" href="../" title="Version d’essai : données à part. Toucher pour revenir à l’app.">🧪 Labo · version d’essai</a>}
 
       <main className="relative z-[1] mx-auto max-w-[760px] px-4 py-[22px] lg:max-w-[1040px] lg:px-8">
         {UI.page === 1 ? (

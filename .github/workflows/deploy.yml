@@ -1,4 +1,6 @@
 name: Déploiement GitHub Pages
+# L'app (branche main) à la racine, le labo (branche labo) dans /labo/. Un envoi sur « labo » relance ce déploiement
+# (workflow labo.yml) : l'app publiée reste celle de main.
 
 on:
   push:
@@ -25,6 +27,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Labo (fokus-track.com/labo/) : la branche « labo » construite à part, données séparées, jamais indexée
+      - name: Récupérer la branche labo
+        id: labo
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: labo
+          path: labo-src
+      - name: Construire le labo
+        if: steps.labo.outcome == 'success'
+        working-directory: labo-src
+        run: |
+          npm ci
+          VITE_LABO=1 npx vite build --outDir ../dist/labo --emptyOutDir
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

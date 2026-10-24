@@ -1,7 +1,9 @@
 /* Service worker Fokus — fonctionnement hors ligne.
    Généré au build (vite.config.js) : la version et la liste des fichiers sont injectées dans VERSION et ASSETS. */
 const VERSION = __VERSION__;
-const CACHE = 'fokus-' + VERSION;
+// labo (/labo/) : caches à part, pour que l'app et le labo ne s'effacent pas l'un l'autre
+const PREFIX = new URL(self.registration.scope).pathname.endsWith('/labo/') ? 'labo-' : 'fokus-';
+const CACHE = PREFIX + VERSION;
 const ASSETS = __ASSETS__;
 
 self.addEventListener('install', (e) => {
@@ -12,7 +14,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('fokus-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });

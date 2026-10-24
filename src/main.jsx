@@ -1,8 +1,10 @@
+import './lib/labo'; // en premier : données séparées dans le labo
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { restoreIfNeeded } from './lib/backup';
 import { ANALYTICS_TOKEN } from './cloud-config';
+import { LABO } from './env';
 
 /* Démarrage : stockage persistant + restauration de la copie IndexedDB si Safari a vidé le localStorage,
    puis chargement du store (qui lit le localStorage à l'import) et de l'interface. */
@@ -50,7 +52,7 @@ addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__fo
 
 /* Statistiques de visites (Cloudflare Web Analytics : sans cookie, aucune donnée personnelle), chargées au repos */
 function analytics() {
-  if (!ANALYTICS_TOKEN || !import.meta.env.PROD) return;
+  if (!ANALYTICS_TOKEN || !import.meta.env.PROD || LABO) return;
   const s = document.createElement('script');
   s.defer = true;
   s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
