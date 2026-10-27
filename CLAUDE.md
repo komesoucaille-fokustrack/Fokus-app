@@ -297,6 +297,7 @@ Source unique : `src/lib/colors.js` (`gradFor`, `getColorForPercentage`).
 ## Idées pour plus tard (à rediscuter avec l'utilisateur)
 
 - Raccourcis Siri, récap de l'année. (Synchronisation : validée par l'utilisateur → compte Google, voir plus haut.)
+- Vidéo tournée avec une vraie personne qui étudie avec Fokus : plan de tournage dans `brand/idees-videos.md` (avec ce qui a marché sur TikTok).
 
 ## Labo (prototypes, demandé par l'utilisateur)
 
